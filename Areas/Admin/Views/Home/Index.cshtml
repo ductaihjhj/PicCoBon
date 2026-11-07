@@ -1,0 +1,275 @@
+﻿@model IEnumerable<PickleballClub.Models.TbBooking>
+@{
+    ViewData["Title"] = "Tổng Quan Quản Trị — Spike Pickleball Club";
+}
+
+<section class="page-hero">
+    <div class="container page-hero-inner">
+        <div>
+            <span class="section-kicker" style="color:var(--color-volt);">Ban Quản Trị CLB</span>
+            <h1 class="page-hero-title">Trung Tâm Quản Trị &amp; Điều Hành Cụm Sân</h1>
+            <p class="page-hero-sub">Quản lý lịch đặt sân, điều phối ca chơi, thu ngân POS, soát vé QR và danh mục dịch vụ tại sân</p>
+        </div>
+        <div style="display:flex;gap:0.65rem;flex-wrap:wrap;">
+            <a href="/Management" class="btn btn-primary">
+                <iconify-icon icon="lucide:sliders-horizontal" width="16"></iconify-icon>
+                <span>Mở Điều phối Sân &amp; POS</span>
+            </a>
+            <a href="/Checkin" class="btn btn-secondary" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#FFF;">
+                <iconify-icon icon="lucide:qr-code" width="16"></iconify-icon>
+                <span>Trạm Soát Vé QR</span>
+            </a>
+        </div>
+    </div>
+</section>
+
+<main class="page-main">
+    <div class="container stack">
+
+        <!-- 4 CHỈ SỐ TỔNG QUAN -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-card-top">
+                    <span class="stat-card-label">Hệ thống sân đấu</span>
+                    <div class="stat-card-icon" style="background:rgba(255,85,32,0.12);color:var(--color-primary);">
+                        <iconify-icon icon="lucide:map-pin" width="20"></iconify-icon>
+                    </div>
+                </div>
+                <div class="stat-card-value text-mono">@ViewBag.TotalCourts Sân</div>
+                <div class="stat-card-meta">Chuẩn thi đấu quốc tế USAPA</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-top">
+                    <span class="stat-card-label">Tổng đơn đặt sân</span>
+                    <div class="stat-card-icon" style="background:rgba(59,130,246,0.12);color:#2563EB;">
+                        <iconify-icon icon="lucide:calendar-check" width="20"></iconify-icon>
+                    </div>
+                </div>
+                <div class="stat-card-value text-mono">@ViewBag.TotalBookings Đơn</div>
+                <div class="stat-card-meta">Chờ duyệt: <strong>@ViewBag.PendingBookings</strong> đơn</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-top">
+                    <span class="stat-card-label">Mặt hàng Pro Shop &amp; POS</span>
+                    <div class="stat-card-icon" style="background:rgba(16,185,129,0.12);color:#059669;">
+                        <iconify-icon icon="lucide:cup-soda" width="20"></iconify-icon>
+                    </div>
+                </div>
+                <div class="stat-card-value text-mono">@ViewBag.TotalProducts Món</div>
+                <div class="stat-card-meta">Giải khát, đồ ăn &amp; thuê vợt</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-top">
+                    <span class="stat-card-label">Tổng doanh thu ghi nhận</span>
+                    <div class="stat-card-icon" style="background:rgba(245,158,11,0.14);color:#D97706;">
+                        <iconify-icon icon="lucide:wallet" width="20"></iconify-icon>
+                    </div>
+                </div>
+                <div class="stat-card-value text-mono" style="color:var(--color-primary);">@string.Format("{0:N0} đ", ViewBag.TotalRevenue)</div>
+                <div class="stat-card-meta">Từ tiền sân &amp; dịch vụ POS</div>
+            </div>
+        </div>
+
+        <!-- CÁC PHÂN HỆ QUẢN TRỊ CHÍNH -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-header-title">
+                    <iconify-icon icon="lucide:grid" width="18" style="color:var(--color-primary);"></iconify-icon>
+                    <span>Phân hệ Quản trị &amp; Vận hành CLB</span>
+                </span>
+                <span class="badge badge-success">Hoạt động trực tuyến</span>
+            </div>
+            <div class="card-body">
+                <div class="match-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.15rem;">
+
+                    <a href="/Management" class="card" style="text-decoration:none;color:inherit;padding:1.35rem;border:1.5px solid #E2E8F0;transition:all 0.2s;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                            <div style="width:42px;height:42px;border-radius:10px;background:rgba(255,85,32,0.12);color:var(--color-primary);display:flex;align-items:center;justify-content:center;">
+                                <iconify-icon icon="lucide:sliders-horizontal" width="22"></iconify-icon>
+                            </div>
+                            <span class="badge badge-primary">Vận hành trực tiếp</span>
+                        </div>
+                        <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:0.35rem;">Điều Phối Sân &amp; Bán Hàng POS</h3>
+                        <p class="text-xs text-muted">Duyệt yêu cầu đặt lịch, kích hoạt ca chơi, gọi món tại sân và khóa sân bảo trì.</p>
+                    </a>
+
+                    <a href="/Admin/Bookings" class="card" style="text-decoration:none;color:inherit;padding:1.35rem;border:1.5px solid #E2E8F0;transition:all 0.2s;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                            <div style="width:42px;height:42px;border-radius:10px;background:rgba(59,130,246,0.12);color:#2563EB;display:flex;align-items:center;justify-content:center;">
+                                <iconify-icon icon="lucide:calendar-clock" width="22"></iconify-icon>
+                            </div>
+                            <span class="badge badge-neutral">@ViewBag.TotalBookings đơn</span>
+                        </div>
+                        <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:0.35rem;">Quản Lý Danh Sách Đơn Đặt Sân</h3>
+                        <p class="text-xs text-muted">Tạo lịch đặt sân tại quầy, duyệt nhanh, chuyển trạng thái check-in hoặc hủy đơn.</p>
+                    </a>
+
+                    <a href="/Admin/Courts" class="card" style="text-decoration:none;color:inherit;padding:1.35rem;border:1.5px solid #E2E8F0;transition:all 0.2s;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                            <div style="width:42px;height:42px;border-radius:10px;background:rgba(16,185,129,0.12);color:#059669;display:flex;align-items:center;justify-content:center;">
+                                <iconify-icon icon="lucide:map-pin" width="22"></iconify-icon>
+                            </div>
+                            <span class="badge badge-success">@ViewBag.TotalCourts sân</span>
+                        </div>
+                        <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:0.35rem;">Quản Lý Cụm Sân Thi Đấu</h3>
+                        <p class="text-xs text-muted">Cập nhật thông tin mặt sân, phân loại Indoor/Outdoor, đơn giá cơ bản và phụ thu.</p>
+                    </a>
+
+                    <a href="/Admin/Products" class="card" style="text-decoration:none;color:inherit;padding:1.35rem;border:1.5px solid #E2E8F0;transition:all 0.2s;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                            <div style="width:42px;height:42px;border-radius:10px;background:rgba(245,158,11,0.14);color:#D97706;display:flex;align-items:center;justify-content:center;">
+                                <iconify-icon icon="lucide:shopping-bag" width="22"></iconify-icon>
+                            </div>
+                            <span class="badge badge-warning">@ViewBag.TotalProducts sản phẩm</span>
+                        </div>
+                        <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:0.35rem;">Quản Lý Thực Đơn &amp; Dịch Vụ POS</h3>
+                        <p class="text-xs text-muted">Thêm, sửa, xóa đồ uống bù khoáng, đồ ăn nhẹ và dịch vụ cho thuê vợt/bóng.</p>
+                    </a>
+
+                    <a href="/Admin/Menus" class="card" style="text-decoration:none;color:inherit;padding:1.35rem;border:1.5px solid #E2E8F0;transition:all 0.2s;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                            <div style="width:42px;height:42px;border-radius:10px;background:rgba(139,92,246,0.12);color:#7C3AED;display:flex;align-items:center;justify-content:center;">
+                                <iconify-icon icon="lucide:menu" width="22"></iconify-icon>
+                            </div>
+                            <span class="badge badge-neutral">Điều hướng</span>
+                        </div>
+                        <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:0.35rem;">Quản Lý Menu Website</h3>
+                        <p class="text-xs text-muted">Tùy chỉnh danh mục thanh điều hướng chính, thứ tự hiển thị và đường dẫn.</p>
+                    </a>
+
+                    <a href="/Admin/Accounts" class="card" style="text-decoration:none;color:inherit;padding:1.35rem;border:1.5px solid #E2E8F0;transition:all 0.2s;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                            <div style="width:42px;height:42px;border-radius:10px;background:rgba(236,72,153,0.12);color:#DB2777;display:flex;align-items:center;justify-content:center;">
+                                <iconify-icon icon="lucide:users" width="22"></iconify-icon>
+                            </div>
+                            <span class="badge badge-primary">Hội viên &amp; VĐV</span>
+                        </div>
+                        <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:0.35rem;">Quản Lý Hội Viên &amp; Hạng Thẻ</h3>
+                        <p class="text-xs text-muted">Cấp thẻ hội viên tại quầy, theo dõi trình độ DUPR, nâng hạng Vàng VIP và phân quyền.</p>
+                    </a>
+
+                    <a href="/Reports" class="card" style="text-decoration:none;color:inherit;padding:1.35rem;border:1.5px solid #E2E8F0;transition:all 0.2s;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                            <div style="width:42px;height:42px;border-radius:10px;background:rgba(14,165,233,0.12);color:#0284C7;display:flex;align-items:center;justify-content:center;">
+                                <iconify-icon icon="lucide:bar-chart-3" width="22"></iconify-icon>
+                            </div>
+                            <span class="badge badge-primary">Thống kê</span>
+                        </div>
+                        <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:0.35rem;">Báo Cáo Doanh Thu &amp; Hiệu Suất</h3>
+                        <p class="text-xs text-muted">Phân tích doanh thu theo từng sân thi đấu, tỷ lệ lấp đầy và khách hàng thân thiết.</p>
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ĐƠN ĐẶT SÂN GẦN ĐÂY TRÊN TRANG TỔNG QUAN -->
+        <div class="card card--flush">
+            <div class="card-header">
+                <span class="card-header-title">
+                    <iconify-icon icon="lucide:clock" width="18" style="color:var(--color-indigo);"></iconify-icon>
+                    <span>Đơn Đặt Sân Gần Đây</span>
+                </span>
+                <a href="/Admin/Bookings" class="btn btn-outline btn-sm">Quản lý tất cả đơn →</a>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã vé</th>
+                            <th>Khách hàng</th>
+                            <th>Số điện thoại</th>
+                            <th>Sân thi đấu</th>
+                            <th>Ngày &amp; Giờ</th>
+                            <th>Tổng tiền</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác nhanh</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model == null || !Model.Any())
+                        {
+                            <tr>
+                                <td colspan="8" style="text-align:center;padding:2rem;color:#64748B;">
+                                    Chưa có đơn đặt sân nào. Bấm vào <a href="/Admin/Bookings" style="color:var(--color-primary);font-weight:700;">Quản lý Đơn đặt sân</a> để tạo lịch mới.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td><code style="font-weight:700;color:var(--color-indigo);">@item.BookingCode</code></td>
+                                    <td style="font-weight:700;">@item.CustomerName</td>
+                                    <td class="text-mono">@item.Phone</td>
+                                    <td>@(item.Court?.CourtName ?? "Sân " + item.CourtId)</td>
+                                    <td class="text-mono">@item.BookingDate · @item.StartTime (@(item.Duration)p)</td>
+                                    <td class="text-mono" style="font-weight:700;color:#059669;">@string.Format("{0:N0} đ", item.TotalPaid > 0 ? item.TotalPaid : item.CourtFee)</td>
+                                    <td>
+                                        @if (item.Status == "pending")
+                                        {
+                                            <span class="badge badge-warning">Chờ duyệt</span>
+                                        }
+                                        else if (item.Status == "approved" || item.Status == "confirmed")
+                                        {
+                                            <span class="badge badge-primary">Đã duyệt</span>
+                                        }
+                                        else if (item.Status == "playing" || item.Status == "active")
+                                        {
+                                            <span class="badge badge-success">Đang thi đấu</span>
+                                        }
+                                        else if (item.Status == "completed")
+                                        {
+                                            <span class="badge badge-neutral">Hoàn thành</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-danger">Đã hủy</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                            @if (item.Status == "pending")
+                                            {
+                                                <form asp-area="Admin" asp-controller="Bookings" asp-action="UpdateStatus" method="post" style="display:inline;">
+                                                    <input type="hidden" name="id" value="@item.BookingId" />
+                                                    <input type="hidden" name="status" value="approved" />
+                                                    <input type="hidden" name="returnUrl" value="/Admin" />
+                                                    <button type="submit" class="btn btn-success btn-xs">Duyệt vé</button>
+                                                </form>
+                                            }
+                                            @if (item.Status == "approved" || item.Status == "confirmed")
+                                            {
+                                                <form asp-area="Admin" asp-controller="Bookings" asp-action="UpdateStatus" method="post" style="display:inline;">
+                                                    <input type="hidden" name="id" value="@item.BookingId" />
+                                                    <input type="hidden" name="status" value="playing" />
+                                                    <input type="hidden" name="returnUrl" value="/Admin" />
+                                                    <button type="submit" class="btn btn-primary btn-xs">Nhận sân</button>
+                                                </form>
+                                            }
+                                            @if (item.Status == "playing" || item.Status == "active")
+                                            {
+                                                <form asp-area="Admin" asp-controller="Bookings" asp-action="UpdateStatus" method="post" style="display:inline;">
+                                                    <input type="hidden" name="id" value="@item.BookingId" />
+                                                    <input type="hidden" name="status" value="completed" />
+                                                    <input type="hidden" name="returnUrl" value="/Admin" />
+                                                    <button type="submit" class="btn btn-info btn-xs">Hoàn tất</button>
+                                                </form>
+                                            }
+                                            <a href="/Management" class="btn btn-outline btn-xs">Mở POS</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</main>

@@ -1,0 +1,14 @@
+﻿@model IEnumerable<PickleballClub.Models.TbMenu>
+@{
+    var currentPath = Context.Request.Path.Value?.Trim('/').ToLower() ?? "";
+}
+@foreach (var item in Model.Where(i => i.Levels == 1))
+{
+    var alias = (item.Alias ?? "").Trim('/');
+    var href = string.IsNullOrEmpty(alias) ? "/" : $"/{alias}";
+    var isActive = (string.IsNullOrEmpty(alias) && (currentPath == "" || currentPath == "home" || currentPath == "index.html"))
+                   || (!string.IsNullOrEmpty(alias) && currentPath.StartsWith(alias.ToLower()));
+    <a href="@href" class="site-nav-link @(isActive ? "active" : "")">
+        @item.Title
+    </a>
+}

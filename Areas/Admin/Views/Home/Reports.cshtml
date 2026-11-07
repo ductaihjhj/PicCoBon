@@ -1,0 +1,57 @@
+@{
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Báo Cáo Doanh Thu";
+}
+
+  <section class="page-hero">
+    <div class="container page-hero-inner">
+      <div>
+        <span class="section-kicker" style="color:var(--color-volt);">Phân tích tài chính</span>
+        <h1 class="page-hero-title">Báo Cáo Doanh Thu & Hiệu Suất Cụm Sân</h1>
+        <p class="page-hero-sub">Tổng hợp tự động theo thời gian thực từ các đơn đặt sân và hóa đơn dịch vụ POS</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+        <input class="form-input text-mono" type="date" id="reportFrom" style="width:auto">
+        <span style="color:#CBD5E1">→</span>
+        <input class="form-input text-mono" type="date" id="reportTo" style="width:auto">
+        <button class="btn btn-primary" onclick="filterReport()">Lọc dữ liệu</button>
+      </div>
+    </div>
+  </section>
+
+  <main class="page-main">
+    <div class="container stack">
+      <div class="stats-row" id="reportStats"></div>
+
+      <div class="col-main-aside">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-header-title">
+              <iconify-icon icon="lucide:bar-chart-2" width="18" style="color:var(--color-primary)"></iconify-icon>
+              <span>Phân bổ doanh thu theo từng sân thi đấu</span>
+            </span>
+            <span class="badge badge-success">Thời gian thực</span>
+          </div>
+          <div class="card-body">
+            <div class="chart-bars" id="reportChart"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-header-title">
+              <iconify-icon icon="lucide:crown" width="18" style="color:#F59E0B"></iconify-icon>
+              <span>Top Khách Hàng Chi Tiêu Cao Nhất</span>
+            </span>
+          </div>
+          <div class="card-body" style="padding:0.75rem 1.35rem">
+            <div id="vipList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+@section Scripts {
+  <script src="~/js/reports.js"></script>
+}

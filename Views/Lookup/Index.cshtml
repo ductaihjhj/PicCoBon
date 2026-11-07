@@ -1,0 +1,108 @@
+@model IEnumerable<PickleballClub.Models.TbBooking>
+@{
+    ViewData["Title"] = "Tra Cứu Vé Đặt Sân & Mã QR — Spike Pickleball Club";
+}
+
+<section class="page-hero">
+    <div class="container page-hero-inner">
+        <div>
+            <span class="section-kicker" style="color:var(--color-volt);">Quản lý vé điện tử</span>
+            <h1 class="page-hero-title">Tra Cứu Vé Sân &amp; Lịch Sử Đặt Lịch</h1>
+            <p class="page-hero-sub">Nhập Số điện thoại, Mã vé (PB-...) hoặc Họ tên để xem mã QR nhận sân</p>
+        </div>
+        <a href="/Booking" class="btn btn-primary">
+            <iconify-icon icon="lucide:calendar-plus" width="16"></iconify-icon>
+            <span>Đặt thêm sân mới</span>
+        </a>
+    </div>
+</section>
+
+<main class="page-main">
+    <div class="container stack">
+        <div class="card">
+            <div class="card-body">
+                <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+                    <div class="input-icon-wrap" style="flex:1;min-width:240px">
+                        <iconify-icon icon="lucide:search" class="input-icon-left"></iconify-icon>
+                        <input class="form-input text-mono" type="text" id="lookupPhone" placeholder="Nhập Số điện thoại, Mã vé (PB-...) hoặc Họ tên người đặt..." onkeydown="if(event.key==='Enter')searchLookup()">
+                    </div>
+                    <button class="btn btn-primary" onclick="searchLookup()">
+                        <iconify-icon icon="lucide:search" width="16"></iconify-icon>
+                        <span>Tra cứu ngay</span>
+                    </button>
+                    <button class="btn btn-outline" onclick="showAllLookup()">
+                        <iconify-icon icon="lucide:list" width="16"></iconify-icon>
+                        <span>Xem lịch đặt gần đây</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card--flush" id="lookupResultCard" style="display:none">
+            <div class="card-header">
+                <span class="card-header-title">
+                    <iconify-icon icon="lucide:ticket" width="18" style="color:var(--color-primary)"></iconify-icon>
+                    <span id="lookupTitle">Kết quả tra cứu</span>
+                </span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã vé</th>
+                            <th>Khách hàng</th>
+                            <th>Ngày thi đấu</th>
+                            <th>Sân thi đấu</th>
+                            <th>Khung giờ</th>
+                            <th>Chi phí</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lookupResults"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card empty-state" id="lookupEmpty" style="display:none">
+            <div class="empty-state-icon">
+                <iconify-icon icon="lucide:search-x" width="28"></iconify-icon>
+            </div>
+            <div class="empty-state-title">Chưa có đơn đặt sân nào khớp từ khóa</div>
+            <div class="empty-state-text">Vui lòng đặt sân mới hoặc kiểm tra lại số điện thoại / mã vé.</div>
+        </div>
+    </div>
+</main>
+
+<!-- MODAL XEM VÉ ĐIỆN TỬ QR -->
+<div class="modal-overlay" id="modalTicketQR">
+    <div class="modal modal-sm">
+        <div class="modal-header">
+            <h3 class="modal-title" style="color:var(--color-primary)">Vé Sân Điện Tử (E-Ticket)</h3>
+            <button class="modal-close" onclick="closeModal('modalTicketQR')">✕</button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+            <div class="qr-placeholder">
+                <iconify-icon icon="lucide:qr-code" width="76"></iconify-icon>
+                <div class="text-xs font-bold text-mono" id="ticketQrCode"></div>
+            </div>
+            <p class="text-xs text-muted mt-sm">Xuất trình mã QR này tại quầy lễ tân để nhận sân</p>
+            <div class="payment-summary mt-md" style="text-align:left">
+                <div class="payment-line"><span class="text-muted">Khách hàng</span><span class="font-bold" id="ticketQrName"></span></div>
+                <div class="payment-line"><span class="text-muted">Ngày thi đấu</span><span class="font-semibold" id="ticketQrDate"></span></div>
+                <div class="payment-line"><span class="text-muted">Sân đấu</span><span class="font-semibold" id="ticketQrCourt"></span></div>
+                <div class="payment-line"><span class="text-muted">Khung giờ</span><span class="font-semibold text-mono" id="ticketQrTime"></span></div>
+                <div class="payment-line total"><span>Tổng thanh toán</span><span class="font-bold text-mono" id="ticketQrTotal"></span></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary btn-block" onclick="closeModal('modalTicketQR')">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+@section Scripts {
+    <script src="~/js/lookup.js" asp-append-version="true"></script>
+}

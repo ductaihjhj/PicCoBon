@@ -1,0 +1,83 @@
+@model IEnumerable<PickleballClub.Models.TbCourt>
+
+@{
+    ViewData["Title"] = "Quản lý Cụm Sân";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+}
+
+<div class="content-wrapper">
+    <section class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1>Quản lý Cụm Sân Thi Đấu</h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="/Admin">Quản trị</a></li>
+                        <li class="breadcrumb-item active">Quản lý Sân</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Danh sách sân tiêu chuẩn USAPA</h3>
+                    <a asp-action="Create" class="btn btn-primary btn-sm">+ Thêm sân thi đấu mới</a>
+                </div>
+                <div class="card-body table-responsive p-0">
+                    <table class="table table-hover text-nowrap">
+                        <thead>
+                            <tr>
+                                <th>Mã sân</th>
+                                <th>Tên sân</th>
+                                <th>Phân loại</th>
+                                <th>Mặt sân</th>
+                                <th>Giá cơ bản / giờ</th>
+                                <th>Phụ thu VIP</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td><code style="font-weight:700;color:var(--color-indigo);">#@item.CourtId</code></td>
+                                    <td class="font-weight-bold">@item.CourtName</td>
+                                    <td>@(item.TypeLabel ?? item.CourtType)</td>
+                                    <td>@item.Surface</td>
+                                    <td class="text-success font-weight-bold text-mono">@string.Format("{0:N0} đ", item.BasePrice)</td>
+                                    <td class="text-mono">@string.Format("{0:N0} đ", item.Surcharge)</td>
+                                    <td>
+                                        @if (item.IsActive)
+                                        {
+                                            <span class="badge badge-success">Đang hoạt động</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-danger">Tạm ngưng</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="d-flex" style="gap:6px;">
+                                            <a asp-action="Edit" asp-route-id="@item.CourtId" class="btn btn-primary btn-xs">Sửa thông tin &amp; giá</a>
+                                            <form asp-action="ToggleActive" method="post" class="d-inline">
+                                                <input type="hidden" name="id" value="@item.CourtId" />
+                                                <button type="submit" class="btn btn-outline btn-xs">@(item.IsActive ? "Tạm ngưng" : "Kích hoạt")</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>

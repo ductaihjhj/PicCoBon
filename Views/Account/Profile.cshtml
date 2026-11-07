@@ -1,0 +1,675 @@
+﻿@model PickleballClub.Models.TbAccount
+@using PickleballClub.Models
+@using PickleballClub.Utilities
+@{
+    ViewData["Title"] = "Hồ Sơ Hội Viên & Vận Động Viên — Spike Pickleball Club";
+    var myBookings = ViewBag.MyBookings as List<TbBooking> ?? new List<TbBooking>();
+    int totalMatches = ViewBag.TotalMatches ?? 0;
+    double totalHours = ViewBag.TotalHours ?? 0.0;
+    int totalSpent = ViewBag.TotalSpent ?? 0;
+
+    string defaultAvatar = Model.RoleId == 1
+        ? "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=240&q=80"
+        : "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=240&q=80";
+    string currentAvatar = !string.IsNullOrWhiteSpace(Model.Avatar) ? Model.Avatar : defaultAvatar;
+    string memberCode = $"SPK-{Model.AccountId:D4}";
+    string tierLabel = !string.IsNullOrWhiteSpace(Model.MemberTier) ? Model.MemberTier : "Hội viên Tiêu chuẩn";
+}
+
+<style>
+    .profile-layout {
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 1.75rem;
+        align-items: start;
+    }
+    @@media (max-width: 992px) {
+        .profile-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+    .member-passport {
+        background: linear-gradient(155deg, #0A0E17 0%, #162038 100%);
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #FFFFFF;
+        overflow: hidden;
+        box-shadow: 0 20px 45px rgba(10, 14, 23, 0.22);
+        position: sticky;
+        top: calc(var(--header-h) + 1.5rem);
+    }
+    .member-passport-banner {
+        height: 92px;
+        background: linear-gradient(120deg, #FF5520 0%, #FF8040 55%, #D4FF00 100%);
+        position: relative;
+        padding: 1rem 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    .member-passport-code {
+        background: rgba(10, 14, 23, 0.8);
+        color: var(--color-volt);
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        font-weight: 700;
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        letter-spacing: 0.06em;
+        backdrop-filter: blur(6px);
+    }
+    .member-passport-tier {
+        background: rgba(255, 255, 255, 0.92);
+        color: #0A0E17;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        padding: 0.25rem 0.7rem;
+        border-radius: 999px;
+    }
+    .member-passport-body {
+        padding: 0 1.5rem 1.6rem;
+        text-align: center;
+    }
+    .member-avatar-wrap {
+        width: 96px;
+        height: 96px;
+        margin: -48px auto 0.85rem;
+        border-radius: 50%;
+        padding: 4px;
+        background: linear-gradient(135deg, var(--color-volt), var(--color-primary));
+        position: relative;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    }
+    .member-avatar-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+        background: #0A0E17;
+    }
+    .member-name {
+        font-family: var(--font-display);
+        font-size: 1.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: #FFFFFF;
+        margin-bottom: 0.15rem;
+    }
+    .member-sub {
+        font-size: 0.82rem;
+        color: #94A3B8;
+        margin-bottom: 1.1rem;
+    }
+    .member-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.55rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 0.85rem 0.5rem;
+        margin-bottom: 1.2rem;
+    }
+    .member-kpi-val {
+        font-family: var(--font-mono);
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: var(--color-volt);
+        display: block;
+    }
+    .member-kpi-lbl {
+        font-size: 0.7rem;
+        color: #94A3B8;
+        margin-top: 2px;
+        display: block;
+    }
+    .member-specs {
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        padding-top: 0.9rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 0.82rem;
+    }
+    .member-spec-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .member-spec-row span:first-child {
+        color: #94A3B8;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .member-spec-row strong {
+        color: #F8FAFC;
+        text-align: right;
+    }
+    .profile-tabs {
+        display: flex;
+        gap: 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .profile-tab-btn {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-bottom: 3px solid transparent;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s ease;
+    }
+    .profile-tab-btn:hover {
+        color: var(--text-primary);
+    }
+    .profile-tab-btn.active {
+        color: var(--color-primary);
+        border-bottom-color: var(--color-primary);
+    }
+    .profile-tab-pane {
+        display: none;
+    }
+    .profile-tab-pane.active {
+        display: block;
+    }
+    .avatar-presets {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        margin-top: 0.5rem;
+    }
+    .avatar-preset-item {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        border: 2.5px solid #CBD5E1;
+        padding: 2px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: #FFF;
+    }
+    .avatar-preset-item:hover,
+    .avatar-preset-item.selected {
+        border-color: var(--color-primary);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 85, 32, 0.25);
+    }
+    .avatar-preset-item img {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    .paddle-chips {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        margin-top: 0.45rem;
+    }
+    .paddle-chip {
+        font-size: 0.74rem;
+        padding: 0.22rem 0.6rem;
+        border-radius: 999px;
+        background: #F1F5F9;
+        color: #475569;
+        border: 1px solid #E2E8F0;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .paddle-chip:hover {
+        background: var(--color-primary-50);
+        color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+</style>
+
+<section class="page-hero">
+    <div class="container page-hero-inner">
+        <div>
+            <span class="section-kicker" style="color:var(--color-volt);">Thẻ Hội Viên &amp; Hồ Sơ VĐV</span>
+            <h1 class="page-hero-title">Hồ Sơ Cá Nhân — @Model.FullName</h1>
+            <p class="page-hero-sub">Cập nhật thông tin liên hệ, thông số vận động viên Pickleball (DUPR, tay thuận, dòng vợt) và quản lý lịch đặt sân</p>
+        </div>
+        <div style="display:flex;gap:0.65rem;flex-wrap:wrap;">
+            <a href="/Booking" class="btn btn-primary btn-sm">
+                <iconify-icon icon="lucide:calendar-plus" width="16"></iconify-icon>
+                <span>Đặt sân mới</span>
+            </a>
+            <a href="/Lookup" class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.22);color:#FFF;">
+                <iconify-icon icon="lucide:qr-code" width="16"></iconify-icon>
+                <span>Tra cứu vé QR</span>
+            </a>
+        </div>
+    </div>
+</section>
+
+<main class="page-main">
+    <div class="container">
+        @if (TempData["ProfileSuccess"] != null)
+        {
+            <div style="background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;padding:0.95rem 1.25rem;border-radius:12px;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.65rem;font-weight:600;font-size:0.9rem;">
+                <iconify-icon icon="lucide:check-circle-2" width="20" style="color:#059669;flex-shrink:0;"></iconify-icon>
+                <span>@TempData["ProfileSuccess"]</span>
+            </div>
+        }
+        @if (TempData["ProfileError"] != null)
+        {
+            <div style="background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;padding:0.95rem 1.25rem;border-radius:12px;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.65rem;font-weight:600;font-size:0.9rem;">
+                <iconify-icon icon="lucide:alert-circle" width="20" style="color:#DC2626;flex-shrink:0;"></iconify-icon>
+                <span>@TempData["ProfileError"]</span>
+            </div>
+        }
+
+        <div class="profile-layout">
+            <!-- CỘT TRÁI: THẺ HỘI VIÊN ĐIỆN TỬ (ATHLETE PASSPORT) -->
+            <aside class="member-passport">
+                <div class="member-passport-banner">
+                    <span class="member-passport-code">#@memberCode</span>
+                    <span class="member-passport-tier">@tierLabel</span>
+                </div>
+                <div class="member-passport-body">
+                    <div class="member-avatar-wrap">
+                        <img id="liveAvatarPreview" src="@currentAvatar" alt="@Model.FullName">
+                    </div>
+                    <h2 class="member-name" id="liveNamePreview">@(string.IsNullOrWhiteSpace(Model.FullName) ? "Hội viên CLB" : Model.FullName)</h2>
+                    <div class="member-sub">
+                        @(string.IsNullOrWhiteSpace(Model.Phone) ? "Chưa cập nhật SĐT" : Model.Phone)
+                        @if (!string.IsNullOrWhiteSpace(Model.Email))
+                        {
+                            <span> · @Model.Email</span>
+                        }
+                    </div>
+
+                    <div class="member-kpi-grid">
+                        <div>
+                            <span class="member-kpi-val">@totalMatches</span>
+                            <span class="member-kpi-lbl">Lượt đặt sân</span>
+                        </div>
+                        <div>
+                            <span class="member-kpi-val">@totalHours h</span>
+                            <span class="member-kpi-lbl">Giờ thi đấu</span>
+                        </div>
+                        <div>
+                            <span class="member-kpi-val">@((totalSpent / 1000).ToString("N0"))k</span>
+                            <span class="member-kpi-lbl">Tích lũy CLB</span>
+                        </div>
+                    </div>
+
+                    <div class="member-specs">
+                        <div class="member-spec-row">
+                            <span><iconify-icon icon="lucide:trophy" width="15" style="color:var(--color-volt);"></iconify-icon> Trình độ / DUPR</span>
+                            <strong id="liveSkillPreview">@(string.IsNullOrWhiteSpace(Model.SkillLevel) ? "Giao lưu (DUPR 3.0)" : Model.SkillLevel)</strong>
+                        </div>
+                        <div class="member-spec-row">
+                            <span><iconify-icon icon="lucide:hand" width="15" style="color:var(--color-primary);"></iconify-icon> Tay thuận</span>
+                            <strong id="liveHandPreview">@(string.IsNullOrWhiteSpace(Model.DominantHand) ? "Tay phải" : Model.DominantHand)</strong>
+                        </div>
+                        <div class="member-spec-row">
+                            <span><iconify-icon icon="mdi:table-tennis" width="15" style="color:#38BDF8;"></iconify-icon> Vợt thi đấu</span>
+                            <strong id="livePaddlePreview">@(string.IsNullOrWhiteSpace(Model.PaddleBrand) ? "Chưa cập nhật" : Model.PaddleBrand)</strong>
+                        </div>
+                        <div class="member-spec-row">
+                            <span><iconify-icon icon="lucide:zap" width="15" style="color:#F59E0B;"></iconify-icon> Lối đánh</span>
+                            <strong id="liveStylePreview">@(string.IsNullOrWhiteSpace(Model.PlayStyle) ? "Đánh đôi phối hợp" : Model.PlayStyle)</strong>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(Model.Address))
+                        {
+                            <div class="member-spec-row">
+                                <span><iconify-icon icon="lucide:map-pin" width="15" style="color:#10B981;"></iconify-icon> Khu vực</span>
+                                <strong>@Model.Address</strong>
+                            </div>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(Model.Bio))
+                    {
+                        <div style="margin-top:1rem;padding:0.75rem 0.9rem;background:rgba(255,255,255,0.04);border-radius:10px;font-size:0.78rem;color:#CBD5E1;font-style:italic;text-align:left;">
+                            “@Model.Bio”
+                        </div>
+                    }
+                </div>
+            </aside>
+
+            <!-- CỘT PHẢI: TABS CẬP NHẬT HỒ SƠ, LỊCH SỬ ĐẶT SÂN & BẢO MẬT -->
+            <div>
+                <div class="profile-tabs">
+                    <button type="button" class="profile-tab-btn active" onclick="switchProfileTab('info', this)">
+                        <iconify-icon icon="lucide:user-check" width="17"></iconify-icon>
+                        <span>Thông tin Cá nhân &amp; Hồ sơ VĐV</span>
+                    </button>
+                    <button type="button" class="profile-tab-btn" onclick="switchProfileTab('bookings', this)">
+                        <iconify-icon icon="lucide:calendar-clock" width="17"></iconify-icon>
+                        <span>Lịch sử đặt sân (@myBookings.Count)</span>
+                    </button>
+                    <button type="button" class="profile-tab-btn" onclick="switchProfileTab('security', this)">
+                        <iconify-icon icon="lucide:shield-lock" width="17"></iconify-icon>
+                        <span>Đổi mật khẩu bảo mật</span>
+                    </button>
+                </div>
+
+                <!-- TAB 1: CẬP NHẬT THÔNG TIN CÁ NHÂN & VĐV -->
+                <div class="profile-tab-pane active" id="tab-info">
+                    <form action="/Account/UpdateProfile" method="post" class="stack">
+                        @Html.AntiForgeryToken()
+
+                        <!-- KHỐI 1: THÔNG TIN CÁ NHÂN & LIÊN HỆ -->
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-header-title">
+                                    <iconify-icon icon="lucide:contact" width="18" style="color:var(--color-primary);"></iconify-icon>
+                                    <span>Thông tin Cá nhân &amp; Liên hệ nhận sân</span>
+                                </span>
+                                <span class="badge badge-success">Tự động điền khi đặt sân</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label" for="profFullName">Họ và tên đầy đủ *</label>
+                                        <input type="text" id="profFullName" name="fullName" class="form-input" value="@Model.FullName" required placeholder="Nhập họ và tên của bạn" oninput="document.getElementById('liveNamePreview').textContent = this.value || 'Hội viên CLB'">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="profPhone">Số điện thoại nhận mã QR *</label>
+                                        <input type="tel" id="profPhone" name="phone" class="form-input text-mono" value="@Model.Phone" required placeholder="09xx xxx xxx">
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label" for="profEmail">Địa chỉ Email</label>
+                                        <input type="email" id="profEmail" name="email" class="form-input" value="@Model.Email" placeholder="example@gmail.com">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="profBirthDate">Ngày sinh</label>
+                                        <input type="date" id="profBirthDate" name="birthDate" class="form-input text-mono" value="@Model.BirthDate">
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label" for="profGender">Giới tính</label>
+                                        <select id="profGender" name="gender" class="form-select">
+                                            <option value="" selected="@(string.IsNullOrEmpty(Model.Gender))">-- Chọn giới tính --</option>
+                                            <option value="Nam" selected="@(Model.Gender == "Nam")">Nam</option>
+                                            <option value="Nữ" selected="@(Model.Gender == "Nữ")">Nữ</option>
+                                            <option value="Khác" selected="@(Model.Gender == "Khác")">Khác</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="profEmergency">Liên hệ khẩn cấp / SĐT dự phòng</label>
+                                        <input type="text" id="profEmergency" name="emergencyContact" class="form-input" value="@Model.EmergencyContact" placeholder="VD: Nguyễn Văn B - 0909 111 222">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="profAddress">Địa chỉ / Khu vực sinh sống</label>
+                                    <input type="text" id="profAddress" name="address" class="form-input" value="@Model.Address" placeholder="VD: Thảo Điền, TP. Thủ Đức, TP.HCM">
+                                </div>
+
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label class="form-label" for="profAvatar">Ảnh đại diện (Chọn nhanh hoặc dán đường dẫn ảnh)</label>
+                                    <input type="text" id="profAvatar" name="avatar" class="form-input text-mono" value="@Model.Avatar" placeholder="https://..." oninput="if(this.value) document.getElementById('liveAvatarPreview').src = this.value">
+                                    <div class="avatar-presets">
+                                        @{
+                                            var presetAvatars = new[]
+                                            {
+                                                "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=240&q=80",
+                                                "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=240&q=80",
+                                                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=240&q=80",
+                                                "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=240&q=80",
+                                                "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=240&q=80",
+                                                "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=240&q=80"
+                                            };
+                                        }
+                                        @foreach (var url in presetAvatars)
+                                        {
+                                            <button type="button" class="avatar-preset-item @(currentAvatar == url ? "selected" : "")" onclick="selectPresetAvatar('@url', this)" title="Chọn ảnh đại diện này">
+                                                <img src="@url" alt="Avatar">
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- KHỐI 2: HỒ SƠ VẬN ĐỘNG VIÊN PICKLEBALL -->
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-header-title">
+                                    <iconify-icon icon="mdi:racquetball" width="18" style="color:var(--color-indigo);"></iconify-icon>
+                                    <span>Thông số Vận động viên Pickleball (DUPR &amp; Trang bị)</span>
+                                </span>
+                                <span class="badge badge-primary">Hồ sơ thi đấu CLB</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label" for="profSkill">Trình độ / Điểm DUPR hiện tại</label>
+                                        <select id="profSkill" name="skillLevel" class="form-select" onchange="document.getElementById('liveSkillPreview').textContent = this.value">
+                                            @{
+                                                var skills = new[]
+                                                {
+                                                    "Newbie / Cơ bản",
+                                                    "Giao lưu (DUPR 3.0)",
+                                                    "Khá (DUPR 3.5+)",
+                                                    "Bán chuyên (DUPR 4.0+)",
+                                                    "Chuyên nghiệp (DUPR 4.5+)"
+                                                };
+                                                string curSkill = string.IsNullOrWhiteSpace(Model.SkillLevel) ? "Giao lưu (DUPR 3.0)" : Model.SkillLevel;
+                                            }
+                                            @foreach (var sk in skills)
+                                            {
+                                                <option value="@sk" selected="@(curSkill == sk)">@sk</option>
+                                            }
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="form-label" for="profHand">Tay thuận cầm vợt</label>
+                                        <select id="profHand" name="dominantHand" class="form-select" onchange="document.getElementById('liveHandPreview').textContent = this.value">
+                                            @{
+                                                var hands = new[] { "Tay phải", "Tay trái", "Thuận cả hai tay (Ambidextrous)" };
+                                                string curHand = string.IsNullOrWhiteSpace(Model.DominantHand) ? "Tay phải" : Model.DominantHand;
+                                            }
+                                            @foreach (var h in hands)
+                                            {
+                                                <option value="@h" selected="@(curHand == h)">@h</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label" for="profPaddle">Dòng vợt Pickleball đang sử dụng</label>
+                                        <input type="text" id="profPaddle" name="paddleBrand" class="form-input" value="@Model.PaddleBrand" placeholder="VD: Joola Perseus 16mm Carbon" oninput="document.getElementById('livePaddlePreview').textContent = this.value || 'Chưa cập nhật'">
+                                        <div class="paddle-chips">
+                                            <span class="paddle-chip" onclick="setPaddleBrand('Joola Perseus 16mm')">Joola Perseus 16mm</span>
+                                            <span class="paddle-chip" onclick="setPaddleBrand('Selkirk Vanguard Control')">Selkirk Vanguard</span>
+                                            <span class="paddle-chip" onclick="setPaddleBrand('Six Zero DBD 16mm')">Six Zero DBD 16mm</span>
+                                            <span class="paddle-chip" onclick="setPaddleBrand('CRBN 1X Power')">CRBN 1X Power</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="form-label" for="profStyle">Lối đánh sở trường</label>
+                                        <select id="profStyle" name="playStyle" class="form-select" onchange="document.getElementById('liveStylePreview').textContent = this.value">
+                                            @{
+                                                var styles = new[]
+                                                {
+                                                    "Đánh đôi phối hợp (All-Court)",
+                                                    "Tấn công tốc độ (Power / Drive)",
+                                                    "Kiểm soát bếp & Dink (Control / Soft Game)",
+                                                    "Phòng thủ phản công (Counter / Reset)"
+                                                };
+                                                string curStyle = string.IsNullOrWhiteSpace(Model.PlayStyle) ? "Đánh đôi phối hợp (All-Court)" : Model.PlayStyle;
+                                            }
+                                            @foreach (var st in styles)
+                                            {
+                                                <option value="@st" selected="@(curStyle == st)">@st</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label class="form-label" for="profBio">Giới thiệu ngắn / Lịch rảnh tìm bạn giao lưu ghép sân</label>
+                                    <textarea id="profBio" name="bio" class="form-input" rows="3" placeholder="VD: Mình thường đánh ca 18h-20h thứ 2-4-6 tại Sân VIP 01, mong giao lưu cùng các bạn trình độ 3.0 - 3.5!">@Model.Bio</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex;justify-content:flex-end;gap:0.85rem;">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <iconify-icon icon="lucide:save" width="18"></iconify-icon>
+                                <span>Lưu hồ sơ cá nhân &amp; Vận động viên</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- TAB 2: LỊCH SỬ ĐẶT SÂN CỦA TÔI -->
+                <div class="profile-tab-pane" id="tab-bookings">
+                    <div class="card card--flush">
+                        <div class="card-header">
+                            <span class="card-header-title">
+                                <iconify-icon icon="lucide:ticket" width="18" style="color:var(--color-primary);"></iconify-icon>
+                                <span>Danh sách lịch đặt sân của bạn (@myBookings.Count lượt)</span>
+                            </span>
+                            <a href="/Booking" class="btn btn-primary btn-sm">+ Đặt thêm ca mới</a>
+                        </div>
+
+                        @if (myBookings.Count == 0)
+                        {
+                            <div class="empty-state" style="padding:3rem 1.5rem;">
+                                <div class="empty-state-icon">
+                                    <iconify-icon icon="lucide:calendar-x" width="28"></iconify-icon>
+                                </div>
+                                <div class="empty-state-title">Bạn chưa có lượt đặt sân nào</div>
+                                <div class="empty-state-text">Hãy chọn khung giờ yêu thích trên trang Đặt sân trực tuyến để nhận mã QR tức thì.</div>
+                                <a href="/Booking" class="btn btn-primary mt-md">Đặt sân ngay</a>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-wrap">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Mã vé</th>
+                                            <th>Ngày thi đấu</th>
+                                            <th>Sân thi đấu</th>
+                                            <th>Khung giờ</th>
+                                            <th>Số người</th>
+                                            <th>Tổng phí</th>
+                                            <th>Trạng thái</th>
+                                            <th>Chi tiết</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var b in myBookings)
+                                        {
+                                            string badgeCls = b.Status == "playing" ? "badge-success"
+                                                            : b.Status == "approved" ? "badge-primary"
+                                                            : b.Status == "pending" ? "badge-warning"
+                                                            : b.Status == "rejected" ? "badge-danger" : "badge-neutral";
+                                            string statusText = b.Status == "playing" ? "Đang thi đấu"
+                                                              : b.Status == "approved" ? "Đã duyệt"
+                                                              : b.Status == "pending" ? "Chờ duyệt"
+                                                              : b.Status == "rejected" ? "Đã hủy" : "Hoàn thành";
+                                            int fee = b.TotalPaid > 0 ? b.TotalPaid : b.CourtFee;
+                                            <tr>
+                                                <td><span class="text-mono font-bold" style="color:var(--color-indigo);">@b.BookingCode</span></td>
+                                                <td><span class="font-semibold text-xs">@b.BookingDate</span></td>
+                                                <td><span class="badge badge-neutral">@(b.Court?.CourtName ?? $"Sân #{b.CourtId}")</span></td>
+                                                <td class="text-mono font-semibold">@b.StartTime <span class="text-xs text-muted">(@(b.Duration)p)</span></td>
+                                                <td>@b.Players người</td>
+                                                <td class="text-mono font-bold" style="color:var(--color-primary);">@fee.ToString("N0") đ</td>
+                                                <td><span class="badge @badgeCls">@statusText</span></td>
+                                                <td>
+                                                    <a href="/Lookup" class="btn btn-outline btn-xs">Xem QR</a>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- TAB 3: ĐỔI MẬT KHẨU BẢO MẬT -->
+                <div class="profile-tab-pane" id="tab-security">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-header-title">
+                                <iconify-icon icon="lucide:key-round" width="18" style="color:var(--color-primary);"></iconify-icon>
+                                <span>Thay đổi mật khẩu đăng nhập</span>
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <form action="/Account/ChangePassword" method="post" style="max-width:520px;">
+                                @Html.AntiForgeryToken()
+                                <div class="form-group">
+                                    <label class="form-label" for="curPass">Mật khẩu hiện tại *</label>
+                                    <input type="password" id="curPass" name="currentPassword" class="form-input" required placeholder="Nhập mật khẩu đang sử dụng">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="newPass">Mật khẩu mới (tối thiểu 6 ký tự) *</label>
+                                    <input type="password" id="newPass" name="newPassword" class="form-input" required minlength="6" placeholder="Nhập mật khẩu mới">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="cfmPass">Xác nhận mật khẩu mới *</label>
+                                    <input type="password" id="cfmPass" name="confirmPassword" class="form-input" required minlength="6" placeholder="Nhập lại mật khẩu mới">
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <iconify-icon icon="lucide:shield-check" width="17"></iconify-icon>
+                                    <span>Cập nhật mật khẩu mới</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script>
+        function switchProfileTab(tabKey, btnEl) {
+            document.querySelectorAll('.profile-tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.profile-tab-pane').forEach(p => p.classList.remove('active'));
+            if (btnEl) btnEl.classList.add('active');
+            const target = document.getElementById('tab-' + tabKey);
+            if (target) target.classList.add('active');
+        }
+
+        function selectPresetAvatar(url, btnEl) {
+            const input = document.getElementById('profAvatar');
+            const preview = document.getElementById('liveAvatarPreview');
+            if (input) input.value = url;
+            if (preview) preview.src = url;
+            document.querySelectorAll('.avatar-preset-item').forEach(b => b.classList.remove('selected'));
+            if (btnEl) btnEl.classList.add('selected');
+        }
+
+        function setPaddleBrand(brand) {
+            const input = document.getElementById('profPaddle');
+            const preview = document.getElementById('livePaddlePreview');
+            if (input) input.value = brand;
+            if (preview) preview.textContent = brand;
+        }
+    </script>
+}

@@ -1,0 +1,188 @@
+﻿@{
+    ViewData["Title"] = "Spike Pickleball Club — Tổ Hợp Sân Pickleball Chuẩn Quốc Tế USAPA";
+}
+
+<!-- HERO BANNER -->
+<section class="web-hero">
+    <div class="container">
+        <div class="web-hero-grid">
+            <div>
+                <div class="hero-kicker">
+                    <span class="dot"></span>
+                    <span id="heroTagText">USAPA STANDARD ARENA</span>
+                </div>
+                <h1 class="web-hero-title" id="heroMainTitle">
+                    Nâng Tầm Trải Nghiệm Pickleball Đỉnh Cao
+                </h1>
+                <p class="web-hero-desc" id="heroSubText">
+                    Tổ hợp 4 sân thi đấu tiêu chuẩn quốc tế USAPA với thảm Cushion 8 lớp giảm chấn, hệ thống đèn LED chống chói 1000 Lux và đặt lịch nhận mã vé QR tức thì.
+                </p>
+                <div class="web-hero-actions">
+                    <a href="/Booking" class="btn btn-primary btn-lg btn-pill">
+                        <iconify-icon icon="lucide:calendar-check" width="18"></iconify-icon>
+                        <span>Đặt sân trực tuyến</span>
+                    </a>
+                    <a href="/Lookup" class="btn btn-secondary btn-lg btn-pill" style="background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.25);color:#FFF;">
+                        <iconify-icon icon="lucide:qr-code" width="18"></iconify-icon>
+                        <span>Tra cứu vé QR</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Bảng trạng thái 4 sân thời gian thực -->
+            <div class="hero-live-panel">
+                <div class="hero-live-header">
+                    <span class="live-pulse-tag">Trạng thái 4 sân trực tiếp</span>
+                    <span class="text-xs" style="color:#CBD5E1;">Mở cửa: <strong class="text-mono" id="heroOpenHours" style="color:#FFF;">06:00 – 22:00</strong></span>
+                </div>
+                <div class="hero-mini-courts" id="heroMiniCourts"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- THANH ĐẶT SÂN NHANH (FLOATING QUICK BOOKING BAR) -->
+<div class="container quick-book-wrap">
+    <form class="quick-book-bar" onsubmit="handleQuickBookSubmit(event)">
+        <div class="qb-field">
+            <label class="qb-label" for="qbDate">
+                <iconify-icon icon="lucide:calendar" width="14" style="color:var(--color-primary)"></iconify-icon>
+                <span>Ngày thi đấu</span>
+            </label>
+            <input type="date" id="qbDate" class="form-input text-mono">
+        </div>
+
+        <div class="qb-field">
+            <label class="qb-label" for="qbCourt">
+                <iconify-icon icon="lucide:map-pin" width="14" style="color:var(--color-primary)"></iconify-icon>
+                <span>Chọn sân thi đấu</span>
+            </label>
+            <select id="qbCourt" class="form-select"></select>
+        </div>
+
+        <div class="qb-field">
+            <label class="qb-label" for="qbTime">
+                <iconify-icon icon="lucide:clock" width="14" style="color:var(--color-primary)"></iconify-icon>
+                <span>Khung giờ bắt đầu</span>
+            </label>
+            <select id="qbTime" class="form-select">
+                <option value="07:00">07:00 (Ca sáng)</option>
+                <option value="09:00">09:00 (Ca sáng)</option>
+                <option value="15:00">15:00 (Ca chiều)</option>
+                <option value="17:00" selected>17:00 (Giờ vàng)</option>
+                <option value="18:30">18:30 (Giờ vàng)</option>
+                <option value="20:00">20:00 (Ca tối)</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg" style="height:44px;">
+            <iconify-icon icon="lucide:arrow-right" width="18"></iconify-icon>
+            <span>Tìm &amp; Đặt sân ngay</span>
+        </button>
+    </form>
+</div>
+
+<!-- CHỈ SỐ & TIỆN ÍCH NỔI BẬT -->
+<section class="container" style="margin-bottom: 3.5rem;">
+    <div class="stats-row" id="dashStats"></div>
+</section>
+
+<!-- DANH SÁCH 4 SÂN THI ĐẤU -->
+<section class="web-section web-section-alt">
+    <div class="container">
+        <div class="section-head">
+            <div>
+                <span class="section-kicker">Cơ sở vật chất chuẩn quốc tế</span>
+                <h2 class="section-heading">Hệ Thống Sân Thi Đấu &amp; Trạng Thái Trực Tiếp</h2>
+                <p class="section-sub">Theo dõi tình trạng hoạt động của từng sân theo thời gian thực và chọn sân bạn muốn đặt</p>
+            </div>
+            <a href="/Booking" class="btn btn-outline">Xem toàn bộ khung giờ</a>
+        </div>
+
+        <div class="match-grid" id="courtsGrid">
+            @await Component.InvokeAsync("Court")
+        </div>
+    </div>
+</section>
+
+<!-- LỊCH TRỐNG NHANH TRONG NGÀY -->
+<section class="web-section">
+    <div class="container">
+        <div class="section-head">
+            <div>
+                <span class="section-kicker">Lịch sân hôm nay</span>
+                <h2 class="section-heading">Bảng Khung Giờ Trống Tức Thì</h2>
+                <p class="section-sub">Bấm trực tiếp vào ô <strong style="color:#059669;">+ Đặt</strong> để chuyển tới bước giữ chỗ</p>
+            </div>
+            <div style="display:flex;gap:1rem;align-items:center;font-size:0.8rem;color:var(--text-secondary);">
+                <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;border-radius:3px;background:#FFF;border:1.5px solid #059669;"></span> Trống</span>
+                <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;border-radius:3px;background:#DBEAFE;"></span> Đã đặt</span>
+                <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;border-radius:3px;background:#FEF3C7;"></span> Chờ duyệt</span>
+                <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;border-radius:3px;background:#FEE2E2;"></span> Bảo trì</span>
+            </div>
+        </div>
+
+        <div class="card card--flush">
+            <div class="matrix-wrap">
+                <table class="matrix-table" id="dashMatrixTable"></table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- BẢNG GIÁ & GÓI HỘI VIÊN -->
+<section class="web-section web-section-alt">
+    <div class="container">
+        <div class="section-head">
+            <div>
+                <span class="section-kicker">Chi phí minh bạch</span>
+                <h2 class="section-heading">Bảng Giá Thuê Sân &amp; Đặc Quyền Hội Viên</h2>
+                <p class="section-sub">Hỗ trợ tự động tính chia tiền đầu người (Split-Bill) khi đặt sân theo nhóm</p>
+            </div>
+        </div>
+
+        <div class="pricing-grid">
+            <div class="pricing-card">
+                <span class="pricing-tag">Khung Giờ Tiêu Chuẩn (06:00 – 17:00)</span>
+                <div class="pricing-price" id="priceStandardCard">120.000đ <span>/ giờ</span></div>
+                <p class="text-sm text-muted">Phù hợp cho tập luyện buổi sáng, giao lưu nhẹ nhàng và huấn luyện kỹ thuật.</p>
+                <ul class="pricing-features">
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Miễn phí trà đá &amp; wifi tốc độ cao</li>
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Mặt sân chuẩn USAPA chống trượt</li>
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Phòng thay đồ &amp; tắm nóng lạnh</li>
+                </ul>
+                <a href="/Booking?time=08:00" class="btn btn-outline btn-block">Đặt ca ngày ngay</a>
+            </div>
+
+            <div class="pricing-card featured">
+                <span class="pricing-tag">Khung Giờ Vàng (17:00 – 21:00)</span>
+                <div class="pricing-price" id="pricePeakCard">150.000đ <span>/ giờ</span></div>
+                <p class="text-sm" style="color:#CBD5E1;">Trải nghiệm thi đấu sôi động dưới hệ thống đèn LED Stadium chống lóa 1000 Lux.</p>
+                <ul class="pricing-features">
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-volt)"></iconify-icon> Bật 100% hệ thống đèn LED thi đấu</li>
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-volt)"></iconify-icon> Giữ chỗ tức thì qua mã vé QR</li>
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-volt)"></iconify-icon> Phục vụ nước bù khoáng &amp; thuê vợt tận sân</li>
+                </ul>
+                <a href="/Booking?time=18:00" class="btn btn-primary btn-block">Đặt khung giờ vàng</a>
+            </div>
+
+            <div class="pricing-card">
+                <span class="pricing-tag" id="promoTitleText">Đặc Quyền Hội Viên CLB</span>
+                <div class="pricing-price">-15% <span>/ mọi khung giờ</span></div>
+                <p class="text-sm text-muted" id="promoDescText">Trở thành hội viên chính thức để nhận ưu đãi giảm giá sân, miễn phí nước suối và ưu tiên đặt lịch cố định.</p>
+                <ul class="pricing-features">
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Ưu tiên giữ sân khung giờ vàng</li>
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Tặng 02 chai nước khoáng mỗi ca chơi</li>
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Tham gia giải đấu nội bộ hàng tháng</li>
+                </ul>
+                <button type="button" class="btn btn-secondary btn-block" onclick="joinClub()">Đăng ký Hội viên VIP</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="toast-container" id="toastContainer"></div>
+
+@section Scripts {
+    <script src="~/js/dashboard.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,214 @@
+@{
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Điều Phối Sân & POS";
+}
+
+  <section class="page-hero">
+    <div class="container page-hero-inner">
+      <div>
+        <span class="section-kicker" style="color:var(--color-volt);">Vận hành CLB</span>
+        <h1 class="page-hero-title">Trung Tâm Điều Phối Sân & Bán Hàng POS</h1>
+        <p class="page-hero-sub">Duyệt yêu cầu đặt lịch, kích hoạt khách nhận sân, gọi món POS và quản lý lịch bảo trì</p>
+      </div>
+      <div style="display:flex;gap:0.65rem;flex-wrap:wrap;">
+        <a href="/Admin" class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#FFF;">
+          <iconify-icon icon="lucide:layout-dashboard" width="14"></iconify-icon>
+          <span>Tổng quan Quản trị</span>
+        </a>
+        <a href="/Checkin" class="btn btn-primary btn-sm">
+          <iconify-icon icon="lucide:qr-code" width="15"></iconify-icon>
+          <span>Mở trạm soát vé QR</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <main class="page-main">
+    <div class="container">
+      <div class="col-main-aside">
+        <div class="stack">
+          <!-- Đơn chờ duyệt -->
+          <div class="card">
+            <div class="card-header" style="background:var(--color-warning-light);">
+              <span class="card-header-title" style="color:#92400E">
+                <span class="badge-dot" style="background:var(--color-warning)"></span>
+                <span>Yêu cầu đặt sân chờ duyệt (<span id="pendingCount">0</span>)</span>
+              </span>
+              <button class="btn btn-sm btn-success" id="approveAllBtn" onclick="approveAllPending()" style="display:none">
+                <iconify-icon icon="lucide:check-check" width="14"></iconify-icon>
+                <span>Duyệt tất cả</span>
+              </button>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div id="pendingList"></div>
+            </div>
+          </div>
+
+          <!-- Danh sách ca thi đấu -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-header-title">
+                <iconify-icon icon="lucide:calendar-clock" width="18" style="color:var(--color-indigo)"></iconify-icon>
+                <span>Danh sách ca thi đấu & Hóa đơn POS</span>
+              </span>
+              <div class="filter-tabs" id="mgmtFilterTabs">
+                <button class="filter-tab active" onclick="setMgmtFilter('active')">Đang chơi & Đã duyệt</button>
+                <button class="filter-tab" onclick="setMgmtFilter('completed')">Đã thanh toán</button>
+                <button class="filter-tab" onclick="setMgmtFilter('all')">Tất cả</button>
+              </div>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div id="todayList"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Khóa sân bảo trì -->
+        <div class="stack">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-header-title" style="color:var(--color-danger)">
+                <iconify-icon icon="lucide:wrench" width="18"></iconify-icon>
+                <span>Khóa sân bảo trì / Giải đấu</span>
+              </span>
+            </div>
+            <div class="card-body stack-sm">
+              <div class="form-group">
+                <label class="form-label">Chọn sân cần khóa:</label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem" id="lockCourtBtns"></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="lockDate">Ngày áp dụng:</label>
+                <input class="form-input text-mono" type="date" id="lockDate">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="lockStart">Từ giờ:</label>
+                  <select class="form-select" id="lockStart"></select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="lockDuration">Thời lượng:</label>
+                  <select class="form-select" id="lockDuration">
+                    <option value="60">1 tiếng (60p)</option>
+                    <option value="120">2 tiếng (120p)</option>
+                    <option value="240">4 tiếng (240p)</option>
+                    <option value="960">Cả ngày (16h)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="lockReason">Lý do khóa sân:</label>
+                <input class="form-input" type="text" id="lockReason" value="Bảo dưỡng mặt sân & lưới">
+              </div>
+              <button class="btn btn-danger btn-block" onclick="lockCourt()">
+                <iconify-icon icon="lucide:lock" width="16"></iconify-icon>
+                <span>Áp dụng khóa sân</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-header-title">
+                <iconify-icon icon="lucide:shield-alert" width="18" style="color:var(--color-primary)"></iconify-icon>
+                <span>Sân đang khóa (<span id="activeLocksCount">0</span>)</span>
+              </span>
+            </div>
+            <div class="card-body" style="padding:0" id="activeLocksList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL DUYỆT ĐƠN -->
+  <div class="modal-overlay" id="modalQR">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color:var(--color-primary)">Đã duyệt vé sân!</h3>
+        <button class="modal-close" onclick="closeModal('modalQR')">✕</button>
+      </div>
+      <div class="modal-body" style="text-align:center">
+        <div class="qr-placeholder">
+          <iconify-icon icon="lucide:qr-code" width="72"></iconify-icon>
+          <div class="text-xs font-bold text-mono" id="qrRef"></div>
+        </div>
+        <div class="payment-summary mt-md" style="text-align:left">
+          <div class="payment-line"><span class="text-muted">Khách hàng</span><span class="font-semibold" id="qrName"></span></div>
+          <div class="payment-line"><span class="text-muted">Sân đấu</span><span class="font-semibold" id="qrCourt"></span></div>
+          <div class="payment-line"><span class="text-muted">Thời gian</span><span class="font-semibold text-mono" id="qrTime"></span></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary btn-block" onclick="closeModal('modalQR')">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL POS -->
+  <div class="modal-overlay" id="modalPOS">
+    <div class="modal modal-full">
+      <div class="pos-container">
+        <div class="pos-menu-side">
+          <div class="flex-between mb-md">
+            <div>
+              <h3 class="modal-title">Thực đơn POS tại sân</h3>
+              <p class="text-xs text-muted">Bấm vào mặt hàng để thêm vào hóa đơn</p>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="closeModal('modalPOS')">Đóng</button>
+          </div>
+          <div class="pos-menu-grid" id="posMenuGrid"></div>
+        </div>
+        <div class="pos-cart-side">
+          <div class="pos-cart-header">
+            <span class="badge badge-success mb-sm">Hóa đơn trực tiếp</span>
+            <p class="font-bold text-lg" id="posCustomer"></p>
+            <p class="text-xs text-muted text-mono" id="posCourtInfo"></p>
+          </div>
+          <div class="pos-cart-items" id="posCartItems">
+            <div class="pos-cart-item" style="background:var(--color-primary-50);border-color:var(--color-primary-light)">
+              <div class="pos-cart-item-info">
+                <div class="pos-cart-item-name" style="color:var(--color-primary)">Tiền thuê sân</div>
+                <div class="pos-cart-item-price text-mono" id="posCourtDuration"></div>
+              </div>
+              <div class="pos-qty">
+                <button onclick="adjustCourtTime(-15)">−</button>
+                <span style="font-size:0.7rem;font-weight:700">±15p</span>
+                <button onclick="adjustCourtTime(15)">+</button>
+              </div>
+              <div class="pos-cart-item-total text-mono" id="posCourtFee"></div>
+            </div>
+            <div id="posCartDynamic"></div>
+          </div>
+          <div class="pos-cart-footer">
+            <div class="pos-total-row">
+              <span class="pos-total-label">Tổng thanh toán</span>
+              <span class="pos-total-value" id="posTotal">0 đ</span>
+            </div>
+            <div style="display:flex;gap:0.5rem">
+              <button class="btn btn-outline" style="flex:1" onclick="savePosDraft()">Lưu tạm</button>
+              <button class="btn btn-primary" style="flex:1.3" onclick="checkoutPos()">Thanh toán & Trả sân</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL THANH TOÁN HOÀN TẤT -->
+  <div class="modal-overlay" id="modalPayment">
+    <div class="modal modal-sm">
+      <div class="modal-body" style="text-align:center;padding:2rem">
+        <div style="margin-bottom:0.75rem">
+          <iconify-icon icon="lucide:badge-check" width="56" style="color:var(--color-success)"></iconify-icon>
+        </div>
+        <h3 class="modal-title" style="margin-bottom:1.25rem">Thanh toán hoàn tất!</h3>
+        <div class="payment-summary" id="paymentSummary" style="text-align:left"></div>
+        <button class="btn btn-primary btn-block mt-md" onclick="closeModal('modalPayment')">Hoàn tất</button>
+      </div>
+    </div>
+  </div>
+
+@section Scripts {
+  <script src="~/js/management.js"></script>
+}

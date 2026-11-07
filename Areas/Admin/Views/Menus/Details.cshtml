@@ -1,0 +1,37 @@
+﻿@model PickleballClub.Models.TbMenu
+
+@{
+    ViewData["Title"] = "Chi tiết Menu";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+}
+
+<div class="content-wrapper">
+    <section class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1>Chi tiết Menu</h1>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="content">
+        <div class="container-fluid">
+            <div class="card card-info">
+                <div class="card-header">
+                    <h3 class="card-title">Thông tin chi tiết</h3>
+                </div>
+                <div class="card-body">
+                    <p><strong>Tiêu đề:</strong> @Model.Title</p>
+                    <p><strong>Alias:</strong> @Model.Alias</p>
+                    <p><strong>Cấp:</strong> @Model.Levels</p>
+                    <p><strong>Vị trí:</strong> @Model.Position</p>
+                    <p><strong>Trạng thái:</strong> @(Model.IsActive ? "Hiển thị" : "Ẩn")</p>
+                    <a asp-action="Edit" asp-route-id="@Model.MenuId" class="btn btn-primary">Sửa</a>
+                    <a asp-action="Index" class="btn btn-secondary">Quay lại</a>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>

@@ -1,0 +1,309 @@
+﻿@using PickleballClub.Utilities
+@{
+    var currentPath = Context.Request.Path.Value?.ToLower() ?? "";
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@(ViewData["Title"] ?? "Quản Trị Hệ Thống") — Spike Pickleball Club</title>
+    <link rel="stylesheet" href="~/css/styles.css" asp-append-version="true">
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <style>
+        /* Đồng bộ toàn bộ trang Admin theo ngôn ngữ thiết kế Spike Pickleball Club */
+        .admin-page-shell {
+            min-height: calc(100vh - 280px);
+            padding-bottom: 3.5rem;
+        }
+        .content-wrapper {
+            background: transparent !important;
+        }
+        .content-header {
+            background: linear-gradient(135deg, #0A0E17 0%, #131B2E 100%);
+            color: #FFFFFF;
+            padding: 2.2rem 0;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .content-header .container-fluid,
+        .content .container-fluid {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+        .content-header .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .content-header h1 {
+            font-family: var(--font-display, 'Oswald', sans-serif);
+            font-size: 2.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            color: #FFFFFF;
+            margin: 0;
+            line-height: 1.15;
+        }
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            list-style: none;
+            margin: 0;
+            padding: 0.4rem 0.85rem;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+            font-size: 0.8rem;
+            color: #94A3B8;
+        }
+        .breadcrumb-item + .breadcrumb-item::before {
+            content: "/";
+            margin-right: 0.5rem;
+            color: #64748B;
+        }
+        .breadcrumb a {
+            color: var(--color-volt, #D4FF00);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .breadcrumb-item.active {
+            color: #E2E8F0;
+        }
+        .content .card {
+            background: #FFFFFF;
+            border-radius: var(--radius-md, 14px);
+            border: 1px solid var(--border-color, #E2E8F0);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+        .content .card-header {
+            padding: 1.1rem 1.4rem;
+            background: #F8FAFC;
+            border-bottom: 1px solid var(--border-color, #E2E8F0);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        .content .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0F172A;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .content .card-body {
+            padding: 1.4rem;
+        }
+        .content .card-body.p-0 {
+            padding: 0 !important;
+        }
+        .content .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .content .table th {
+            background: #F8FAFC;
+            color: #475569;
+            font-size: 0.76rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 0.85rem 1.2rem;
+            text-align: left;
+            border-bottom: 1px solid #E2E8F0;
+        }
+        .content .table td {
+            padding: 0.9rem 1.2rem;
+            border-bottom: 1px solid #F1F5F9;
+            font-size: 0.88rem;
+            color: #1E293B;
+            vertical-align: middle;
+        }
+        .content .table tbody tr:hover {
+            background: #F8FAFC;
+        }
+        .content .form-group {
+            margin-bottom: 1.1rem;
+        }
+        .content .form-group label,
+        .content .control-label {
+            display: block;
+            font-size: 0.83rem;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 0.4rem;
+        }
+        .content .form-control {
+            width: 100%;
+            padding: 0.65rem 0.9rem;
+            font-size: 0.9rem;
+            font-family: inherit;
+            color: #0F172A;
+            background: #F8FAFC;
+            border: 1.5px solid #CBD5E1;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+        .content .form-control:focus {
+            outline: none;
+            background: #FFFFFF;
+            border-color: var(--color-primary, #FF5520);
+            box-shadow: 0 0 0 3px rgba(255, 85, 32, 0.14);
+        }
+        .content .form-check {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .content .form-check-label {
+            display: inline-flex !important;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            margin: 0 !important;
+        }
+        .btn-info {
+            background: #0EA5E9;
+            color: #FFFFFF;
+            border: 1px solid #0EA5E9;
+        }
+        .btn-info:hover {
+            background: #0284C7;
+            color: #FFFFFF;
+        }
+        .btn-xs {
+            padding: 0.25rem 0.6rem;
+            font-size: 0.75rem;
+            border-radius: 6px;
+        }
+        .text-success { color: #059669 !important; }
+        .text-danger { color: #DC2626 !important; }
+        .text-muted { color: #64748B !important; }
+        .font-weight-bold { font-weight: 700 !important; }
+        .d-flex { display: flex !important; }
+        .d-inline { display: inline-block !important; }
+        .justify-content-between { justify-content: space-between !important; }
+        .align-items-center { align-items: center !important; }
+        .text-center { text-align: center !important; }
+        .py-4 { padding-top: 2rem !important; padding-bottom: 2rem !important; }
+    </style>
+</head>
+<body>
+
+    <header class="site-header">
+        <div class="site-header-inner">
+            <a href="/" class="site-brand">
+                <div class="site-brand-mark">
+                    <iconify-icon icon="mdi:racquetball" width="24"></iconify-icon>
+                </div>
+                <div class="site-brand-text">
+                    <span class="site-brand-name">SPIKE<span>.</span></span>
+                    <span class="site-brand-tag">Pickleball Club</span>
+                </div>
+            </a>
+
+            <nav class="site-nav" id="siteMainNav">
+                @await Component.InvokeAsync("MenuTop")
+            </nav>
+
+            <div class="site-header-actions">
+                <div class="user-pill">
+                    <a href="/Account/Profile" style="display:inline-flex;align-items:center;gap:0.45rem;color:#FFF;text-decoration:none;" title="Hồ sơ cá nhân">
+                        <iconify-icon icon="lucide:shield-check" width="16" style="color:var(--color-volt);"></iconify-icon>
+                        <span>@(string.IsNullOrEmpty(Function._FullName) ? "Ban Quản Trị CLB" : Function._FullName)</span>
+                    </a>
+                    <a href="/Admin/Home/Logout" class="btn btn-xs btn-ghost" style="color:#FCA5A5;">Thoát</a>
+                </div>
+                <a href="/" class="btn btn-outline btn-sm btn-pill" style="border-color:rgba(255,255,255,0.2);color:#FFF;">Xem Trang Chủ</a>
+                <button type="button" class="mobile-menu-btn" onclick="toggleMobileNav()" aria-label="Mở menu điều hướng">
+                    <iconify-icon icon="lucide:menu" width="20"></iconify-icon>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- THANH ĐIỀU HƯỚNG QUẢN TRỊ ĐỒNG BỘ STYLE TRANG CHỦ -->
+    <div class="admin-subbar">
+        <div class="admin-subbar-inner">
+            <span style="display:inline-flex;align-items:center;gap:0.45rem;font-weight:700;color:var(--color-volt);">
+                <iconify-icon icon="lucide:shield-check" width="16"></iconify-icon>
+                <span>Trung Tâm Quản Trị CLB</span>
+            </span>
+            <div class="admin-subbar-links">
+                <a href="/Admin" class="admin-subbar-link @(currentPath == "/admin" || currentPath == "/admin/home" || currentPath == "/admin/home/index" ? "active" : "")">
+                    <iconify-icon icon="lucide:layout-dashboard" width="14"></iconify-icon>
+                    <span>Tổng quan</span>
+                </a>
+                <a href="/Management" class="admin-subbar-link @(currentPath.Contains("management") ? "active" : "")">
+                    <span>Điều phối &amp; POS</span>
+                </a>
+                <a href="/Admin/Bookings" class="admin-subbar-link @(currentPath.Contains("/admin/bookings") ? "active" : "")">
+                    <span>Đơn đặt sân</span>
+                </a>
+                <a href="/Admin/Courts" class="admin-subbar-link @(currentPath.Contains("/admin/courts") ? "active" : "")">
+                    <span>Quản lý sân</span>
+                </a>
+                <a href="/Admin/Accounts" class="admin-subbar-link @(currentPath.Contains("/admin/accounts") ? "active" : "")">
+                    <span>Hội viên CLB</span>
+                </a>
+                <a href="/Admin/Products" class="admin-subbar-link @(currentPath.Contains("/admin/products") ? "active" : "")">
+                    <span>Sản phẩm POS</span>
+                </a>
+                <a href="/Admin/Menus" class="admin-subbar-link @(currentPath.Contains("/admin/menus") ? "active" : "")">
+                    <span>Thanh Menu</span>
+                </a>
+                <a href="/Checkin" class="admin-subbar-link @(currentPath.Contains("checkin") ? "active" : "")">
+                    <span>Soát vé QR</span>
+                </a>
+                <a href="/Reports" class="admin-subbar-link @(currentPath.Contains("reports") ? "active" : "")">
+                    <span>Báo cáo doanh thu</span>
+                </a>
+                <a href="/Cms" class="admin-subbar-link @(currentPath.Contains("cms") ? "active" : "")">
+                    <span>Cấu hình Website</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-page-shell">
+        @RenderBody()
+    </div>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="site-footer-bottom" style="border-top:none;padding-top:0;">
+                <span>© 2026 Spike Pickleball Club — Hệ thống Quản trị &amp; Điều hành Cụm sân.</span>
+                <span>Tổ hợp sân đạt chuẩn thi đấu quốc tế USAPA</span>
+            </div>
+        </div>
+    </footer>
+
+    @if (Function.IsLogin())
+    {
+        <script>
+            localStorage.setItem('pb_auth_user', JSON.stringify({
+                id: @Function._AccountId,
+                name: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(string.IsNullOrEmpty(Function._FullName) ? "Ban Quản Trị CLB" : Function._FullName)),
+                email: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._Email)),
+                phone: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._Phone)),
+                role: '@(Function._RoleId == 1 ? "admin" : "user")',
+                roleLabel: '@(Function._RoleId == 1 ? "Ban Quản Trị CLB" : "Hội viên CLB")',
+                avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=120&q=80'
+            }));
+        </script>
+    }
+    <script src="~/js/shared.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,39 @@
+﻿@model IEnumerable<PickleballClub.Models.TbCourt>
+
+@foreach (var court in Model)
+{
+    var isIndoor = court.CourtType == "Indoor";
+    var hourlyPrice = court.BasePrice + court.Surcharge;
+    <div class="match-card">
+        <div class="match-card-media">
+            <div class="match-card-top">
+                <span class="badge" style="background:rgba(11,17,30,0.78);color:#FFF;backdrop-filter:blur(6px);">
+                    @(isIndoor ? "Sân Trong Nhà VIP" : "Sân Ngoài Trời")
+                </span>
+                <span class="match-live-badge available"><span class="match-live-dot"></span> Sẵn sàng đặt lịch</span>
+            </div>
+            <div>
+                <h3 style="font-family:var(--font-display);font-size:1.55rem;font-weight:700;text-transform:uppercase;">@court.CourtName</h3>
+                <p style="font-size:0.82rem;color:#E2E8F0;">@court.TypeLabel — Mặt sân @court.Surface</p>
+            </div>
+        </div>
+        <div class="match-card-body">
+            <div class="court-status-callout is-free">
+                <div>
+                    <div class="text-xs text-muted">Tình trạng khung giờ</div>
+                    <div style="font-weight:700;font-size:0.9rem;color:var(--color-success);">Trống nhiều khung giờ đẹp hôm nay</div>
+                </div>
+                <span class="badge badge-success">Sẵn sàng</span>
+            </div>
+            <div class="match-card-footer">
+                <div>
+                    <span class="text-xs text-muted" style="display:block;">Giá thuê từ</span>
+                    <strong class="text-mono" style="font-size:1.15rem;color:var(--color-primary);">@hourlyPrice.ToString("N0") đ<span style="font-size:0.8rem;color:var(--text-secondary);font-weight:500;"> / giờ</span></strong>
+                </div>
+                <a href="/Booking?court=@court.CourtId" class="btn btn-primary">
+                    <span>Đặt sân này</span>
+                </a>
+            </div>
+        </div>
+    </div>
+}

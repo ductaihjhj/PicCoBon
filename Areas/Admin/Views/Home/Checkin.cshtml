@@ -1,0 +1,86 @@
+@{
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Soát Vé Check-in QR";
+}
+
+  <section class="page-hero">
+    <div class="container page-hero-inner">
+      <div>
+        <span class="section-kicker" style="color:var(--color-volt);">Quầy lễ tân</span>
+        <h1 class="page-hero-title">Trạm Soát Vé Vào Sân (Check-in QR)</h1>
+        <p class="page-hero-sub">Nhập mã đặt sân, tải ảnh QR hoặc bấm Check-in trực tiếp từ danh sách khách chờ nhận sân</p>
+      </div>
+      <a href="/Admin" class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#FFF;">
+        <iconify-icon icon="lucide:layout-dashboard" width="14"></iconify-icon>
+        <span>Tổng quan Quản trị</span>
+      </a>
+    </div>
+  </section>
+
+  <main class="page-main">
+    <div class="container">
+      <div class="col-aside-main">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-header-title">
+              <iconify-icon icon="lucide:scan-line" width="18" style="color:var(--color-primary)"></iconify-icon>
+              <span>Xác thực mã vé QR</span>
+            </span>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label" for="manualCodeInput">Nhập mã đặt sân hoặc Số điện thoại:</label>
+              <div style="display:flex;gap:0.5rem">
+                <input class="form-input text-mono" type="text" id="manualCodeInput" placeholder="VD: PB-2601B2" onkeydown="if(event.key==='Enter')verifyManualCode()">
+                <button class="btn btn-primary" onclick="verifyManualCode()">Kiểm tra</button>
+              </div>
+            </div>
+
+            <div id="checkinUpload" style="margin-top:1rem">
+              <label class="upload-area" id="qrUploadLabel">
+                <div class="upload-area-icon">
+                  <iconify-icon icon="lucide:qr-code" width="44"></iconify-icon>
+                </div>
+                <div class="upload-area-text">
+                  <strong style="color:var(--text-primary)">Bấm để tải ảnh mã QR</strong><br>
+                  <span class="text-xs text-muted">hoặc chọn vé trực tiếp ở danh sách bên phải</span>
+                </div>
+                <input type="file" accept="image/*" id="qrFileInput" style="display:none" onchange="mockCheckIn()">
+              </label>
+            </div>
+
+            <div class="checkin-result" id="checkinResult">
+              <p class="text-caption mb-sm" style="text-align:center">Kết quả nhận diện vé</p>
+              <p class="text-xl font-bold text-mono mb-sm" id="checkinRef" style="text-align:center;background:#F8FAFC;padding:0.75rem;border-radius:var(--radius-sm);color:var(--color-indigo);border:1px solid var(--border-color)"></p>
+
+              <div id="checkinSuccess" class="checkin-success" style="display:none">
+                <div class="font-bold text-base" id="checkinSuccessText"></div>
+                <p class="text-xs mt-sm">Trạng thái sân đã tự động chuyển sang "Đang thi đấu".</p>
+              </div>
+
+              <div id="checkinError" class="checkin-error" style="display:none">
+                <div class="font-bold text-base" id="checkinErrorText">Vé không hợp lệ!</div>
+              </div>
+
+              <button class="btn btn-outline btn-block mt-md" onclick="resetCheckIn()">Soát vé tiếp theo</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-header-title">
+              <iconify-icon icon="lucide:user-check" width="18" style="color:var(--color-indigo)"></iconify-icon>
+              <span>Danh sách vé sẵn sàng Check-in nhận sân</span>
+            </span>
+            <span class="badge badge-primary" id="readyCheckinCount">0 vé</span>
+          </div>
+          <div class="card-body" style="padding:0" id="readyCheckinList"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+@section Scripts {
+  <script src="~/js/checkin.js"></script>
+}

@@ -1,0 +1,149 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@(ViewData["Title"] ?? "Spike Pickleball Club — Tổ Hợp Sân Pickleball Chuẩn Quốc Tế USAPA")</title>
+    <link rel="stylesheet" href="~/css/styles.css" asp-append-version="true">
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+</head>
+<body>
+
+    <header class="site-header">
+        <div class="site-header-inner">
+            <a href="/" class="site-brand">
+                <div class="site-brand-mark">
+                    <iconify-icon icon="mdi:racquetball" width="24"></iconify-icon>
+                </div>
+                <div class="site-brand-text">
+                    <span class="site-brand-name">SPIKE<span>.</span></span>
+                    <span class="site-brand-tag">Pickleball Club</span>
+                </div>
+            </a>
+
+            <nav class="site-nav" id="siteMainNav">
+                @await Component.InvokeAsync("MenuTop")
+            </nav>
+
+            <div class="site-header-actions">
+                <div id="headerAuthActionsMount">
+                    @if (Function.IsLogin())
+                    {
+                        <div class="user-pill">
+                            <a href="/Account/Profile" style="display:inline-flex;align-items:center;gap:0.45rem;color:#FFF;text-decoration:none;" title="Hồ sơ cá nhân">
+                                <iconify-icon icon="lucide:user-circle" width="18" style="color:var(--color-volt);"></iconify-icon>
+                                <span>@Function._FullName</span>
+                            </a>
+                            <a href="/Account/Logout" class="btn btn-xs btn-ghost" style="color:#FCA5A5;">Thoát</a>
+                        </div>
+                    }
+                    else
+                    {
+                        <a href="/Account/Login" class="btn btn-sm btn-secondary" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#FFF;">Đăng nhập</a>
+                    }
+                </div>
+                <a href="/Booking" class="btn btn-primary btn-sm btn-pill header-cta-book">Đặt sân ngay</a>
+                <button type="button" class="mobile-menu-btn" onclick="toggleMobileNav()" aria-label="Mở menu điều hướng">
+                    <iconify-icon icon="lucide:menu" width="20"></iconify-icon>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="adminSubbarMount"></div>
+
+    @RenderBody()
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="site-footer-grid">
+                <div class="site-footer-col">
+                    <a href="/" class="site-brand" style="margin-bottom:1rem;">
+                        <div class="site-brand-mark">
+                            <iconify-icon icon="mdi:racquetball" width="22"></iconify-icon>
+                        </div>
+                        <div class="site-brand-text">
+                            <span class="site-brand-name">SPIKE<span>.</span></span>
+                            <span class="site-brand-tag">Pickleball Club</span>
+                        </div>
+                    </a>
+                    <p style="font-size:0.85rem;line-height:1.7;">
+                        Tổ hợp sân thi đấu Pickleball tiêu chuẩn quốc tế USAPA với mặt sân Cushion 8 lớp giảm chấn, hệ thống chiếu sáng LED chống chói 1000 Lux và không gian Pro Shop chuyên nghiệp.
+                    </p>
+                </div>
+
+                <div class="site-footer-col">
+                    <h4>Khám phá CLB</h4>
+                    <div class="site-footer-links">
+                        <a href="/">Trang chủ &amp; Lịch sân trống</a>
+                        <a href="/Booking">Đặt sân trực tuyến</a>
+                        <a href="/Product">Cửa hàng Pro Shop &amp; Giải khát</a>
+                        <a href="/Lookup">Tra cứu mã vé điện tử QR</a>
+                    </div>
+                </div>
+
+                <div class="site-footer-col">
+                    <h4>Bảng giá niêm yết</h4>
+                    <div class="site-footer-links">
+                        <span>Giờ tiêu chuẩn (06:00 – 17:00): <strong style="color:#FFF;">120.000 đ/h</strong></span>
+                        <span>Khung giờ vàng (17:00 – 21:00): <strong style="color:var(--color-volt);">150.000 đ/h</strong></span>
+                        <span>Phụ thu sân Indoor VIP: <strong style="color:#FFF;">+20.000 đ/h</strong></span>
+                        <span>Giờ mở cửa: <strong style="color:#FFF;">06:00 – 22:00</strong></span>
+                    </div>
+                </div>
+
+                <div class="site-footer-col">
+                    <h4>Liên hệ CLB</h4>
+                    <div class="site-footer-links">
+                        <span style="display:inline-flex;align-items:center;gap:0.45rem;">
+                            <iconify-icon icon="lucide:map-pin" width="15" style="color:var(--color-primary);flex-shrink:0;"></iconify-icon>
+                            <span>Khu Thảo Điền, TP. Thủ Đức, TP.HCM</span>
+                        </span>
+                        <span style="display:inline-flex;align-items:center;gap:0.45rem;">
+                            <iconify-icon icon="lucide:phone" width="15" style="color:var(--color-primary);flex-shrink:0;"></iconify-icon>
+                            <span>Hotline: <strong style="color:var(--color-primary);">0901 234 567</strong></span>
+                        </span>
+                        <span style="display:inline-flex;align-items:center;gap:0.45rem;">
+                            <iconify-icon icon="lucide:mail" width="15" style="color:var(--color-primary);flex-shrink:0;"></iconify-icon>
+                            <span>Email: <strong style="color:#E2E8F0;">contact@spikepickleball.vn</strong></span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="site-footer-bottom">
+                <span>© 2026 Spike Pickleball Club. Bảo lưu mọi quyền.</span>
+                <span>Tổ hợp sân đạt chuẩn thi đấu quốc tế USAPA</span>
+            </div>
+        </div>
+    </footer>
+
+    @if (Function.IsLogin())
+    {
+        var fallbackAvatar = Function._RoleId == 1
+            ? "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=120&q=80"
+            : "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80";
+        var activeAvatar = !string.IsNullOrEmpty(Function._Avatar) ? Function._Avatar : fallbackAvatar;
+        <script>
+            localStorage.setItem('pb_auth_user', JSON.stringify({
+                id: @Function._AccountId,
+                name: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(string.IsNullOrEmpty(Function._FullName) ? "Hội viên" : Function._FullName)),
+                email: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._Email)),
+                phone: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._Phone)),
+                skillLevel: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._SkillLevel)),
+                role: '@(Function._RoleId == 1 ? "admin" : "user")',
+                roleLabel: '@(Function._RoleId == 1 ? "Ban Quản Trị CLB" : "Hội viên CLB")',
+                avatar: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(activeAvatar))
+            }));
+        </script>
+    }
+    else
+    {
+        <script>
+            localStorage.removeItem('pb_auth_user');
+        </script>
+    }
+    <script src="~/js/shared.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

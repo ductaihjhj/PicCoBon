@@ -1,0 +1,27 @@
+## Build and compile outputs
+bin/
+obj/
+out/
+build/
+verify_build/
+*.dll
+*.exe
+*.pdb
+
+## Visual Studio & VS Code temporary files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
+
+## Logs & caches
+*.log
+.DS_Store
+Thumbs.db
+
+## Temporary subagent / skill test directories
+.anthropic-skills-temp/

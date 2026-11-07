@@ -1,0 +1,103 @@
+@model PickleballClub.Models.TbAccount
+@using PickleballClub.Utilities
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Đăng Nhập Quản Trị — Spike Pickleball Club</title>
+    <link rel="stylesheet" href="~/css/styles.css" asp-append-version="true">
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <style>
+        body {
+            min-height: 100vh;
+            background: radial-gradient(circle at 20% 20%, rgba(255, 85, 32, 0.16), transparent 45%),
+                        radial-gradient(circle at 80% 80%, rgba(212, 255, 0, 0.10), transparent 45%),
+                        #0A0E17;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+        .admin-auth-card {
+            width: 100%;
+            max-width: 440px;
+            background: #FFFFFF;
+            border-radius: 20px;
+            padding: 2.4rem 2.2rem;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+        }
+        .admin-auth-head {
+            text-align: center;
+            margin-bottom: 1.75rem;
+        }
+        .admin-auth-logo {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: var(--color-primary, #FF5520);
+            color: #FFFFFF;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.85rem;
+            box-shadow: 0 10px 24px rgba(255, 85, 32, 0.35);
+        }
+        .admin-auth-title {
+            font-family: var(--font-display, 'Teko', sans-serif);
+            font-size: 2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #0F172A;
+            line-height: 1.1;
+            margin-bottom: 0.25rem;
+        }
+        .admin-auth-sub {
+            font-size: 0.85rem;
+            color: #64748B;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-auth-card">
+        <div class="admin-auth-head">
+            <div class="admin-auth-logo">
+                <iconify-icon icon="mdi:racquetball" width="28"></iconify-icon>
+            </div>
+            <h1 class="admin-auth-title">Cổng Quản Trị CLB</h1>
+            <p class="admin-auth-sub">Đăng nhập hệ thống điều hành Spike Pickleball Club</p>
+        </div>
+
+        <form asp-controller="Login" asp-action="Index" method="post">
+            <div class="form-group">
+                <label class="form-label">Tài khoản / Email</label>
+                <input type="text" asp-for="Username" class="form-input" placeholder="Nhập tên đăng nhập hoặc Email" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Mật khẩu</label>
+                <input type="password" asp-for="Password" class="form-input" placeholder="Nhập mật khẩu" required>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Function._Message))
+            {
+                <div style="background:#FEE2E2;color:#DC2626;padding:0.65rem 0.9rem;border-radius:10px;font-size:0.82rem;font-weight:600;margin-bottom:1rem;">
+                    @Function._Message
+                </div>
+            }
+
+            <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:0.5rem;">
+                <iconify-icon icon="lucide:log-in" width="18"></iconify-icon>
+                <span>Đăng nhập Quản trị</span>
+            </button>
+        </form>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1.35rem;padding-top:1.1rem;border-top:1px solid #F1F5F9;font-size:0.82rem;">
+            <a href="/Account/Login" style="color:var(--color-primary);font-weight:600;text-decoration:none;">Chuyển sang trang Đăng nhập chính</a>
+            <a href="/" style="color:#64748B;text-decoration:none;">← Trang chủ</a>
+        </div>
+    </div>
+</body>
+</html>

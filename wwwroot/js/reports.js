@@ -1,0 +1,145 @@
+﻿/* ==========================================================================
+   PICKLEBALL PRO ARENA — DYNAMIC REVENUE & ANALYTICS CONTROLLER
+   Computes Real Revenue, Court Breakdown & Top Spenders from BOOKINGS + POS
+   ========================================================================== */
+
+function renderReports() {
+  if (!requireRole('admin')) return;
+
+  const fromEl = document.getElementById('reportFrom');
+  const toEl = document.getElementById('reportTo');
+  if (fromEl && !fromEl.value) {
+    const now = new Date();
+    fromEl.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  }
+  if (toEl && !toEl.value) {
+    toEl.value = getOffsetDateISO(7);
+  }
+
+  const fromDate = fromEl?.value || '2000-01-01';
+  const toDate = toEl?.value || '2099-12-31';
+
+  const validBookings = BOOKINGS.filter(b => {
+    if (b.status === 'rejected') return false;
+    const d = b.date || getTodayISO();
+    return d >= fromDate && d <= toDate;
+  });
+
+  let totalCourtRevenue = 0;
+  let totalPosRevenue = 0;
+  let totalMinutesBooked = 0;
+
+  validBookings.forEach(b => {
+    const posSum = (b.posItems || []).reduce((s, i) => s + Number(i.price) * Number(i.qty), 0);
+    const calc = calculateBookingTotal(b.courtId, b.time, b.duration, posSum);
+    totalCourtRevenue += Number(b.courtFee) || calc.courtFee;
+    totalPosRevenue += posSum;
+    totalMinutesBooked += Number(b.duration) || 60;
+  });
+
+  const grandTotal = totalCourtRevenue + totalPosRevenue;
+
+  // 1. Render Summary KPI Cards
+  const statsEl = document.getElementById('reportStats');
+  if (statsEl) {
+    statsEl.innerHTML = `
+      <div class="stat-widget">
+        <div class="stat-widget-top">
+          <span class="stat-label">Tổng doanh thu thực tế</span>
+          <div class="stat-icon" style="background:var(--color-primary-50);color:var(--color-primary)"><iconify-icon icon="lucide:trending-up"></iconify-icon></div>
+        </div>
+        <div class="stat-value primary text-mono">${formatMoney(grandTotal)}</div>
+        <div class="stat-detail">Tiền sân: ${formatMoney(totalCourtRevenue)}</div>
+      </div>
+      <div class="stat-widget">
+        <div class="stat-widget-top">
+          <span class="stat-label">Doanh thu POS & Phụ phí</span>
+          <div class="stat-icon" style="background:var(--color-coral-50);color:var(--color-coral)"><iconify-icon icon="lucide:coffee"></iconify-icon></div>
+        </div>
+        <div class="stat-value accent text-mono">${formatMoney(totalPosRevenue)}</div>
+        <div class="stat-detail">Nước uống, đồ ăn & thuê vợt</div>
+      </div>
+      <div class="stat-widget">
+        <div class="stat-widget-top">
+          <span class="stat-label">Tổng lượt đặt hợp lệ</span>
+          <div class="stat-icon" style="background:var(--color-indigo-50);color:var(--color-indigo)"><iconify-icon icon="lucide:calendar-check"></iconify-icon></div>
+        </div>
+        <div class="stat-value indigo">${validBookings.length} đơn</div>
+        <div class="stat-detail">Tổng thời lượng: ${(totalMinutesBooked / 60).toFixed(1)} giờ</div>
+      </div>
+      <div class="stat-widget">
+        <div class="stat-widget-top">
+          <span class="stat-label">Giá trị trung bình / đơn</span>
+          <div class="stat-icon" style="background:var(--color-warning-light);color:#B45309"><iconify-icon icon="lucide:award"></iconify-icon></div>
+        </div>
+        <div class="stat-value warning text-mono">${formatMoney(validBookings.length ? grandTotal / validBookings.length : 0)}</div>
+        <div class="stat-detail">Trung bình mỗi ca đặt sân</div>
+      </div>
+    `;
+  }
+
+  // 2. Render Revenue Chart by Court
+  const chartData = COURTS.map(c => {
+    const courtBookings = validBookings.filter(b => Number(b.courtId) === Number(c.id));
+    const rev = courtBookings.reduce((sum, b) => {
+      const posSum = (b.posItems || []).reduce((s, i) => s + Number(i.price) * Number(i.qty), 0);
+      const calc = calculateBookingTotal(b.courtId, b.time, b.duration, posSum);
+      return sum + (Number(b.totalPaid) || calc.grandTotal);
+    }, 0);
+    return { label: c.name, value: rev, count: courtBookings.length };
+  });
+
+  const maxVal = Math.max(...chartData.map(d => d.value), 100000);
+  const chartEl = document.getElementById('reportChart');
+  if (chartEl) {
+    chartEl.innerHTML = chartData.map(d => {
+      const pct = Math.max(10, Math.round((d.value / maxVal) * 100));
+      return `
+        <div class="chart-col">
+          <div class="chart-bar" style="height:${pct}%;max-width:56px">
+            <span class="chart-bar-value">${Math.round(d.value / 1000)}k</span>
+          </div>
+          <span class="chart-label">${d.label}</span>
+          <span class="text-xs text-muted">${d.count} đơn</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 3. Render Top Customers by Total Spend
+  const customerMap = {};
+  validBookings.forEach(b => {
+    const key = b.phone || b.name;
+    const posSum = (b.posItems || []).reduce((s, i) => s + Number(i.price) * Number(i.qty), 0);
+    const calc = calculateBookingTotal(b.courtId, b.time, b.duration, posSum);
+    const spent = Number(b.totalPaid) || calc.grandTotal;
+    if (!customerMap[key]) {
+      customerMap[key] = { name: b.name, phone: b.phone, count: 0, spent: 0 };
+    }
+    customerMap[key].count += 1;
+    customerMap[key].spent += spent;
+  });
+
+  const vips = Object.values(customerMap).sort((a, b) => b.spent - a.spent).slice(0, 5);
+  const ranks = ['gold', 'silver', 'bronze', 'normal', 'normal'];
+  const vipEl = document.getElementById('vipList');
+  if (vipEl) {
+    vipEl.innerHTML = vips.map((v, i) => `
+      <div class="vip-item">
+        <div class="vip-rank ${ranks[i]}">${i + 1}</div>
+        <div style="flex:1;min-width:0">
+          <div class="font-bold text-sm truncate">${v.name}</div>
+          <div class="text-xs text-muted text-mono">${v.phone} · ${v.count} lượt đặt</div>
+        </div>
+        <div class="font-bold text-mono" style="color:var(--color-primary)">${formatMoney(v.spent)}</div>
+      </div>
+    `).join('');
+  }
+}
+
+function filterReport() {
+  renderReports();
+  showToast('Đã cập nhật báo cáo', 'Số liệu doanh thu đã được tính toán lại theo kỳ hạn chọn.', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', renderReports);

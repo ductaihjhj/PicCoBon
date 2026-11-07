@@ -1,0 +1,209 @@
+@model IEnumerable<PickleballClub.Models.TbBooking>
+@{
+    ViewData["Title"] = "Quản lý Đơn Đặt Sân";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var courts = ViewBag.Courts as List<PickleballClub.Models.TbCourt> ?? new List<PickleballClub.Models.TbCourt>();
+}
+
+<div class="content-wrapper">
+    <section class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1>Quản lý Đơn Đặt Sân</h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="/Admin">Quản trị</a></li>
+                        <li class="breadcrumb-item active">Đơn đặt sân</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="content">
+        <div class="container-fluid">
+
+            <!-- FORM TẠO ĐƠN NHANH CHO KHÁCH TẠI QUẦY -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <iconify-icon icon="lucide:calendar-plus" width="18" style="color:var(--color-primary);"></iconify-icon>
+                        <span>Tạo đơn đặt sân nhanh (Khách đặt trực tiếp tại quầy)</span>
+                    </h3>
+                    <span class="badge badge-primary">Tự động duyệt vé</span>
+                </div>
+                <div class="card-body">
+                    <form asp-action="CreateWalkIn" method="post">
+                        <div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.85rem; align-items: end;">
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label>Tên khách hàng *</label>
+                                <input type="text" name="customerName" class="form-control" placeholder="VD: Anh Minh" required />
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label>Số điện thoại *</label>
+                                <input type="tel" name="phone" class="form-control" placeholder="VD: 0901234567" required />
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label>Chọn sân</label>
+                                <select name="courtId" class="form-control">
+                                    @foreach (var c in courts)
+                                    {
+                                        <option value="@c.CourtId">@c.CourtName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label>Ngày thi đấu</label>
+                                <input type="date" name="bookingDate" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" required />
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label>Giờ bắt đầu</label>
+                                <select name="startTime" class="form-control">
+                                    @for (int h = 6; h <= 21; h++)
+                                    {
+                                        var t1 = $"{h:D2}:00";
+                                        var t2 = $"{h:D2}:30";
+                                        <option value="@t1" selected="@(t1 == "17:00" ? "selected" : null)">@t1</option>
+                                        <option value="@t2">@t2</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label>Thời lượng</label>
+                                <select name="duration" class="form-control">
+                                    <option value="60">60 phút (1h)</option>
+                                    <option value="90">90 phút (1.5h)</option>
+                                    <option value="120">120 phút (2h)</option>
+                                    <option value="180">180 phút (3h)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <button type="submit" class="btn btn-primary btn-block" style="height:41px;">
+                                    <iconify-icon icon="lucide:plus" width="16"></iconify-icon>
+                                    <span>Tạo lịch ngay</span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- DANH SÁCH ĐƠN ĐẶT SÂN -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title">
+                        <iconify-icon icon="lucide:list-checks" width="18" style="color:var(--color-indigo);"></iconify-icon>
+                        <span>Danh sách đơn đặt sân hiện tại (@Model.Count() đơn)</span>
+                    </h3>
+                    <div class="card-tools">
+                        <a href="/Management" class="btn btn-primary btn-sm">Mở Trung tâm Điều phối &amp; POS trực quan</a>
+                    </div>
+                </div>
+                <div class="card-body table-responsive p-0">
+                    <table class="table table-hover text-nowrap">
+                        <thead>
+                            <tr>
+                                <th>Mã vé</th>
+                                <th>Khách hàng</th>
+                                <th>Số điện thoại</th>
+                                <th>Sân thi đấu</th>
+                                <th>Ngày</th>
+                                <th>Khung giờ</th>
+                                <th>Tổng tiền</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác xử lý</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!Model.Any())
+                            {
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted py-4">
+                                        Hiện chưa có đơn đặt sân nào. Bạn có thể tạo nhanh đơn ở biểu mẫu phía trên.
+                                    </td>
+                                </tr>
+                            }
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td><code style="font-weight:700;color:var(--color-indigo);">@item.BookingCode</code></td>
+                                    <td class="font-weight-bold">@item.CustomerName</td>
+                                    <td class="text-mono">@item.Phone</td>
+                                    <td>@(item.Court?.CourtName ?? "Sân " + item.CourtId)</td>
+                                    <td class="text-mono">@item.BookingDate</td>
+                                    <td class="text-mono">@item.StartTime (@(item.Duration)p)</td>
+                                    <td class="text-success font-weight-bold text-mono">@string.Format("{0:N0} đ", item.TotalPaid > 0 ? item.TotalPaid : item.CourtFee)</td>
+                                    <td>
+                                        @if (item.Status == "pending")
+                                        {
+                                            <span class="badge badge-warning">Chờ duyệt</span>
+                                        }
+                                        else if (item.Status == "approved" || item.Status == "confirmed")
+                                        {
+                                            <span class="badge badge-primary">Đã duyệt</span>
+                                        }
+                                        else if (item.Status == "playing" || item.Status == "active")
+                                        {
+                                            <span class="badge badge-success">Đang thi đấu</span>
+                                        }
+                                        else if (item.Status == "completed")
+                                        {
+                                            <span class="badge badge-neutral">Hoàn thành</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-danger">Đã hủy</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="d-flex" style="gap: 6px; flex-wrap: wrap;">
+                                            @if (item.Status == "pending")
+                                            {
+                                                <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                    <input type="hidden" name="id" value="@item.BookingId" />
+                                                    <input type="hidden" name="status" value="approved" />
+                                                    <button type="submit" class="btn btn-success btn-xs">Duyệt vé</button>
+                                                </form>
+                                            }
+                                            @if (item.Status == "approved" || item.Status == "confirmed")
+                                            {
+                                                <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                    <input type="hidden" name="id" value="@item.BookingId" />
+                                                    <input type="hidden" name="status" value="playing" />
+                                                    <button type="submit" class="btn btn-primary btn-xs">Nhận sân</button>
+                                                </form>
+                                            }
+                                            @if (item.Status == "playing" || item.Status == "active")
+                                            {
+                                                <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                    <input type="hidden" name="id" value="@item.BookingId" />
+                                                    <input type="hidden" name="status" value="completed" />
+                                                    <button type="submit" class="btn btn-info btn-xs">Hoàn tất</button>
+                                                </form>
+                                            }
+                                            @if (item.Status == "pending" || item.Status == "approved")
+                                            {
+                                                <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                    <input type="hidden" name="id" value="@item.BookingId" />
+                                                    <input type="hidden" name="status" value="rejected" />
+                                                    <button type="submit" class="btn btn-outline btn-xs">Hủy đơn</button>
+                                                </form>
+                                            }
+                                            <form asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Xác nhận xóa đơn đặt sân này?');">
+                                                <input type="hidden" name="id" value="@item.BookingId" />
+                                                <button type="submit" class="btn btn-danger btn-xs">Xóa</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </section>
+</div>

@@ -1,0 +1,91 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using PickleballClub.Models;
+using PickleballClub.Utilities;
+
+namespace PickleballClub.Areas.Admin.Controllers
+{
+    [Area("Admin")]
+    public class CourtsController : Controller
+    {
+        private readonly PickleballContext _context;
+
+        public CourtsController(PickleballContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<IActionResult> Index()
+        {
+            if (!Function.IsLogin())
+                return RedirectToAction("Index", "Login", new { area = "Admin" });
+
+            return View(await _context.TbCourts.OrderBy(c => c.CourtId).ToListAsync());
+        }
+
+        public IActionResult Create()
+        {
+            if (!Function.IsLogin())
+                return RedirectToAction("Index", "Login", new { area = "Admin" });
+            return View(new TbCourt
+            {
+                CourtType = "Indoor",
+                TypeLabel = "Trong nhà · Mái vòm & Đèn LED Pro",
+                Surface = "USAPA Cushion 8 lớp",
+                Image = "/assets/court-vip-arena.png",
+                BasePrice = 120000,
+                Surcharge = 20000,
+                IsActive = true
+            });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create([Bind("CourtId,CourtName,Alias,CourtType,TypeLabel,Surface,Image,BasePrice,Surcharge,Description,IsActive")] TbCourt tbCourt)
+        {
+            if (ModelState.IsValid)
+            {
+                tbCourt.Alias = Function.TitleSlugGenerationAlias(tbCourt.CourtName);
+                _context.Add(tbCourt);
+                await _context.SaveChangesAsync();
+                return RedirectToAction(nameof(Index));
+            }
+            return View(tbCourt);
+        }
+
+        public async Task<IActionResult> Edit(int? id)
+        {
+            if (id == null) return NotFound();
+            var court = await _context.TbCourts.FindAsync(id);
+            if (court == null) return NotFound();
+            return View(court);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id, [Bind("CourtId,CourtName,Alias,CourtType,TypeLabel,Surface,Image,BasePrice,Surcharge,Description,IsActive")] TbCourt tbCourt)
+        {
+            if (id != tbCourt.CourtId) return NotFound();
+            if (ModelState.IsValid)
+            {
+                tbCourt.Alias = Function.TitleSlugGenerationAlias(tbCourt.CourtName);
+                _context.Update(tbCourt);
+                await _context.SaveChangesAsync();
+                return RedirectToAction(nameof(Index));
+            }
+            return View(tbCourt);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ToggleActive(int id)
+        {
+            var court = await _context.TbCourts.FindAsync(id);
+            if (court != null)
+            {
+                court.IsActive = !court.IsActive;
+                await _context.SaveChangesAsync();
+            }
+            return RedirectToAction(nameof(Index));
+        }
+    }
+}
