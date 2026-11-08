@@ -1,54 +1,123 @@
-﻿/* ==========================================================================
-   PICKLEBALL PRO ARENA — LOOKUP & MY TICKETS CONTROLLER
-   Auto-lookup for logged-in users, search by Phone/Ref/Name, QR view & Cancel
+/* ==========================================================================
+   SPIKE PICKLEBALL CLUB — SECURE LOOKUP & E-TICKET QR CONTROLLER
+   Fixes IDOR (P0-07), renders signed QR SVG (P1-01), enforces cutoff policy (P1-12)
    ========================================================================== */
 
-function initLookup() {
-  const input = document.getElementById('lookupPhone');
-  if (CURRENT_USER && CURRENT_USER.phone && CURRENT_USER.role !== 'admin') {
-    if (input) input.value = CURRENT_USER.phone;
-    searchLookup();
-  } else {
-    showAllLookup();
+let currentLookupList = [];
+
+async function initLookup() {
+  const user = getCurrentUser();
+  const codeInput = document.getElementById('lookupCode');
+  const phoneInput = document.getElementById('lookupPhone');
+  const showAllBtn = document.getElementById('lookupShowAllBtn');
+
+  if (showAllBtn) {
+    // Only show "Xem lịch của tôi" for logged-in users or "Xem tất cả" for Admin/Staff (P0-07)
+    if (isAdminUser()) {
+      showAllBtn.style.display = '';
+      showAllBtn.querySelector('span').textContent = 'Xem tất cả đơn (Admin)';
+    } else if (user) {
+      showAllBtn.style.display = '';
+      showAllBtn.querySelector('span').textContent = 'Xem vé của tôi';
+    } else {
+      showAllBtn.style.display = 'none';
+    }
+  }
+
+  if (user) {
+    if (phoneInput && !phoneInput.value && user.phone) {
+      phoneInput.value = user.phone;
+    }
+    await showAllLookup();
   }
 }
 
-function quickSearch(val) {
-  const input = document.getElementById('lookupPhone');
-  if (input) input.value = val;
-  searchLookup();
+async function showAllLookup() {
+  const user = getCurrentUser();
+  if (!user) {
+    showToast('Yêu cầu xác thực', 'Khách vãng lai vui lòng nhập đồng thời Mã đặt sân (PB-...) và Số điện thoại để tra cứu vé.', 'warning');
+    return;
+  }
+
+  try {
+    const endpoint = isAdminUser() ? '/api/bookings/lookup' : '/api/bookings/me';
+    const res = await fetch(endpoint, { headers: { 'Accept': 'application/json' }, cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      showToast('Không thể tải danh sách', data.error || 'Vui lòng thử lại.', 'error');
+      return;
+    }
+
+    currentLookupList = data.bookings || [];
+    const label = isAdminUser()
+      ? `Tất cả đơn đặt sân trong hệ thống (${currentLookupList.length} lượt)`
+      : `Danh sách vé đặt sân của bạn (${currentLookupList.length} lượt)`;
+    renderLookupTable(currentLookupList, label);
+  } catch (_) {
+    showToast('Lỗi kết nối', 'Không thể tải dữ liệu vé đặt sân.', 'error');
+  }
 }
 
-function showAllLookup() {
-  const input = document.getElementById('lookupPhone');
-  if (input) input.value = '';
-  renderLookupTable(BOOKINGS, `Tất cả đơn đặt sân trong hệ thống (${BOOKINGS.length} lượt)`);
-}
-
-function searchLookup() {
-  const query = (document.getElementById('lookupPhone')?.value || '').trim().toLowerCase();
+async function searchLookup() {
+  const rawInput = (document.getElementById('lookupPhone')?.value || '').trim();
+  const codeInputVal = (document.getElementById('lookupCode')?.value || '').trim();
   const card = document.getElementById('lookupResultCard');
   const empty = document.getElementById('lookupEmpty');
   if (!card || !empty) return;
 
-  if (!query) {
-    showAllLookup();
+  let code = codeInputVal;
+  let phone = rawInput;
+
+  // Allow user to type "PB-XXXX 0901234567" in a single input or use separate inputs
+  if (!code && rawInput.includes(' ')) {
+    const parts = rawInput.split(/\s+/);
+    const codePart = parts.find(p => p.toUpperCase().startsWith('PB-') || p.toUpperCase().startsWith('SPK1.'));
+    const phonePart = parts.find(p => /^[0+][0-9]{8,11}$/.test(p));
+    if (codePart) code = codePart;
+    if (phonePart) phone = phonePart;
+  } else if (!code && (rawInput.toUpperCase().startsWith('PB-') || rawInput.toUpperCase().startsWith('SPK1.'))) {
+    code = rawInput;
+    phone = getCurrentUser()?.phone || '';
+  }
+
+  if (!code && !phone) {
+    if (getCurrentUser()) {
+      await showAllLookup();
+    } else {
+      showToast('Nhập thông tin tra cứu', 'Vui lòng nhập Mã đặt sân (PB-...) kèm Số điện thoại đặt sân.', 'warning');
+    }
     return;
   }
 
-  const results = BOOKINGS.filter(b =>
-    (b.phone && b.phone.toLowerCase().includes(query)) ||
-    (b.id && b.id.toLowerCase().includes(query)) ||
-    (b.name && b.name.toLowerCase().includes(query))
-  );
+  try {
+    const qs = new URLSearchParams();
+    if (code) qs.set('code', code);
+    if (phone) qs.set('phone', phone);
 
-  if (results.length === 0) {
-    card.style.display = 'none';
-    empty.style.display = 'flex';
-    return;
+    const res = await fetch(`/api/bookings/lookup?${qs.toString()}`, {
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store'
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      card.style.display = 'none';
+      empty.style.display = 'flex';
+      showToast('Tra cứu bảo mật', data.error || 'Vui lòng nhập đúng Mã đặt sân và Số điện thoại.', 'warning');
+      return;
+    }
+
+    currentLookupList = data.bookings || [];
+    if (currentLookupList.length === 0) {
+      card.style.display = 'none';
+      empty.style.display = 'flex';
+      return;
+    }
+
+    renderLookupTable(currentLookupList, `Tìm thấy ${currentLookupList.length} vé đặt sân hợp lệ`);
+  } catch (_) {
+    showToast('Lỗi kết nối', 'Không thể thực hiện tra cứu lúc này.', 'error');
   }
-
-  renderLookupTable(results, `Tìm thấy ${results.length} lượt đặt sân khớp với "${query}"`);
 }
 
 function renderLookupTable(list, titleText) {
@@ -58,32 +127,44 @@ function renderLookupTable(list, titleText) {
   const tbody = document.getElementById('lookupResults');
   if (!card || !tbody) return;
 
-  empty.style.display = 'none';
+  if (!list || list.length === 0) {
+    card.style.display = 'none';
+    if (empty) empty.style.display = 'flex';
+    return;
+  }
+
+  if (empty) empty.style.display = 'none';
   card.style.display = 'block';
   if (titleEl) titleEl.textContent = titleText;
 
   tbody.innerHTML = list.map(b => {
     const court = getCourtById(b.courtId);
-    const endTime = minutesToTime(timeToMinutes(b.time) + Number(b.duration));
-    const total = Number(b.totalPaid) || Number(b.courtFee) || calculateBookingTotal(b.courtId, b.time, b.duration).grandTotal;
-    const canCancel = b.status === 'pending';
+    const endTime = getEndTime(b.time, b.duration);
+    const total = Number(b.amountDue) || Number(b.courtFee) || 0;
+    const canCancel = b.status === 'pending' || b.status === 'approved';
+    const paymentBadge = b.paymentStatus === 'paid'
+      ? '<span class="badge badge-success" style="font-size:0.68rem;">Đã thanh toán</span>'
+      : '<span class="badge badge-neutral" style="font-size:0.68rem;">Thu tại quầy</span>';
 
     return `
       <tr>
-        <td><span class="text-mono font-bold" style="color:var(--color-indigo)">${b.id}</span></td>
+        <td><span class="text-mono font-bold" style="color:var(--color-indigo)">${escapeHtml(b.id)}</span></td>
         <td>
-          <div class="font-bold">${b.name}</div>
-          <div class="text-xs text-muted text-mono">${b.phone}</div>
+          <div class="font-bold">${escapeHtml(b.name)}</div>
+          <div class="text-xs text-muted text-mono">${escapeHtml(b.phone)}</div>
         </td>
         <td><span class="font-semibold text-xs">${formatDateVN(b.date)}</span></td>
-        <td><span class="badge badge-neutral">${court.name}</span></td>
-        <td class="text-mono font-semibold">${b.time} → ${endTime} <span class="text-xs text-muted">(${b.duration}p)</span></td>
-        <td class="text-mono font-bold" style="color:var(--color-primary)">${formatMoney(total)}</td>
-        <td><span class="badge ${statusBadgeClass(b.status)}">${statusLabel(b.status, b)}</span></td>
+        <td><span class="badge badge-neutral">${escapeHtml(court.name)}</span></td>
+        <td class="text-mono font-semibold">${escapeHtml(b.time)} → ${escapeHtml(endTime)} <span class="text-xs text-muted">(${Number(b.duration)}p)</span></td>
         <td>
-          <div style="display:flex;gap:0.35rem;align-items:center">
-            ${b.status !== 'rejected' ? `<button class="btn btn-outline btn-sm" onclick="viewTicketQR('${b.id}')"><iconify-icon icon="lucide:qr-code" width="14"></iconify-icon> Mã QR</button>` : ''}
-            ${canCancel ? `<button class="btn btn-danger-outline btn-sm" onclick="cancelMyBooking('${b.id}')">Hủy đơn</button>` : ''}
+          <div class="text-mono font-bold" style="color:var(--color-primary)">${formatMoney(total)}</div>
+          ${paymentBadge}
+        </td>
+        <td><span class="badge ${statusBadgeClass(b.status)}">${escapeHtml(statusLabel(b.status, b))}</span></td>
+        <td>
+          <div style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap;">
+            ${b.status !== 'rejected' && b.status !== 'cancelled' ? `<button class="btn btn-outline btn-sm" onclick="viewTicketQR('${escapeAttr(b.id)}')"><iconify-icon icon="lucide:qr-code" width="14"></iconify-icon> Mã QR</button>` : ''}
+            ${canCancel ? `<button class="btn btn-danger-outline btn-sm" onclick="cancelMyBooking('${escapeAttr(b.id)}', '${escapeAttr(b.phone)}')">Hủy đơn</button>` : ''}
           </div>
         </td>
       </tr>
@@ -92,37 +173,61 @@ function renderLookupTable(list, titleText) {
 }
 
 function viewTicketQR(id) {
-  const b = BOOKINGS.find(x => x.id === id);
+  const b = currentLookupList.find(x => x.id === id) || MY_BOOKINGS.find(x => x.id === id) || BOOKINGS.find(x => x.id === id);
   if (!b) return;
   const court = getCourtById(b.courtId);
-  const endTime = minutesToTime(timeToMinutes(b.time) + Number(b.duration));
-  const total = Number(b.totalPaid) || Number(b.courtFee) || calculateBookingTotal(b.courtId, b.time, b.duration).grandTotal;
+  const endTime = getEndTime(b.time, b.duration);
+  const total = Number(b.amountDue) || Number(b.courtFee) || 0;
+  const qrToken = b.checkInToken || b.id;
 
-  document.getElementById('ticketQrCode').textContent = b.id;
+  const qrBox = document.querySelector('#modalTicketQR .qr-placeholder');
+  if (qrBox) {
+    qrBox.innerHTML = `
+      ${renderQrCodeSvg(qrToken, 152)}
+      <div class="text-xs font-bold text-mono mt-sm" id="ticketQrCode" style="color:var(--color-indigo)">${escapeHtml(b.id)}</div>
+      <div style="font-size:0.68rem;color:var(--text-muted);font-family:var(--font-mono);margin-top:2px;">Token bảo mật: ${escapeHtml(String(qrToken).slice(0, 24))}...</div>
+    `;
+  }
+
   document.getElementById('ticketQrName').textContent = `${b.name} (${b.phone})`;
   document.getElementById('ticketQrDate').textContent = formatDateVN(b.date);
   document.getElementById('ticketQrCourt').textContent = court.name;
   document.getElementById('ticketQrTime').textContent = `${b.time} → ${endTime} (${b.duration} phút)`;
-  document.getElementById('ticketQrTotal').textContent = formatMoney(total);
+  document.getElementById('ticketQrTotal').textContent = `${formatMoney(total)} (${b.paymentStatus === 'paid' ? 'Đã thanh toán' : 'Thanh toán tại quầy'})`;
   openModal('modalTicketQR');
 }
 
-function cancelMyBooking(id) {
-  const b = BOOKINGS.find(x => x.id === id);
-  if (!b) return;
-  if (!confirm(`Bạn có chắc chắn muốn hủy đơn đặt sân ${b.id} (${b.time})?`)) return;
-  b.status = 'rejected';
-  saveData();
-  showToast('Đã hủy đơn đặt sân', `Đơn ${b.id} đã được hủy thành công.`, 'info');
-  searchLookup();
+async function cancelMyBooking(id, phone) {
+  if (!confirm(`Bạn có chắc chắn muốn hủy đơn đặt sân ${id}? (Lưu ý: Lịch đã duyệt chỉ có thể tự hủy trước giờ thi đấu tối thiểu 2 tiếng)`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/bookings/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: phone || document.getElementById('lookupPhone')?.value || '',
+        reason: 'Khách hàng yêu cầu hủy trên trang Tra cứu'
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      showToast('Không thể hủy lịch', data.error || 'Đã quá thời hạn tự hủy lịch.', 'error');
+      return;
+    }
+
+    showToast('Đã hủy lịch đặt sân', `Đơn ${id} đã được hủy thành công.`, 'success');
+    await syncDatabaseFromServer();
+    await searchLookup();
+  } catch (_) {
+    showToast('Lỗi kết nối', 'Không thể gửi yêu cầu hủy đơn lúc này.', 'error');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', initLookup);
 window.addEventListener('pickleball:db-synced', () => {
-  const input = document.getElementById('lookupPhone');
-  if (input && input.value.trim()) {
-    searchLookup();
-  } else {
+  if (currentLookupList.length === 0 && getCurrentUser()) {
     initLookup();
   }
 });

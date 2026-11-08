@@ -1,4 +1,4 @@
-﻿@model IEnumerable<PickleballClub.Models.TbBooking>
+@model IEnumerable<PickleballClub.Models.TbBooking>
 @{
     ViewData["Title"] = "Tổng Quan Quản Trị — Spike Pickleball Club";
 }
@@ -63,13 +63,13 @@
 
             <div class="stat-card">
                 <div class="stat-card-top">
-                    <span class="stat-card-label">Tổng doanh thu ghi nhận</span>
+                    <span class="stat-card-label">Doanh thu thực thu</span>
                     <div class="stat-card-icon" style="background:rgba(245,158,11,0.14);color:#D97706;">
                         <iconify-icon icon="lucide:wallet" width="20"></iconify-icon>
                     </div>
                 </div>
-                <div class="stat-card-value text-mono" style="color:var(--color-primary);">@string.Format("{0:N0} đ", ViewBag.TotalRevenue)</div>
-                <div class="stat-card-meta">Từ tiền sân &amp; dịch vụ POS</div>
+                <div class="stat-card-value text-mono" style="color:var(--color-primary);">@string.Format("{0:N0} đ", ViewBag.CollectedRevenue ?? 0)</div>
+                <div class="stat-card-meta">Công nợ chưa thu: <strong>@string.Format("{0:N0} đ", ViewBag.Receivables ?? 0)</strong></div>
             </div>
         </div>
 
@@ -159,7 +159,7 @@
                             <span class="badge badge-primary">Thống kê</span>
                         </div>
                         <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:0.35rem;">Báo Cáo Doanh Thu &amp; Hiệu Suất</h3>
-                        <p class="text-xs text-muted">Phân tích doanh thu theo từng sân thi đấu, tỷ lệ lấp đầy và khách hàng thân thiết.</p>
+                        <p class="text-xs text-muted">Phân tích doanh thu thực thu, công nợ theo từng sân thi đấu và khách hàng thân thiết.</p>
                     </a>
 
                 </div>
@@ -184,7 +184,7 @@
                             <th>Số điện thoại</th>
                             <th>Sân thi đấu</th>
                             <th>Ngày &amp; Giờ</th>
-                            <th>Tổng tiền</th>
+                            <th>Phải thu / Thực thu</th>
                             <th>Trạng thái</th>
                             <th>Thao tác nhanh</th>
                         </tr>
@@ -202,13 +202,18 @@
                         {
                             @foreach (var item in Model)
                             {
+                                var amountDue = item.AmountDue > 0 ? item.AmountDue : (item.TotalPaid > 0 ? item.TotalPaid : item.CourtFee);
+                                var paidAmt = item.PaidAmount;
                                 <tr>
                                     <td><code style="font-weight:700;color:var(--color-indigo);">@item.BookingCode</code></td>
                                     <td style="font-weight:700;">@item.CustomerName</td>
                                     <td class="text-mono">@item.Phone</td>
                                     <td>@(item.Court?.CourtName ?? "Sân " + item.CourtId)</td>
                                     <td class="text-mono">@item.BookingDate · @item.StartTime (@(item.Duration)p)</td>
-                                    <td class="text-mono" style="font-weight:700;color:#059669;">@string.Format("{0:N0} đ", item.TotalPaid > 0 ? item.TotalPaid : item.CourtFee)</td>
+                                    <td>
+                                        <div class="text-mono" style="font-weight:700;color:#0F172A;">@string.Format("{0:N0} đ", amountDue)</div>
+                                        <div class="text-mono" style="font-size:0.75rem;color:@(paidAmt >= amountDue && amountDue > 0 ? "#059669" : "#64748B");">Thu: @string.Format("{0:N0} đ", paidAmt)</div>
+                                    </td>
                                     <td>
                                         @if (item.Status == "pending")
                                         {
@@ -236,6 +241,7 @@
                                             @if (item.Status == "pending")
                                             {
                                                 <form asp-area="Admin" asp-controller="Bookings" asp-action="UpdateStatus" method="post" style="display:inline;">
+                                                    @Html.AntiForgeryToken()
                                                     <input type="hidden" name="id" value="@item.BookingId" />
                                                     <input type="hidden" name="status" value="approved" />
                                                     <input type="hidden" name="returnUrl" value="/Admin" />
@@ -245,6 +251,7 @@
                                             @if (item.Status == "approved" || item.Status == "confirmed")
                                             {
                                                 <form asp-area="Admin" asp-controller="Bookings" asp-action="UpdateStatus" method="post" style="display:inline;">
+                                                    @Html.AntiForgeryToken()
                                                     <input type="hidden" name="id" value="@item.BookingId" />
                                                     <input type="hidden" name="status" value="playing" />
                                                     <input type="hidden" name="returnUrl" value="/Admin" />
@@ -254,6 +261,7 @@
                                             @if (item.Status == "playing" || item.Status == "active")
                                             {
                                                 <form asp-area="Admin" asp-controller="Bookings" asp-action="UpdateStatus" method="post" style="display:inline;">
+                                                    @Html.AntiForgeryToken()
                                                     <input type="hidden" name="id" value="@item.BookingId" />
                                                     <input type="hidden" name="status" value="completed" />
                                                     <input type="hidden" name="returnUrl" value="/Admin" />

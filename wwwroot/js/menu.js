@@ -1,10 +1,11 @@
-﻿/* ==========================================================================
-   PICKLEBALL PRO ARENA — PRO SHOP, F&B & COURT-SIDE ORDERING CONTROLLER
-   Category Filtering, Search, Interactive Cart & Direct Booking Tab Integration
+/* ==========================================================================
+   SPIKE PICKLEBALL CLUB — PRO SHOP, F&B & COURT-SIDE ORDERING CONTROLLER
+   Server-Authoritative Stock, Pricing, Court FK & XSS Sanitization (P0-10/12, P1-14/15)
    ========================================================================== */
 
 let activeMenuCategory = 'all';
 let shopCart = [];
+let isSubmittingShopOrder = false;
 
 function filterMenuCategory(cat) {
   activeMenuCategory = cat;
@@ -19,29 +20,26 @@ function filterMenuCategory(cat) {
 }
 
 function autoFillShopCustomer() {
-  if (CURRENT_USER) {
+  const user = getCurrentUser();
+  if (user) {
     const nameEl = document.getElementById('shopOrderName');
     const phoneEl = document.getElementById('shopOrderPhone');
-    if (nameEl && !nameEl.value) nameEl.value = CURRENT_USER.name || '';
-    if (phoneEl && !phoneEl.value) phoneEl.value = CURRENT_USER.phone || '';
+    if (nameEl && !nameEl.value) nameEl.value = user.name || '';
+    if (phoneEl && !phoneEl.value) phoneEl.value = user.phone || '';
   }
 
-  // Populate active bookings dropdown so customer can attach F&B directly to their court
+  // Populate active bookings dropdown ONLY with user's own verified bookings (or all active if Admin/Staff) (P1-15)
   const bookingSelect = document.getElementById('shopOrderBooking');
   if (!bookingSelect) return;
 
-  const activeBookings = BOOKINGS.filter(b => {
-    if (!['pending', 'approved', 'playing'].includes(b.status)) return false;
-    if (!CURRENT_USER || CURRENT_USER.role === 'admin') return true;
-    return (b.userId && Number(b.userId) === Number(CURRENT_USER.id)) ||
-           (CURRENT_USER.phone && b.phone === CURRENT_USER.phone);
-  });
+  const sourceList = isAdminUser() ? BOOKINGS : (MY_BOOKINGS.length > 0 ? MY_BOOKINGS : BOOKINGS.filter(b => !b.isAnonymized));
+  const activeBookings = sourceList.filter(b => ['approved', 'playing'].includes(b.status) && !b.isAnonymized);
 
   const currentVal = bookingSelect.value;
   bookingSelect.innerHTML = `<option value="">-- Mua lẻ / Nhận trực tiếp tại quầy --</option>` +
     activeBookings.map(b => {
       const court = getCourtById(b.courtId);
-      return `<option value="${b.id}">Gộp vào vé ${b.id} (${court.name} · ${b.time})</option>`;
+      return `<option value="${escapeAttr(b.id)}">Gộp vào vé ${escapeHtml(b.id)} (${escapeHtml(court.name)} · ${escapeHtml(b.time)})</option>`;
     }).join('');
   if (currentVal && activeBookings.some(b => b.id === currentVal)) {
     bookingSelect.value = currentVal;
@@ -51,16 +49,17 @@ function autoFillShopCustomer() {
 function renderMenu() {
   const grid = document.getElementById('menuGrid');
   const countEl = document.getElementById('menuCount');
-  if (countEl) countEl.textContent = MENU.length;
+  const menuData = Array.isArray(MENU) && MENU.length > 0 ? MENU : MENU_ITEMS;
+  if (countEl) countEl.textContent = menuData.length;
   if (!grid) return;
 
-  const isAdmin = CURRENT_USER && CURRENT_USER.role === 'admin';
+  const isAdmin = isAdminUser();
   const addCard = document.getElementById('addMenuItemCard');
   if (addCard) addCard.style.display = isAdmin ? '' : 'none';
 
   const keyword = (document.getElementById('menuSearchInput')?.value || '').trim().toLowerCase();
 
-  const filtered = MENU.filter(item => {
+  const filtered = menuData.filter(item => {
     const matchCat = activeMenuCategory === 'all' || item.type === activeMenuCategory;
     const matchKw = !keyword || (item.name && item.name.toLowerCase().includes(keyword));
     return matchCat && matchKw;
@@ -79,24 +78,29 @@ function renderMenu() {
   grid.innerHTML = filtered.map(item => {
     const typeLabel = item.type === 'drink' ? 'Đồ uống' : item.type === 'food' ? 'Đồ ăn nhẹ' : 'Dụng cụ';
     const inCart = shopCart.find(c => Number(c.id) === Number(item.id));
+    const stock = typeof item.stock === 'number' ? item.stock : 100;
+    const outOfStock = stock <= 0;
 
     return `
-      <div class="menu-item ${inCart ? 'is-selected' : ''}">
+      <div class="menu-item ${inCart ? 'is-selected' : ''}" ${outOfStock ? 'style="opacity:0.65"' : ''}>
         <div class="menu-item-top">
-          <div class="menu-item-icon">${item.icon}</div>
+          <div class="menu-item-icon">${sanitizeIconHtml(item.icon)}</div>
           <div class="menu-item-top-right">
-            <span class="menu-item-tag">${typeLabel}</span>
-            ${isAdmin ? `<button type="button" class="menu-item-del-btn" onclick="deleteMenuItem(${item.id})" title="Xóa mặt hàng"><iconify-icon icon="lucide:trash-2" width="14"></iconify-icon></button>` : ''}
+            <span class="menu-item-tag">${escapeHtml(typeLabel)}</span>
+            <span class="badge ${outOfStock ? 'badge-danger' : 'badge-neutral'}" style="font-size:0.68rem;">${outOfStock ? 'Hết hàng' : `Còn ${stock}`}</span>
           </div>
         </div>
         <div class="menu-item-body">
-          <div class="menu-item-name">${item.name}</div>
+          <div class="menu-item-name">${escapeHtml(item.name)}</div>
         </div>
         <div class="menu-item-footer">
           <div class="menu-item-price text-mono">${formatMoney(item.price)}</div>
-          <button type="button" class="btn ${inCart ? 'btn-primary' : 'btn-outline'} btn-xs menu-item-cta" onclick="addToShopCart(${item.id})">
+          <button type="button"
+            class="btn ${inCart ? 'btn-primary' : 'btn-outline'} btn-xs menu-item-cta"
+            ${outOfStock ? 'disabled' : ''}
+            onclick="addToShopCart(${Number(item.id)})">
             <iconify-icon icon="${inCart ? 'lucide:check' : 'lucide:plus'}" width="14"></iconify-icon>
-            <span>${inCart ? `Đã chọn (${inCart.qty})` : 'Chọn mua'}</span>
+            <span>${outOfStock ? 'Hết hàng' : inCart ? `Đã chọn (${inCart.qty})` : 'Chọn mua'}</span>
           </button>
         </div>
       </div>
@@ -105,15 +109,26 @@ function renderMenu() {
 }
 
 function addToShopCart(itemId) {
-  const prod = MENU.find(m => Number(m.id) === Number(itemId));
+  const menuData = Array.isArray(MENU) && MENU.length > 0 ? MENU : MENU_ITEMS;
+  const prod = menuData.find(m => Number(m.id) === Number(itemId));
   if (!prod) return;
+
+  const maxStock = typeof prod.stock === 'number' ? prod.stock : 100;
+  if (maxStock <= 0) {
+    showToast('Hết hàng', `Sản phẩm "${prod.name}" hiện đã hết hàng trong kho.`, 'warning');
+    return;
+  }
 
   const existing = shopCart.find(c => Number(c.id) === Number(prod.id));
   if (existing) {
+    if (existing.qty + 1 > maxStock) {
+      showToast('Vượt tồn kho', `Chỉ còn ${maxStock} sản phẩm "${prod.name}" trong kho.`, 'warning');
+      return;
+    }
     existing.qty += 1;
   } else {
     shopCart.push({
-      id: prod.id,
+      id: Number(prod.id),
       name: prod.name,
       price: Number(prod.price) || 0,
       qty: 1
@@ -128,7 +143,17 @@ function changeShopCartQty(itemId, delta) {
   const idx = shopCart.findIndex(c => Number(c.id) === Number(itemId));
   if (idx === -1) return;
 
-  shopCart[idx].qty += delta;
+  const menuData = Array.isArray(MENU) && MENU.length > 0 ? MENU : MENU_ITEMS;
+  const prod = menuData.find(m => Number(m.id) === Number(itemId));
+  const maxStock = prod && typeof prod.stock === 'number' ? prod.stock : 100;
+
+  const nextQty = shopCart[idx].qty + delta;
+  if (nextQty > maxStock) {
+    showToast('Vượt tồn kho', `Kho chỉ còn tối đa ${maxStock} sản phẩm này.`, 'warning');
+    return;
+  }
+
+  shopCart[idx].qty = nextQty;
   if (shopCart[idx].qty <= 0) {
     shopCart.splice(idx, 1);
   }
@@ -165,19 +190,20 @@ function renderShopCart() {
   container.innerHTML = shopCart.map(item => `
     <div class="shop-cart-row">
       <div class="shop-cart-row-info">
-        <div class="shop-cart-row-name">${item.name}</div>
+        <div class="shop-cart-row-name">${escapeHtml(item.name)}</div>
         <div class="shop-cart-row-meta text-mono">${formatMoney(item.price)} × ${item.qty} = <strong>${formatMoney(item.price * item.qty)}</strong></div>
       </div>
       <div class="shop-cart-row-qty">
-        <button type="button" class="shop-qty-btn" onclick="changeShopCartQty(${item.id}, -1)" aria-label="Giảm số lượng">−</button>
+        <button type="button" class="shop-qty-btn" onclick="changeShopCartQty(${Number(item.id)}, -1)" aria-label="Giảm số lượng">−</button>
         <span class="shop-qty-val text-mono">${item.qty}</span>
-        <button type="button" class="shop-qty-btn" onclick="changeShopCartQty(${item.id}, 1)" aria-label="Tăng số lượng">+</button>
+        <button type="button" class="shop-qty-btn" onclick="changeShopCartQty(${Number(item.id)}, 1)" aria-label="Tăng số lượng">+</button>
       </div>
     </div>
   `).join('');
 }
 
 async function submitShopOrder() {
+  if (isSubmittingShopOrder) return;
   if (shopCart.length === 0) {
     showToast('Giỏ hàng trống', 'Vui lòng chọn ít nhất 1 sản phẩm hoặc dịch vụ.', 'warning');
     return;
@@ -188,10 +214,18 @@ async function submitShopOrder() {
   const note = (document.getElementById('shopOrderNote')?.value || '').trim() || 'Nhận tại quầy Pro Shop';
   const bookingCode = document.getElementById('shopOrderBooking')?.value || '';
 
-  if (!customerName || !phone) {
-    showToast('Thiếu thông tin người nhận', 'Vui lòng nhập Họ tên và Số điện thoại.', 'warning');
+  if (!customerName || customerName.length < 2) {
+    showToast('Thiếu thông tin người nhận', 'Vui lòng nhập Họ tên hợp lệ (tối thiểu 2 ký tự).', 'warning');
     return;
   }
+
+  if (!phone || !/^(0|\+84)[0-9]{8,10}$/.test(phone.replace(/[\s.-]/g, ''))) {
+    showToast('Số điện thoại không hợp lệ', 'Vui lòng nhập đúng số điện thoại 10 chữ số.', 'warning');
+    return;
+  }
+
+  const idempotencyKey = `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  isSubmittingShopOrder = true;
 
   try {
     const res = await fetch('/api/orders/create', {
@@ -202,75 +236,38 @@ async function submitShopOrder() {
         phone,
         address: note,
         bookingCode,
-        items: shopCart
+        idempotencyKey,
+        items: shopCart.map(i => ({ id: i.id, qty: i.qty }))
       })
     });
     const data = await res.json();
     if (!res.ok || !data.ok) {
-      showToast('Không thể tạo đơn', data.error || 'Đã xảy ra lỗi khi lưu đơn hàng.', 'danger');
+      showToast('Không thể tạo đơn', data.error || 'Đã xảy ra lỗi khi lưu đơn hàng.', 'error');
       return;
     }
 
     document.getElementById('ordSuccessCode').textContent = data.orderCode;
     document.getElementById('ordSuccessName').textContent = `${customerName} (${phone})`;
-    document.getElementById('ordSuccessDelivery').textContent = bookingCode
-      ? `Giao tận sân (Gộp vào vé ${bookingCode})`
+    document.getElementById('ordSuccessDelivery').textContent = data.bookingCode
+      ? `Giao tận sân (Gộp vào vé ${data.bookingCode})`
       : note;
     document.getElementById('ordSuccessTotal').textContent = formatMoney(data.totalAmount);
 
     shopCart = [];
+    await syncDatabaseFromServer();
     renderMenu();
     renderShopCart();
     openModal('modalShopOrder');
     showToast('Đặt dịch vụ thành công!', `Mã hóa đơn ${data.orderCode} đã được ghi nhận.`, 'success');
-
-    // Đồng bộ lại dữ liệu từ SQL Server nếu đơn được gộp vào vé đặt sân
-    SpikeDB.syncFromSQLServer();
   } catch (_) {
-    showToast('Lỗi kết nối', 'Không thể kết nối tới máy chủ, vui lòng thử lại.', 'danger');
+    showToast('Lỗi kết nối', 'Không thể kết nối tới máy chủ, vui lòng thử lại.', 'error');
+  } finally {
+    isSubmittingShopOrder = false;
   }
 }
 
 function addMenuItem() {
-  if (!CURRENT_USER || CURRENT_USER.role !== 'admin') {
-    showToast('Từ chối truy cập', 'Chỉ có Quản trị viên mới được thêm mặt hàng mới.', 'warning');
-    return;
-  }
-  const name = (document.getElementById('menuNewName')?.value || '').trim();
-  const price = parseInt(document.getElementById('menuNewPrice')?.value);
-  const type = document.getElementById('menuNewType')?.value || 'drink';
-
-  if (!name || !price || price <= 0) {
-    showToast('Thiếu thông tin', 'Vui lòng nhập tên sản phẩm và đơn giá hợp lệ (> 0 đ).', 'warning');
-    return;
-  }
-
-  const icons = {
-    drink: '<iconify-icon icon="mdi:cup-water" width="24"></iconify-icon>',
-    food: '<iconify-icon icon="mdi:noodles" width="24"></iconify-icon>',
-    other: '<iconify-icon icon="mdi:table-tennis" width="24"></iconify-icon>'
-  };
-
-  MENU.push({ id: Date.now(), name, price, type, icon: icons[type] || icons.drink });
-  saveData();
-
-  document.getElementById('menuNewName').value = '';
-  document.getElementById('menuNewPrice').value = '';
-  showToast('Đã thêm thành công', `"${name}" (${formatMoney(price)}) đã được cập nhật vào Menu & POS.`, 'success');
-  renderMenu();
-}
-
-function deleteMenuItem(id) {
-  if (!CURRENT_USER || CURRENT_USER.role !== 'admin') {
-    showToast('Từ chối truy cập', 'Chỉ có Quản trị viên mới được xóa mặt hàng.', 'warning');
-    return;
-  }
-  const item = MENU.find(m => Number(m.id) === Number(id));
-  if (!item) return;
-  MENU = MENU.filter(m => Number(m.id) !== Number(id));
-  saveData();
-  showToast('Đã xóa mặt hàng', `"${item.name}" đã được xóa khỏi thực đơn.`, 'info');
-  renderMenu();
+  window.location.href = '/Admin/Products/Create';
 }
 
 document.addEventListener('DOMContentLoaded', () => {

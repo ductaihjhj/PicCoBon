@@ -1,4 +1,4 @@
-@{
+﻿@{
     Layout = null;
 }
 <!DOCTYPE html>
@@ -1137,20 +1137,7 @@
           <span id="btnSubmitLoginText">Đăng nhập vào Sân Đấu</span>
         </button>
 
-        <div class="social-row">
-          <button type="button" class="social-chip" onclick="handleSocialLogin('Google')">
-            <iconify-icon icon="logos:google-icon" width="15"></iconify-icon>
-            <span>Google</span>
-          </button>
-          <button type="button" class="social-chip" onclick="handleSocialLogin('Zalo')">
-            <iconify-icon icon="lucide:message-circle" width="15" style="color:#38BDF8;"></iconify-icon>
-            <span>Zalo ID</span>
-          </button>
-          <button type="button" class="social-chip" onclick="handleSocialLogin('Apple')">
-            <iconify-icon icon="lucide:apple" width="15"></iconify-icon>
-            <span>Apple</span>
-          </button>
-        </div>
+        <div style="margin-top:0.85rem;text-align:center;font-size:0.74rem;color:#94A3B8;">Bảo mật xác thực Cookie HttpOnly · Spike Pickleball Club</div>
       </form>
     </div>
 
@@ -1339,7 +1326,7 @@
         <button class="modal-close" onclick="closeModal('forgotPasswordModal')">✕</button>
       </div>
       <div class="modal-body flex-col gap-3">
-        <p class="text-xs text-muted">Nhập Email hoặc Số điện thoại đã đăng ký. Hệ thống sẽ gửi mã OTP 6 chữ số để đặt lại mật khẩu mới.</p>
+        <p class="text-xs text-muted">Nhập Email hoặc Số điện thoại đã đăng ký. Để bảo vệ an toàn tài khoản, việc cấp lại mật khẩu được xác minh chính chủ qua Hotline CLB 0901 234 567 hoặc tại quầy Lễ tân.</p>
         <div class="form-group">
           <label class="form-label">Email hoặc Số điện thoại</label>
           <input type="text" id="resetEmailInput" class="form-input" placeholder="VD: khachhang@@pickleball.vn">
@@ -1347,7 +1334,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('forgotPasswordModal')">Đóng</button>
-        <button class="btn btn-primary" onclick="handleResetPassword()">Gửi mã OTP</button>
+        <button class="btn btn-primary" onclick="handleResetPassword()">Gửi yêu cầu hỗ trợ</button>
       </div>
     </div>
   </div>

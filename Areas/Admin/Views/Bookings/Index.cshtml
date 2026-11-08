@@ -25,6 +25,19 @@
     <section class="content">
         <div class="container-fluid">
 
+            @if (TempData["Success"] != null)
+            {
+                <div class="card" style="background:#ECFDF5;border-color:#A7F3D0;padding:0.85rem 1.2rem;margin-bottom:1.2rem;color:#065F46;font-weight:600;">
+                    @TempData["Success"]
+                </div>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <div class="card" style="background:#FEF2F2;border-color:#FECACA;padding:0.85rem 1.2rem;margin-bottom:1.2rem;color:#991B1B;font-weight:600;">
+                    @TempData["Error"]
+                </div>
+            }
+
             <!-- FORM TẠO ĐƠN NHANH CHO KHÁCH TẠI QUẦY -->
             <div class="card">
                 <div class="card-header">
@@ -32,10 +45,11 @@
                         <iconify-icon icon="lucide:calendar-plus" width="18" style="color:var(--color-primary);"></iconify-icon>
                         <span>Tạo đơn đặt sân nhanh (Khách đặt trực tiếp tại quầy)</span>
                     </h3>
-                    <span class="badge badge-primary">Tự động duyệt vé</span>
+                    <span class="badge badge-primary">Kiểm tra trùng lịch &amp; tự động duyệt</span>
                 </div>
                 <div class="card-body">
                     <form asp-action="CreateWalkIn" method="post">
+                        @Html.AntiForgeryToken()
                         <div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.85rem; align-items: end;">
                             <div class="form-group" style="margin-bottom:0;">
                                 <label>Tên khách hàng *</label>
@@ -109,9 +123,8 @@
                                 <th>Khách hàng</th>
                                 <th>Số điện thoại</th>
                                 <th>Sân thi đấu</th>
-                                <th>Ngày</th>
-                                <th>Khung giờ</th>
-                                <th>Tổng tiền</th>
+                                <th>Ngày &amp; Giờ</th>
+                                <th>Phải thu / Thực thu</th>
                                 <th>Trạng thái</th>
                                 <th>Thao tác xử lý</th>
                             </tr>
@@ -120,21 +133,27 @@
                             @if (!Model.Any())
                             {
                                 <tr>
-                                    <td colspan="9" class="text-center text-muted py-4">
+                                    <td colspan="8" class="text-center text-muted py-4">
                                         Hiện chưa có đơn đặt sân nào. Bạn có thể tạo nhanh đơn ở biểu mẫu phía trên.
                                     </td>
                                 </tr>
                             }
                             @foreach (var item in Model)
                             {
+                                var amountDue = item.AmountDue > 0 ? item.AmountDue : (item.TotalPaid > 0 ? item.TotalPaid : item.CourtFee);
+                                var paidAmt = item.PaidAmount;
                                 <tr>
                                     <td><code style="font-weight:700;color:var(--color-indigo);">@item.BookingCode</code></td>
                                     <td class="font-weight-bold">@item.CustomerName</td>
                                     <td class="text-mono">@item.Phone</td>
                                     <td>@(item.Court?.CourtName ?? "Sân " + item.CourtId)</td>
-                                    <td class="text-mono">@item.BookingDate</td>
-                                    <td class="text-mono">@item.StartTime (@(item.Duration)p)</td>
-                                    <td class="text-success font-weight-bold text-mono">@string.Format("{0:N0} đ", item.TotalPaid > 0 ? item.TotalPaid : item.CourtFee)</td>
+                                    <td class="text-mono">@item.BookingDate · @item.StartTime (@(item.Duration)p)</td>
+                                    <td>
+                                        <div class="font-weight-bold text-mono">@string.Format("{0:N0} đ", amountDue)</div>
+                                        <div style="font-size:0.75rem;" class="text-mono @(paidAmt >= amountDue && amountDue > 0 ? "text-success" : "text-muted")">
+                                            Đã thu: @string.Format("{0:N0} đ", paidAmt)
+                                        </div>
+                                    </td>
                                     <td>
                                         @if (item.Status == "pending")
                                         {
@@ -162,6 +181,7 @@
                                             @if (item.Status == "pending")
                                             {
                                                 <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
                                                     <input type="hidden" name="id" value="@item.BookingId" />
                                                     <input type="hidden" name="status" value="approved" />
                                                     <button type="submit" class="btn btn-success btn-xs">Duyệt vé</button>
@@ -170,6 +190,7 @@
                                             @if (item.Status == "approved" || item.Status == "confirmed")
                                             {
                                                 <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
                                                     <input type="hidden" name="id" value="@item.BookingId" />
                                                     <input type="hidden" name="status" value="playing" />
                                                     <button type="submit" class="btn btn-primary btn-xs">Nhận sân</button>
@@ -178,20 +199,23 @@
                                             @if (item.Status == "playing" || item.Status == "active")
                                             {
                                                 <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
                                                     <input type="hidden" name="id" value="@item.BookingId" />
                                                     <input type="hidden" name="status" value="completed" />
-                                                    <button type="submit" class="btn btn-info btn-xs">Hoàn tất</button>
+                                                    <button type="submit" class="btn btn-info btn-xs">Thu tiền &amp; Hoàn tất</button>
                                                 </form>
                                             }
                                             @if (item.Status == "pending" || item.Status == "approved")
                                             {
                                                 <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
                                                     <input type="hidden" name="id" value="@item.BookingId" />
                                                     <input type="hidden" name="status" value="rejected" />
                                                     <button type="submit" class="btn btn-outline btn-xs">Hủy đơn</button>
                                                 </form>
                                             }
-                                            <form asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Xác nhận xóa đơn đặt sân này?');">
+                                            <form asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Xác nhận hủy/xóa đơn đặt sân này?');">
+                                                @Html.AntiForgeryToken()
                                                 <input type="hidden" name="id" value="@item.BookingId" />
                                                 <button type="submit" class="btn btn-danger btn-xs">Xóa</button>
                                             </form>

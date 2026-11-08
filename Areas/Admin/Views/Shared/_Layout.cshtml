@@ -1,4 +1,4 @@
-﻿@using PickleballClub.Utilities
+@using PickleballClub.Utilities
 @{
     var currentPath = Context.Request.Path.Value?.ToLower() ?? "";
 }
@@ -11,7 +11,6 @@
     <link rel="stylesheet" href="~/css/styles.css" asp-append-version="true">
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
     <style>
-        /* Đồng bộ toàn bộ trang Admin theo ngôn ngữ thiết kế Spike Pickleball Club */
         .admin-page-shell {
             min-height: calc(100vh - 280px);
             padding-bottom: 3.5rem;
@@ -233,7 +232,6 @@
         </div>
     </header>
 
-    <!-- THANH ĐIỀU HƯỚNG QUẢN TRỊ ĐỒNG BỘ STYLE TRANG CHỦ -->
     <div class="admin-subbar">
         <div class="admin-subbar-inner">
             <span style="display:inline-flex;align-items:center;gap:0.45rem;font-weight:700;color:var(--color-volt);">
@@ -291,16 +289,19 @@
 
     @if (Function.IsLogin())
     {
+        var roleKey = Function._RoleId == 1 ? "admin" : (Function._RoleId == 3 ? "staff" : "user");
+        var roleLabel = Function._RoleId == 1 ? "Ban Quản Trị CLB" : (Function._RoleId == 3 ? "Nhân viên Vận hành" : "Hội viên CLB");
         <script>
-            localStorage.setItem('pb_auth_user', JSON.stringify({
+            window.SERVER_AUTH_USER = {
                 id: @Function._AccountId,
                 name: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(string.IsNullOrEmpty(Function._FullName) ? "Ban Quản Trị CLB" : Function._FullName)),
                 email: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._Email)),
                 phone: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._Phone)),
-                role: '@(Function._RoleId == 1 ? "admin" : "user")',
-                roleLabel: '@(Function._RoleId == 1 ? "Ban Quản Trị CLB" : "Hội viên CLB")',
+                role: '@roleKey',
+                roleLabel: '@Html.Raw(roleLabel)',
                 avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=120&q=80'
-            }));
+            };
+            localStorage.setItem('pb_auth_user', JSON.stringify(window.SERVER_AUTH_USER));
         </script>
     }
     <script src="~/js/shared.js" asp-append-version="true"></script>

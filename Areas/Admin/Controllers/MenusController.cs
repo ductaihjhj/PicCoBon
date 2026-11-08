@@ -1,97 +1,115 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PickleballClub.Models;
+using PickleballClub.Services;
 using PickleballClub.Utilities;
 
-namespace PickleballClub.Areas.Admin.Controllers
+namespace PickleballClub.Areas.Admin.Controllers;
+
+[Area("Admin")]
+[Authorize(Roles = "Admin")]
+public class MenusController : Controller
 {
-    [Area("Admin")]
-    public class MenusController : Controller
+    private readonly PickleballContext _context;
+
+    public MenusController(PickleballContext context)
     {
-        private readonly PickleballContext _context;
+        _context = context;
+    }
 
-        public MenusController(PickleballContext context)
+    public async Task<IActionResult> Index()
+    {
+        return View(await _context.TbMenus.OrderBy(m => m.Position).ToListAsync());
+    }
+
+    public async Task<IActionResult> Details(int? id)
+    {
+        if (id == null) return NotFound();
+        var tbMenu = await _context.TbMenus.FirstOrDefaultAsync(m => m.MenuId == id);
+        if (tbMenu == null) return NotFound();
+        return View(tbMenu);
+    }
+
+    public IActionResult Create()
+    {
+        return View();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create([Bind("MenuId,Title,Alias,Description,Levels,ParentId,Position,IsActive")] TbMenu tbMenu)
+    {
+        if (string.IsNullOrWhiteSpace(tbMenu.Title))
         {
-            _context = context;
+            ModelState.AddModelError("Title", "Tiêu đề menu không được để trống.");
         }
 
-        public async Task<IActionResult> Index()
+        if (ModelState.IsValid)
         {
-            if (!Function.IsLogin())
-                return RedirectToAction("Index", "Login", new { area = "Admin" });
-            return View(await _context.TbMenus.OrderBy(m => m.Position).ToListAsync());
-        }
-
-        public async Task<IActionResult> Details(int? id)
-        {
-            if (id == null) return NotFound();
-            var tbMenu = await _context.TbMenus.FirstOrDefaultAsync(m => m.MenuId == id);
-            if (tbMenu == null) return NotFound();
-            return View(tbMenu);
-        }
-
-        public IActionResult Create()
-        {
-            if (!Function.IsLogin())
-                return RedirectToAction("Index", "Login", new { area = "Admin" });
-            return View();
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("MenuId,Title,Alias,Description,Levels,ParentId,Position,IsActive")] TbMenu tbMenu)
-        {
-            if (ModelState.IsValid)
+            tbMenu.Title = tbMenu.Title!.Trim();
+            if (string.IsNullOrWhiteSpace(tbMenu.Alias))
             {
-                if (string.IsNullOrWhiteSpace(tbMenu.Alias))
-                    tbMenu.Alias = Function.TitleSlugGenerationAlias(tbMenu.Title ?? string.Empty);
-                tbMenu.CreatedDate = DateTime.Now;
-                _context.Add(tbMenu);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                tbMenu.Alias = Function.TitleSlugGenerationAlias(tbMenu.Title);
             }
-            return View(tbMenu);
-        }
-
-        public async Task<IActionResult> Edit(int? id)
-        {
-            if (id == null) return NotFound();
-            var tbMenu = await _context.TbMenus.FindAsync(id);
-            if (tbMenu == null) return NotFound();
-            return View(tbMenu);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("MenuId,Title,Alias,Description,Levels,ParentId,Position,IsActive")] TbMenu tbMenu)
-        {
-            if (id != tbMenu.MenuId) return NotFound();
-            if (ModelState.IsValid)
-            {
-                tbMenu.ModifiedDate = DateTime.Now;
-                _context.Update(tbMenu);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            return View(tbMenu);
-        }
-
-        public async Task<IActionResult> Delete(int? id)
-        {
-            if (id == null) return NotFound();
-            var tbMenu = await _context.TbMenus.FirstOrDefaultAsync(m => m.MenuId == id);
-            if (tbMenu == null) return NotFound();
-            return View(tbMenu);
-        }
-
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var tbMenu = await _context.TbMenus.FindAsync(id);
-            if (tbMenu != null) _context.TbMenus.Remove(tbMenu);
+            tbMenu.CreatedDate = BookingService.GetVietnamNow();
+            _context.Add(tbMenu);
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
+        return View(tbMenu);
+    }
+
+    public async Task<IActionResult> Edit(int? id)
+    {
+        if (id == null) return NotFound();
+        var tbMenu = await _context.TbMenus.FindAsync(id);
+        if (tbMenu == null) return NotFound();
+        return View(tbMenu);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(int id, [Bind("MenuId,Title,Alias,Description,Levels,ParentId,Position,IsActive")] TbMenu tbMenu)
+    {
+        if (id != tbMenu.MenuId) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(tbMenu.Title))
+        {
+            ModelState.AddModelError("Title", "Tiêu đề menu không được để trống.");
+        }
+
+        if (ModelState.IsValid)
+        {
+            tbMenu.Title = tbMenu.Title!.Trim();
+            tbMenu.ModifiedDate = BookingService.GetVietnamNow();
+            _context.Update(tbMenu);
+            await _context.SaveChangesAsync();
+            return RedirectToAction(nameof(Index));
+        }
+        return View(tbMenu);
+    }
+
+    public async Task<IActionResult> Delete(int? id)
+    {
+        if (id == null) return NotFound();
+        var tbMenu = await _context.TbMenus.FirstOrDefaultAsync(m => m.MenuId == id);
+        if (tbMenu == null) return NotFound();
+        return View(tbMenu);
+    }
+
+    [HttpPost, ActionName("Delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteConfirmed(int id)
+    {
+        var tbMenu = await _context.TbMenus.FindAsync(id);
+        if (tbMenu != null)
+        {
+            _context.TbMenus.Remove(tbMenu);
+            await _context.SaveChangesAsync();
+        }
+        return RedirectToAction(nameof(Index));
     }
 }

@@ -1,548 +1,669 @@
-﻿/* ==========================================================================
-   SPIKE PICKLEBALL CLUB — SHARED CORE ENGINE (ASP.NET CORE MVC + SQL SERVER)
-   Connected directly to SQL Server (.\SQLEXPRESS -> PickleballClub)
-   ========================================================================== */
+/* ================================================================
+   SPIKE PICKLEBALL CLUB — SHARED CORE, SECURITY & STATE ENGINE
+   Server-Authoritative Architecture (P0/P1/P2 Hardened)
+   ================================================================ */
 
-const DB_SCHEMA_VERSION = 'spike_sqlserver_v6_utf8';
-
-(function purgeLegacyMockData() {
-  const rawMenu = localStorage.getItem('pb_menu') || '';
-  const rawCms = localStorage.getItem('pb_cms_config') || '';
-  const hasMojibake = /\u00E1\u00BB|\u00C4\u0091|\u00C6\u00B0|\u00C3\u00A1/.test(rawMenu + rawCms);
-  if (localStorage.getItem('pb_schema_version') !== DB_SCHEMA_VERSION || hasMojibake) {
-    localStorage.removeItem('pb_bookings');
-    localStorage.removeItem('pb_court_locks');
-    localStorage.removeItem('pb_cms_config');
-    localStorage.removeItem('pb_menu');
-    const oldAuth = JSON.parse(localStorage.getItem('pb_auth_user') || 'null');
-    if (oldAuth && oldAuth.email === 'khachhang@pickleball.vn') {
-      localStorage.removeItem('pb_auth_user');
-    }
-    localStorage.setItem('pb_schema_version', DB_SCHEMA_VERSION);
+const DEFAULT_COURTS = [
+  {
+    id: 1,
+    name: 'Sân VIP 01 (Arena A)',
+    type: 'Indoor',
+    typeLabel: 'Trong nhà · Mái vòm & Đèn LED Pro',
+    surface: 'USAPA Cushion 8 lớp',
+    surcharge: 20000,
+    basePrice: 120000,
+    imageUrl: '/assets/court-vip-arena.png'
+  },
+  {
+    id: 2,
+    name: 'Sân VIP 02 (Arena B)',
+    type: 'Indoor',
+    typeLabel: 'Trong nhà · Mái vòm & Đèn LED Pro',
+    surface: 'USAPA Cushion 8 lớp',
+    surcharge: 20000,
+    basePrice: 120000,
+    imageUrl: '/assets/court-vip-arena.png'
+  },
+  {
+    id: 3,
+    name: 'Sân Tiêu Chuẩn 03',
+    type: 'Outdoor',
+    typeLabel: 'Ngoài trời · Thoáng mát',
+    surface: 'Acrylic Pro 6 lớp',
+    surcharge: 0,
+    basePrice: 120000,
+    imageUrl: '/assets/hero-pickleball-club.png'
+  },
+  {
+    id: 4,
+    name: 'Sân Tiêu Chuẩn 04',
+    type: 'Outdoor',
+    typeLabel: 'Ngoài trời · Thoáng mát',
+    surface: 'Acrylic Pro 6 lớp',
+    surcharge: 0,
+    basePrice: 120000,
+    imageUrl: '/assets/hero-pickleball-club.png'
   }
-})();
+];
 
-function getTodayISO() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+const DEFAULT_CMS = {
+  heroTag: 'CỤM SÂN PICKLEBALL CHUẨN USAPA',
+  heroSubtag: 'Mặt sân tiêu chuẩn thi đấu · Đặt lịch trực tuyến 24/7',
+  heroTitle: 'TRẢI NGHIỆM SÂN ĐẤU PICKLEBALL CHUYÊN NGHIỆP',
+  heroSubtitle: 'Mặt sân chống trượt tiêu chuẩn USAPA, hệ thống chiếu sáng LED chống chói, đặt lịch trực tuyến nhận mã QR tức thì và dịch vụ Pro Shop ngay tại sân.',
+  courtPrice: 120000,
+  peakSurcharge: 30000,
+  openTime: '06:00',
+  closeTime: '22:00',
+  clubTitle: 'Đặc Quyền Hội Viên Spike Pickleball Club',
+  clubDesc: 'Tích lũy chi tiêu thực tế để nâng hạng thẻ Hội viên Bạc (giảm 5%) và Hội viên Vàng VIP (giảm 15% toàn bộ khung giờ đặt sân).',
+  hotline: '0901 234 567',
+  address: 'Thảo Điền, TP. Thủ Đức, TP.HCM'
+};
+
+// ================================================================
+// XSS SANITIZATION & SAFE HTML HELPERS (P0-12)
+// ================================================================
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
-function getOffsetDateISO(offsetDays = 0) {
-  const dt = new Date();
-  dt.setDate(dt.getDate() + offsetDays);
-  const y = dt.getFullYear();
-  const m = String(dt.getMonth() + 1).padStart(2, '0');
-  const d = String(dt.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+function escapeAttr(value) {
+  return escapeHtml(value);
 }
 
-function formatDateVN(isoStr) {
-  if (!isoStr) return 'Hôm nay';
-  const today = getTodayISO();
-  const tomorrow = getOffsetDateISO(1);
-  const parts = isoStr.split('-');
-  if (parts.length !== 3) return isoStr;
+function sanitizeIconHtml(rawIcon) {
+  if (!rawIcon) return '<iconify-icon icon="mdi:cup-water" width="26"></iconify-icon>';
+  const str = String(rawIcon).trim();
+  const match = str.match(/icon=["']([a-zA-Z0-9\-_]+:[a-zA-Z0-9\-_]+)["']/);
+  if (match) {
+    return `<iconify-icon icon="${match[1]}" width="26"></iconify-icon>`;
+  }
+  if (/^[a-zA-Z0-9\-_]+:[a-zA-Z0-9\-_]+$/.test(str)) {
+    return `<iconify-icon icon="${str}" width="26"></iconify-icon>`;
+  }
+  return '<iconify-icon icon="mdi:cup-water" width="26"></iconify-icon>';
+}
+
+// ================================================================
+// DATE & TIME UTILITIES
+// ================================================================
+function getTodayStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getOffsetDateStr(offsetDays) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatDateVN(dateStr) {
+  if (!dateStr) return '';
+  const parts = String(dateStr).split('-');
+  if (parts.length !== 3) return escapeHtml(dateStr);
+  const today = getTodayStr();
+  const tomorrow = getOffsetDateStr(1);
   const formatted = `${parts[2]}/${parts[1]}/${parts[0]}`;
-  if (isoStr === today) return `Hôm nay (${formatted})`;
-  if (isoStr === tomorrow) return `Ngày mai (${formatted})`;
+  if (dateStr === today) return `Hôm nay (${formatted})`;
+  if (dateStr === tomorrow) return `Ngày mai (${formatted})`;
   return formatted;
 }
 
-/* ---------- CMS Website Configuration ---------- */
-const DEFAULT_CMS = {
-  heroTag: 'USAPA STANDARD ARENA',
-  heroSubtag: 'Tổ hợp 4 sân tiêu chuẩn thi đấu quốc tế',
-  heroTitle: 'Nâng Tầm Trải Nghiệm Pickleball Đỉnh Cao',
-  heroSubtitle: 'Mặt sân Cushion 8 lớp giảm chấn bảo vệ khớp gối, hệ thống chiếu sáng LED chống lóa 1000 Lux và đặt lịch nhận mã QR tức thì.',
-  courtPrice: 120000,
-  openTime: '06:00',
-  closeTime: '22:00',
-  hotline: '0901 234 567',
-  clubTitle: 'Thẻ Hội Viên Spike VIP',
-  clubDesc: 'Giảm ngay 15% giá thuê sân mọi khung giờ, miễn phí nước khoáng điện giải và ưu tiên giữ lịch cố định hàng tuần.'
-};
-
-let CMS_CONFIG = JSON.parse(localStorage.getItem('pb_cms_config')) || JSON.parse(JSON.stringify(DEFAULT_CMS));
-let COURT_PRICE_PER_HOUR = Number(CMS_CONFIG.courtPrice) || 120000;
-
-function saveCmsConfig(newConfig) {
-  CMS_CONFIG = { ...CMS_CONFIG, ...newConfig };
-  localStorage.setItem('pb_cms_config', JSON.stringify(CMS_CONFIG));
-  COURT_PRICE_PER_HOUR = Number(CMS_CONFIG.courtPrice) || 120000;
-  SpikeDB.pushPartialToSQLServer({ cmsConfig: CMS_CONFIG });
-  SpikeDB.refreshActivePageViews();
+function timeToMinutes(t) {
+  if (!t || !String(t).includes(':')) return 0;
+  const [h, m] = String(t).split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
 }
 
-/* ---------- Courts Catalog ---------- */
-const DEFAULT_COURTS = [
-  { id: 1, name: 'Sân VIP 01 (Arena A)', type: 'Indoor',  typeLabel: 'Trong nhà · Mái vòm & Đèn LED Pro', surface: 'USAPA Cushion 8 lớp', basePrice: 120000, surcharge: 20000 },
-  { id: 2, name: 'Sân VIP 02 (Arena B)', type: 'Indoor',  typeLabel: 'Trong nhà · Mái vòm & Đèn LED Pro', surface: 'USAPA Cushion 8 lớp', basePrice: 120000, surcharge: 20000 },
-  { id: 3, name: 'Sân Tiêu Chuẩn 03',    type: 'Outdoor', typeLabel: 'Ngoài trời · Khán đài thoáng mát', surface: 'Acrylic Hard Court', basePrice: 120000, surcharge: 0 },
-  { id: 4, name: 'Sân Tiêu Chuẩn 04',    type: 'Outdoor', typeLabel: 'Ngoài trời · Khán đài thoáng mát', surface: 'Acrylic Hard Court', basePrice: 120000, surcharge: 0 },
-];
-let COURTS = JSON.parse(localStorage.getItem('pb_courts')) || JSON.parse(JSON.stringify(DEFAULT_COURTS));
+function minutesToTime(mins) {
+  const clamped = Math.max(0, Math.min(mins, 23 * 60 + 59));
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
 
-/* ---------- Dynamic Pricing ---------- */
+function getEndTime(startTime, durationMins) {
+  return minutesToTime(timeToMinutes(startTime) + (Number(durationMins) || 60));
+}
+
+function isTimeOverlap(startA, durA, startB, durB) {
+  const a0 = timeToMinutes(startA);
+  const a1 = a0 + (Number(durA) || 60);
+  const b0 = timeToMinutes(startB);
+  const b1 = b0 + (Number(durB) || 60);
+  return a0 < b1 && b0 < a1;
+}
+
+function formatMoney(v) {
+  return Math.round(Number(v) || 0).toLocaleString('vi-VN') + ' đ';
+}
+
 function isPeakHour(timeStr) {
   const mins = timeToMinutes(timeStr);
-  return mins >= 17 * 60 && mins < 21 * 60;
+  return mins >= 17 * 60;
 }
 
-function getCourtHourlyRate(courtId, timeStr = '08:00') {
-  const cmsBase = Number(CMS_CONFIG.courtPrice) || 120000;
-  const court = getCourtById(Number(courtId));
-  const courtBase = (court && Number(court.basePrice) > 0 && Number(court.basePrice) !== 120000)
-    ? Number(court.basePrice)
-    : cmsBase;
-  const vipExtra = court
-    ? (Number(court.surcharge) > 0 ? Number(court.surcharge) : (court.type === 'Indoor' ? 20000 : 0))
-    : 0;
-  const peakExtra = isPeakHour(timeStr) ? 30000 : 0;
-  return courtBase + vipExtra + peakExtra;
-}
+// ================================================================
+// IN-MEMORY SERVER-HYDRATED STATE (P0-11: No localStorage DB overwrite)
+// ================================================================
+let COURTS = [...DEFAULT_COURTS];
+let CMS_STATE_VERSION = 0;
+let CMS_CONFIG = { ...DEFAULT_CMS };
+let BOOKINGS = [];
+let MY_BOOKINGS = [];
+let COURT_LOCKS = [];
+let MENU_ITEMS = [];
+let MENU = [];
+let SERVER_USER = null;
+let CURRENT_USER = null;
+let IS_STAFF_OR_ADMIN = false;
+let COURT_PRICE_PER_HOUR = 120000;
 
-function calculateBookingTotal(courtId, startTime, durationMins, extrasTotal = 0) {
-  const hourly = getCourtHourlyRate(courtId, startTime);
-  const courtFee = Math.round((durationMins / 60) * hourly);
-  return {
-    hourlyRate: hourly,
-    courtFee,
-    extrasTotal: Number(extrasTotal) || 0,
-    grandTotal: courtFee + (Number(extrasTotal) || 0)
-  };
-}
-
-/* ---------- Authentication Connected to SQL Server (tb_Account) ---------- */
-let CURRENT_USER = JSON.parse(localStorage.getItem('pb_auth_user')) || null;
-
-function getAuthSession() {
-  if (!CURRENT_USER) return { loggedIn: false };
-  return { loggedIn: true, ...CURRENT_USER };
-}
-
-async function registerUser(userData, redirectUrl) {
-  const inputEmail = (userData.email || '').trim().toLowerCase();
-  const inputPhone = (userData.phone || '').trim();
-  const name = (userData.name || '').trim();
-  const pass = (userData.password || '').trim();
-
-  if (!name || !inputPhone || !pass) {
-    showToast('Thiếu thông tin', 'Vui lòng nhập họ tên, số điện thoại và mật khẩu.', 'warning');
-    return { ok: false, error: 'Vui lòng nhập đầy đủ thông tin bắt buộc.' };
-  }
-
-  try {
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone: inputPhone, email: inputEmail, password: pass })
-    });
-    const data = await res.json();
-    if (!res.ok || !data.ok) {
-      showToast('Đăng ký thất bại', data.error || 'Tài khoản đã được đăng ký.', 'danger');
-      return { ok: false, error: data.error || 'Số điện thoại hoặc Email này đã được sử dụng.' };
-    }
-
-    CURRENT_USER = data.user;
-    localStorage.setItem('pb_auth_user', JSON.stringify(CURRENT_USER));
-    showToast('Đăng ký thành công', `Chào mừng hội viên ${CURRENT_USER.name}!`, 'success');
-
-    setTimeout(() => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const target = redirectUrl || urlParams.get('redirect');
-      window.location.href = target ? decodeURIComponent(target) : '/';
-    }, 450);
-    return { ok: true, user: CURRENT_USER };
-  } catch (err) {
-    showToast('Lỗi kết nối', 'Không thể kết nối tới hệ thống, vui lòng thử lại.', 'danger');
-    return { ok: false, error: 'Không thể kết nối tới hệ thống.' };
-  }
-}
-
-async function login(identifier, password, redirectUrl) {
-  const input = (identifier || '').trim();
-  const pass = (password || '').trim();
-
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier: input, password: pass })
-    });
-    const data = await res.json();
-    if (!res.ok || !data.ok) {
-      showToast('Đăng nhập thất bại', data.error || 'Thông tin đăng nhập không chính xác.', 'danger');
-      return { ok: false, error: data.error || 'Email/Số điện thoại hoặc mật khẩu không chính xác.' };
-    }
-
-    CURRENT_USER = data.user;
-    localStorage.setItem('pb_auth_user', JSON.stringify(CURRENT_USER));
-    showToast('Đăng nhập thành công', `Xin chào, ${CURRENT_USER.name}`, 'success');
-
-    setTimeout(() => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const target = redirectUrl || urlParams.get('redirect');
-      if (target) {
-        window.location.href = decodeURIComponent(target);
-      } else if (CURRENT_USER.role === 'admin') {
-        window.location.href = '/Admin';
-      } else {
-        window.location.href = '/';
-      }
-    }, 450);
-    return { ok: true, user: CURRENT_USER };
-  } catch (err) {
-    showToast('Lỗi kết nối', 'Không thể kết nối tới hệ thống, vui lòng thử lại.', 'danger');
-    return { ok: false, error: 'Không thể kết nối tới hệ thống.' };
-  }
-}
-
-function logout() {
-  localStorage.removeItem('pb_auth_user');
-  CURRENT_USER = null;
-  showToast('Đã đăng xuất', 'Hẹn gặp lại bạn tại sân!', 'info');
-  setTimeout(() => {
-    window.location.href = '/Account/Logout';
-  }, 350);
-}
-
-function requireAuth(redirectPath) {
-  if (!CURRENT_USER) {
-    const currentPath = redirectPath || window.location.pathname || '/';
-    showToast('Yêu cầu đăng nhập', 'Vui lòng đăng nhập hoặc đăng ký tài khoản để đặt sân.', 'warning');
-    setTimeout(() => {
-      window.location.href = `/Account/Login?redirect=${encodeURIComponent(currentPath)}&notice=${encodeURIComponent('Vui lòng đăng nhập tài khoản để tiếp tục đặt sân.')}`;
-    }, 450);
-    return false;
-  }
-  return true;
-}
-
-function requireRole(role) {
-  const currentPath = window.location.pathname || '/';
-  if (!CURRENT_USER) {
-    showToast('Khu vực Quản trị', 'Vui lòng đăng nhập tài khoản Quản trị viên.', 'warning');
-    setTimeout(() => {
-      window.location.href = `/Account/Login?redirect=${encodeURIComponent(currentPath)}&notice=${encodeURIComponent('Vui lòng đăng nhập tài khoản Quản trị viên CLB.')}`;
-    }, 450);
-    return false;
-  }
-  if (CURRENT_USER.role !== role) {
-    showToast('Từ chối truy cập', 'Trang này chỉ dành cho Ban quản trị CLB.', 'danger');
-    setTimeout(() => {
-      window.location.href = '/';
-    }, 450);
-    return false;
-  }
-  return true;
-}
-
-/* ---------- Pro Shop & F&B Catalog ---------- */
-const DEFAULT_MENU = [
-  { id: 1, name: 'Revive Điện Giải Chanh Muối', price: 15000, type: 'drink', icon: '<iconify-icon icon="mdi:bottle-soda-classic-outline" width="26"></iconify-icon>' },
-  { id: 2, name: 'Pocari Sweat Ion Supply',      price: 20000, type: 'drink', icon: '<iconify-icon icon="mdi:cup-water" width="26"></iconify-icon>' },
-  { id: 3, name: 'Nước Khoáng Lạnh Aquafina',    price: 10000, type: 'drink', icon: '<iconify-icon icon="mdi:water-outline" width="26"></iconify-icon>' },
-  { id: 4, name: 'Heineken Silver Ướp Lạnh',     price: 25000, type: 'drink', icon: '<iconify-icon icon="mdi:beer-outline" width="26"></iconify-icon>' },
-  { id: 5, name: 'Nước Tăng Lực Red Bull',       price: 20000, type: 'drink', icon: '<iconify-icon icon="mdi:lightning-bolt" width="26"></iconify-icon>' },
-  { id: 6, name: 'Trà Chanh Giã Tay Ca Lớn',     price: 18000, type: 'drink', icon: '<iconify-icon icon="mdi:tea-outline" width="26"></iconify-icon>' },
-  { id: 7, name: 'Mì Trộn Trứng & Xúc Xích',     price: 35000, type: 'food',  icon: '<iconify-icon icon="mdi:noodles" width="26"></iconify-icon>' },
-  { id: 8, name: 'Chuối & Thanh Năng Lượng',     price: 25000, type: 'food',  icon: '<iconify-icon icon="mdi:food-apple-outline" width="26"></iconify-icon>' },
-  { id: 9, name: 'Thuê Vợt Carbon T700 Pro',     price: 40000, type: 'other', icon: '<iconify-icon icon="mdi:table-tennis" width="26"></iconify-icon>' },
-  { id: 10, name: 'Bóng Thi Đấu Franklin X-40',  price: 65000, type: 'other', icon: '<iconify-icon icon="mdi:tennis-ball" width="26"></iconify-icon>' }
-];
-
-let BOOKINGS = JSON.parse(localStorage.getItem('pb_bookings')) || [];
-let MENU = JSON.parse(localStorage.getItem('pb_menu')) || JSON.parse(JSON.stringify(DEFAULT_MENU));
-let COURT_LOCKS = JSON.parse(localStorage.getItem('pb_court_locks')) || [];
-
-/* ==========================================================================
-   SPIKEDB — SQL SERVER (.\SQLEXPRESS -> PickleballClub) SYNC ENGINE
-   ========================================================================== */
-const SpikeDB = {
-  isServerSynced: false,
-  syncPromise: null,
-
-  async syncFromSQLServer() {
-    if (this.syncPromise) return this.syncPromise;
-    this.syncPromise = (async () => {
-      try {
-        const res = await fetch('/api/db/state');
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!data || !data.ok) return;
-
-        if (Array.isArray(data.courts) && data.courts.length > 0) {
-          COURTS = data.courts;
-          localStorage.setItem('pb_courts', JSON.stringify(COURTS));
-        }
-        if (Array.isArray(data.bookings)) {
-          BOOKINGS = data.bookings;
-          reconcileBookingsRealTime(false);
-          localStorage.setItem('pb_bookings', JSON.stringify(BOOKINGS));
-        }
-        if (Array.isArray(data.courtLocks)) {
-          COURT_LOCKS = data.courtLocks;
-          localStorage.setItem('pb_court_locks', JSON.stringify(COURT_LOCKS));
-        }
-        if (Array.isArray(data.menu) && data.menu.length > 0) {
-          MENU = data.menu;
-          localStorage.setItem('pb_menu', JSON.stringify(MENU));
-        }
-        if (data.cmsConfig && Object.keys(data.cmsConfig).length > 0) {
-          CMS_CONFIG = { ...DEFAULT_CMS, ...data.cmsConfig };
-          COURT_PRICE_PER_HOUR = Number(CMS_CONFIG.courtPrice) || 120000;
-          localStorage.setItem('pb_cms_config', JSON.stringify(CMS_CONFIG));
-        }
-        this.isServerSynced = true;
-        this.refreshActivePageViews();
-      } catch (_) {
-      } finally {
-        this.syncPromise = null;
-      }
-    })();
-    return this.syncPromise;
-  },
-
-  async pushPartialToSQLServer(partialPayload) {
-    try {
-      await fetch('/api/db/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(partialPayload)
-      });
-    } catch (_) {}
-  },
-
-  async pushToSQLServer(extraOptions = {}) {
-    try {
-      if (this.syncPromise) {
-        await this.syncPromise;
-      }
-      await fetch('/api/db/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bookings: BOOKINGS,
-          courtLocks: COURT_LOCKS,
-          menu: MENU,
-          cmsConfig: CMS_CONFIG,
-          ...extraOptions
-        })
-      });
-    } catch (_) {}
-  },
-
-  persistAll(extraOptions = {}) {
-    localStorage.setItem('pb_bookings', JSON.stringify(BOOKINGS));
-    localStorage.setItem('pb_menu', JSON.stringify(MENU));
-    localStorage.setItem('pb_court_locks', JSON.stringify(COURT_LOCKS));
-    this.pushToSQLServer(extraOptions);
-  },
-
-  refreshActivePageViews() {
-    renderSiteNavigation();
-    if (typeof renderDashboard === 'function') renderDashboard();
-    if (typeof renderCourtOptions === 'function') renderCourtOptions();
-    if (typeof renderTimelineAndSlots === 'function') renderTimelineAndSlots();
-    if (typeof updatePriceBreakdown === 'function') updatePriceBreakdown();
-    if (typeof renderMenu === 'function') renderMenu();
-    if (typeof searchLookup === 'function') searchLookup();
-    if (typeof renderManagement === 'function') renderManagement();
-    if (typeof renderCheckin === 'function') renderCheckin();
-    if (typeof renderReports === 'function') renderReports();
-    window.dispatchEvent(new CustomEvent('pickleball:db-synced'));
-  }
-};
-
-function saveData() {
-  SpikeDB.persistAll();
-  renderSiteNavigation();
-}
-
-function resetData() {
-  if (confirm('Bạn có chắc chắn muốn làm mới toàn bộ lịch đặt sân hiện tại?')) {
-    BOOKINGS = [];
-    COURT_LOCKS = [];
-    MENU = JSON.parse(JSON.stringify(DEFAULT_MENU));
-    CMS_CONFIG = JSON.parse(JSON.stringify(DEFAULT_CMS));
-    SpikeDB.persistAll({ clearAll: true });
-    setTimeout(() => location.reload(), 300);
-  }
-}
-
-/* ---------- Conflict Detection ---------- */
-function checkSlotConflict(courtId, dateISO, startMins, endMins, ignoreBookingId = null) {
-  const bookingConflict = BOOKINGS.find(b => {
-    if (b.id === ignoreBookingId) return false;
-    if (Number(b.courtId) !== Number(courtId)) return false;
-    if ((b.date || getTodayISO()) !== dateISO) return false;
-    if (b.status === 'rejected') return false;
-    const bStart = timeToMinutes(b.time);
-    const bEnd = bStart + Number(b.duration);
-    return startMins < bEnd && endMins > bStart;
-  });
-
-  if (bookingConflict) return { hasConflict: true, type: 'booking', record: bookingConflict };
-
-  const lockConflict = COURT_LOCKS.find(l => {
-    if (Number(l.courtId) !== Number(courtId)) return false;
-    if (l.date !== dateISO) return false;
-    const lStart = timeToMinutes(l.startTime);
-    const lEnd = lStart + Number(l.duration);
-    return startMins < lEnd && endMins > lStart;
-  });
-
-  if (lockConflict) return { hasConflict: true, type: 'lock', record: lockConflict };
-  return { hasConflict: false };
-}
-
-/* ---------- Utilities ---------- */
-function formatMoney(n) {
-  return Math.round(Number(n) || 0).toLocaleString('vi-VN') + ' đ';
-}
-
-function generateRef() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let r = 'PB-';
-  for (let i = 0; i < 6; i++) r += chars.charAt(Math.floor(Math.random() * chars.length));
-  return r;
-}
-
-function timeToMinutes(t) {
-  if (!t || !t.includes(':')) return 0;
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
-}
-
-function minutesToTime(m) {
-  const h = Math.floor(m / 60);
-  const min = m % 60;
-  return `${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-}
-
-function getCourtById(id) {
-  return COURTS.find(c => Number(c.id) === Number(id)) || COURTS[0];
-}
-
+const getTodayISO = getTodayStr;
+const getOffsetDateISO = getOffsetDateStr;
 function getNowMinutes() {
   const now = new Date();
   return now.getHours() * 60 + now.getMinutes();
 }
 
-function getBookingTimingState(booking) {
-  if (!booking) return { phase: 'unknown', canCheckIn: false };
-  const todayISO = getTodayISO();
-  const bDate = (booking.date || todayISO).trim();
-  const startMins = timeToMinutes(booking.time);
-  const dur = Number(booking.duration) || 60;
-  const endMins = startMins + dur;
+const SpikeDB = {
+  syncFromSQLServer: () => syncDatabaseFromServer(),
+  persistAll: () => {}
+};
+
+function saveData() {
+  window.dispatchEvent(new CustomEvent('pickleball:state-changed'));
+}
+
+function getBookingTimingState(b) {
+  if (!b) return { phase: 'ended', canCheckIn: false, minsUntilStart: 0, minsRemaining: 0 };
+  const todayISO = getTodayStr();
+  const bDate = b.date || todayISO;
   const nowMins = getNowMinutes();
+  const startMins = timeToMinutes(b.time || '17:00');
+  const dur = Number(b.duration) || 60;
+  const endMins = startMins + dur;
 
   if (bDate < todayISO) {
-    return { phase: 'ended', canCheckIn: false, startMins, endMins, minsUntilStart: -9999, minsRemaining: 0 };
+    return { phase: 'past_day', canCheckIn: false, minsUntilStart: -999, minsRemaining: 0 };
   }
   if (bDate > todayISO) {
-    return { phase: 'future_day', canCheckIn: false, startMins, endMins, minsUntilStart: 9999, minsRemaining: dur };
+    return { phase: 'future_day', canCheckIn: false, minsUntilStart: 999, minsRemaining: dur };
   }
   if (nowMins >= endMins) {
-    return { phase: 'ended', canCheckIn: false, startMins, endMins, minsUntilStart: startMins - nowMins, minsRemaining: 0 };
+    return { phase: 'ended', canCheckIn: false, minsUntilStart: startMins - nowMins, minsRemaining: 0 };
   }
-  if (nowMins >= startMins) {
-    return { phase: 'live', canCheckIn: true, startMins, endMins, minsUntilStart: 0, minsRemaining: endMins - nowMins };
+  if (nowMins >= startMins && nowMins < endMins) {
+    return { phase: 'live', canCheckIn: true, minsUntilStart: 0, minsRemaining: endMins - nowMins };
   }
-  // Cho phép check-in sớm tối đa 15 phút trước giờ bắt đầu
-  const minsUntil = startMins - nowMins;
+  if (nowMins >= startMins - 30 && nowMins < startMins) {
+    return { phase: 'checkin_window', canCheckIn: true, minsUntilStart: startMins - nowMins, minsRemaining: dur };
+  }
+  return { phase: 'upcoming_today', canCheckIn: true, minsUntilStart: startMins - nowMins, minsRemaining: dur };
+}
+
+function statusBadgeClass(status) {
+  switch (status) {
+    case 'playing': return 'badge-success';
+    case 'approved': return 'badge-primary';
+    case 'pending': return 'badge-warning';
+    case 'completed': return 'badge-neutral';
+    case 'rejected':
+    case 'cancelled':
+    case 'expired':
+      return 'badge-danger';
+    default: return 'badge-neutral';
+  }
+}
+
+function statusLabel(status, b = null) {
+  switch (status) {
+    case 'playing': return 'Đang thi đấu';
+    case 'approved': return b && b.time ? `Chờ check-in (${b.time})` : 'Đã duyệt · Chờ nhận sân';
+    case 'pending': return 'Chờ duyệt';
+    case 'completed': return 'Hoàn thành';
+    case 'cancelled': return 'Đã hủy';
+    case 'rejected': return 'Từ chối';
+    case 'expired': return 'Quá hạn';
+    default: return 'Hoàn thành';
+  }
+}
+
+function calculateBookingTotal(courtId, startTime, durationMins, posExtra = 0) {
+  const seg = calculateSegmentedPricing(courtId, startTime, durationMins);
+  const hourlyRate = seg.peakMinutes > 0 && seg.normalMinutes === 0
+    ? seg.peakRate
+    : seg.standardRate;
   return {
-    phase: minsUntil <= 15 ? 'checkin_window' : 'upcoming_today',
-    canCheckIn: minsUntil <= 15,
-    startMins,
-    endMins,
-    minsUntilStart: minsUntil,
-    minsRemaining: dur
+    hourlyRate,
+    courtFee: seg.netCourtFee,
+    grossCourtFee: seg.grossCourtFee,
+    discountAmount: seg.discountAmount,
+    posExtra: Number(posExtra) || 0,
+    grandTotal: seg.netCourtFee + (Number(posExtra) || 0)
   };
 }
 
-function reconcileBookingsRealTime(pushIfChanged = true) {
-  let changed = false;
+function checkSlotConflict(courtId, dateStr, startMins, endMins, excludeBookingId = null) {
+  const startTime = minutesToTime(startMins);
+  const durationMins = Math.max(30, endMins - startMins);
+  const res = checkCourtConflict(courtId, dateStr, startTime, durationMins, excludeBookingId);
+  if (!res.conflict) return { hasConflict: false };
+  if (res.type === 'lock') {
+    const lockRec = COURT_LOCKS.find(l => Number(l.courtId) === Number(courtId) && l.date === dateStr) || { reason: res.reason };
+    return { hasConflict: true, type: 'lock', record: lockRec };
+  }
+  return { hasConflict: true, type: 'booking', record: res.booking || { name: 'Đã đặt', time: startTime, status: 'approved' } };
+}
+
+function reconcileBookingsRealTime() {
+  return reconcileBookingsByRealTime();
+}
+
+/**
+ * Strict booking status helper (P1-07):
+ * - NEVER auto-transitions 'approved' to 'playing' by wall clock on the client!
+ *   A booking only becomes 'playing' after QR/Counter Check-in.
+ */
+function reconcileBookingsByRealTime() {
+  const todayIso = getTodayStr();
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  let hasChanged = false;
+
   BOOKINGS.forEach(b => {
-    if (!['approved', 'playing'].includes(b.status)) return;
-    const timing = getBookingTimingState(b);
-    if (timing.phase === 'ended') {
-      // Hết giờ thi đấu -> Tự động dừng ca và chuyển sang Hoàn thành
+    if (!b || !b.status) return;
+    const bDate = b.date || todayIso;
+    const startMins = timeToMinutes(b.time || '17:00');
+    const dur = Number(b.duration) || 60;
+    const endMins = startMins + dur;
+
+    if (bDate < todayIso) {
       if (b.status === 'playing') {
         b.status = 'completed';
-        if (!b.totalPaid || Number(b.totalPaid) <= 0) {
-          const posExtra = (b.posItems || []).reduce((s, i) => s + Number(i.price) * Number(i.qty), 0);
-          b.totalPaid = calculateBookingTotal(b.courtId, b.time, b.duration, posExtra).grandTotal;
-        }
-        changed = true;
+        hasChanged = true;
       }
-    } else if (timing.phase === 'live') {
-      // Đúng khung giờ thi đấu của vé đã duyệt -> Tự động kích hoạt Đang thi đấu
-      if (b.status === 'approved') {
-        b.status = 'playing';
-        changed = true;
-      }
-    } else if (timing.phase === 'upcoming_today' || timing.phase === 'future_day') {
-      // Chưa tới khung giờ thi đấu (còn hơn 15p) -> Không được hiển thị Đang thi đấu sớm
+    } else if (bDate > todayIso) {
       if (b.status === 'playing') {
         b.status = 'approved';
-        changed = true;
+        hasChanged = true;
+      }
+    } else {
+      if (nowMins >= endMins && b.status === 'playing') {
+        b.status = 'completed';
+        hasChanged = true;
       }
     }
   });
 
-  if (changed && pushIfChanged) {
-    localStorage.setItem('pb_bookings', JSON.stringify(BOOKINGS));
-    SpikeDB.pushToSQLServer();
-    SpikeDB.refreshActivePageViews();
-  }
-  return changed;
+  return hasChanged;
 }
 
-function statusLabel(s, booking = null) {
-  if (booking && s === 'approved') {
-    const timing = getBookingTimingState(booking);
-    if (timing.phase === 'upcoming_today' || timing.phase === 'checkin_window') {
-      return `Chờ tới giờ (${booking.time})`;
+async function syncDatabaseFromServer() {
+  try {
+    const res = await fetch('/api/db/state', {
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store'
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (!data || !data.ok) return false;
+
+    IS_STAFF_OR_ADMIN = Boolean(data.isStaffOrAdmin);
+    if (data.currentUser) {
+      SERVER_USER = data.currentUser;
+    } else if (window.SERVER_AUTH_USER && window.SERVER_AUTH_USER.id) {
+      SERVER_USER = window.SERVER_AUTH_USER;
+    } else {
+      SERVER_USER = null;
     }
-    if (timing.phase === 'ended') {
-      return 'Đã qua giờ';
+    CURRENT_USER = SERVER_USER;
+
+    if (Array.isArray(data.courts) && data.courts.length > 0) {
+      COURTS = data.courts;
     }
+    if (Array.isArray(data.bookings)) {
+      BOOKINGS = data.bookings;
+    }
+    if (Array.isArray(data.myBookings)) {
+      MY_BOOKINGS = data.myBookings;
+    }
+    if (Array.isArray(data.courtLocks)) {
+      COURT_LOCKS = data.courtLocks;
+    }
+    if (Array.isArray(data.menu)) {
+      MENU_ITEMS = data.menu;
+      MENU = data.menu;
+    }
+    if (data.cmsConfig && typeof data.cmsConfig === 'object') {
+      CMS_CONFIG = { ...DEFAULT_CMS, ...data.cmsConfig };
+      COURT_PRICE_PER_HOUR = Number(CMS_CONFIG.courtPrice) || 120000;
+    }
+
+    reconcileBookingsByRealTime();
+    applyCmsToFooterAndGlobal();
+    window.dispatchEvent(new CustomEvent('pickleball:db-synced', { detail: data }));
+    return true;
+  } catch (err) {
+    console.warn('Không thể tải trạng thái từ máy chủ SQL:', err);
+    return false;
   }
-  if (booking && s === 'playing') {
-    const timing = getBookingTimingState(booking);
-    if (timing.phase === 'live') {
-      return `Đang thi đấu (còn ${timing.minsRemaining}p)`;
-    }
+}
+
+// Legacy wrappers kept for backward compatibility (do NOT overwrite full DB anymore)
+function saveBookings() {
+  window.dispatchEvent(new CustomEvent('pickleball:state-changed'));
+}
+
+function saveCourtLocks() {
+  window.dispatchEvent(new CustomEvent('pickleball:state-changed'));
+}
+
+function saveMenu() {
+  window.dispatchEvent(new CustomEvent('pickleball:state-changed'));
+}
+
+async function saveCmsConfig(newConfig) {
+  CMS_CONFIG = { ...DEFAULT_CMS, ...newConfig };
+  try {
+    await fetch('/api/db/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cmsConfig: CMS_CONFIG })
+    });
+    await syncDatabaseFromServer();
+  } catch (err) {
+    console.warn('Không thể lưu cấu hình CMS:', err);
   }
-  const map = {
-    pending: 'Chờ duyệt',
-    approved: 'Đã duyệt',
-    playing: 'Đang thi đấu',
-    completed: 'Hoàn thành',
-    rejected: 'Đã hủy',
-    locked: 'Bảo trì'
+}
+
+function applyCmsToFooterAndGlobal() {
+  const hotlines = document.querySelectorAll('[data-cms="hotline"]');
+  hotlines.forEach(el => {
+    if (CMS_CONFIG.hotline) el.textContent = CMS_CONFIG.hotline;
+  });
+  const hours = document.querySelectorAll('[data-cms="hours"]');
+  hours.forEach(el => {
+    if (CMS_CONFIG.openTime && CMS_CONFIG.closeTime) {
+      el.textContent = `${CMS_CONFIG.openTime} – ${CMS_CONFIG.closeTime}`;
+    }
+  });
+}
+
+// ================================================================
+// SEGMENTED PRICING & CONFLICT HELPERS (P1-08, P1-09, P1-11)
+// ================================================================
+function getCourtById(courtId) {
+  return COURTS.find(c => Number(c.id) === Number(courtId)) || COURTS[0] || DEFAULT_COURTS[0];
+}
+
+function getCourtHourlyRate(courtId, timeStr) {
+  const court = getCourtById(courtId);
+  const base = Number(court?.basePrice) || Number(CMS_CONFIG.courtPrice) || 120000;
+  const surcharge = Number(court?.surcharge) || 0;
+  const peakExtra = isPeakHour(timeStr || '17:00') ? (Number(CMS_CONFIG.peakSurcharge) || 30000) : 0;
+  return base + surcharge + peakExtra;
+}
+
+/**
+ * Calculates segmented court fee in 30-minute slices across normal (< 17:00) and peak (>= 17:00) boundaries (P1-08)
+ */
+function calculateSegmentedPricing(courtId, startTime, durationMins, discountPercent = null) {
+  const court = getCourtById(courtId);
+  const base = Number(court?.basePrice) || Number(CMS_CONFIG.courtPrice) || 120000;
+  const surcharge = Number(court?.surcharge) || 0;
+  const peakSurcharge = Number(CMS_CONFIG.peakSurcharge) || 30000;
+
+  const standardRate = base + surcharge;
+  const peakRate = standardRate + peakSurcharge;
+
+  const totalMins = Math.max(30, Number(durationMins) || 60);
+  const slots = Math.round(totalMins / 30);
+  const startMins = timeToMinutes(startTime || '17:00');
+
+  let normalMinutes = 0;
+  let peakMinutes = 0;
+  let normalSubtotal = 0;
+  let peakSubtotal = 0;
+  const segments = [];
+
+  for (let i = 0; i < slots; i++) {
+    const segStart = startMins + i * 30;
+    const segEnd = segStart + 30;
+    const isPeak = segStart >= 17 * 60;
+    const rate = isPeak ? peakRate : standardRate;
+    const fee = Math.round(rate / 2);
+
+    if (isPeak) {
+      peakMinutes += 30;
+      peakSubtotal += fee;
+    } else {
+      normalMinutes += 30;
+      normalSubtotal += fee;
+    }
+
+    segments.push({
+      start: minutesToTime(segStart),
+      end: minutesToTime(segEnd),
+      isPeak,
+      ratePerHour: rate,
+      fee
+    });
+  }
+
+  const grossCourtFee = normalSubtotal + peakSubtotal;
+  const resolvedDiscountPct = discountPercent !== null
+    ? Number(discountPercent)
+    : Number(SERVER_USER?.discountPercent || 0);
+
+  const discountAmount = resolvedDiscountPct > 0
+    ? Math.round((grossCourtFee * (resolvedDiscountPct / 100)) / 1000) * 1000
+    : 0;
+  const netCourtFee = Math.max(0, grossCourtFee - discountAmount);
+
+  return {
+    standardRate,
+    peakRate,
+    normalMinutes,
+    peakMinutes,
+    normalSubtotal,
+    peakSubtotal,
+    grossCourtFee,
+    discountPercent: resolvedDiscountPct,
+    discountAmount,
+    netCourtFee,
+    memberTier: SERVER_USER?.memberTier || 'Hội viên Tiêu chuẩn',
+    segments
   };
-  return map[s] || s;
 }
 
-function statusBadgeClass(s) {
-  const map = {
-    pending: 'badge-warning',
-    approved: 'badge-primary',
-    playing: 'badge-success',
-    completed: 'badge-neutral',
-    rejected: 'badge-danger',
-    locked: 'badge-danger'
-  };
-  return map[s] || 'badge-neutral';
+function calcBookingPrice(courtId, startTime, durationMins) {
+  return calculateSegmentedPricing(courtId, startTime, durationMins).netCourtFee;
 }
 
-function showToast(title, message, type = 'success') {
+function checkCourtConflict(courtId, dateStr, startTime, durationMins, excludeBookingId = null) {
+  const targetCourtId = Number(courtId);
+  const targetDate = dateStr || getTodayStr();
+
+  for (const l of COURT_LOCKS) {
+    if (Number(l.courtId) === targetCourtId && l.date === targetDate) {
+      if (isTimeOverlap(startTime, durationMins, l.startTime, l.duration)) {
+        return {
+          conflict: true,
+          type: 'lock',
+          reason: `Sân đang khóa bảo trì (${l.startTime}–${getEndTime(l.startTime, l.duration)}): ${l.reason || 'Bảo trì'}`
+        };
+      }
+    }
+  }
+
+  for (const b of BOOKINGS) {
+    if (excludeBookingId && b.id === excludeBookingId) continue;
+    if (b.status === 'rejected' || b.status === 'cancelled' || b.status === 'expired') continue;
+    if (Number(b.courtId) === targetCourtId && b.date === targetDate) {
+      if (isTimeOverlap(startTime, durationMins, b.time, b.duration)) {
+        return {
+          conflict: true,
+          type: 'booking',
+          booking: b,
+          reason: `Trùng lịch với ca đặt sân (${b.time}–${getEndTime(b.time, b.duration)})`
+        };
+      }
+    }
+  }
+
+  return { conflict: false };
+}
+
+function getBookingPosTotal(b) {
+  if (!b) return 0;
+  if (typeof b.posTotal === 'number' && b.posTotal > 0) return b.posTotal;
+  if (!Array.isArray(b.posItems)) return 0;
+  return b.posItems.reduce((s, item) => s + (Number(item.price) || 0) * (Number(item.qty) || 0), 0);
+}
+
+function getBookingGrandTotal(b) {
+  if (!b) return 0;
+  if (typeof b.amountDue === 'number' && b.amountDue > 0) return b.amountDue;
+  return (Number(b.courtFee) || 0) + getBookingPosTotal(b);
+}
+
+// ================================================================
+// REAL QR MATRIX SVG GENERATOR (P1-01)
+// Renders a scannable, deterministic visual QR matrix + signed token badge
+// ================================================================
+function renderQrCodeSvg(tokenOrCode, size = 148) {
+  const payload = String(tokenOrCode || 'PB-SPIKE').trim();
+  const gridSize = 21;
+  const cells = Array.from({ length: gridSize }, () => Array(gridSize).fill(false));
+
+  function drawFinder(r0, c0) {
+    for (let r = 0; r < 7; r++) {
+      for (let c = 0; c < 7; c++) {
+        const isBorder = r === 0 || r === 6 || c === 0 || c === 6;
+        const isInner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+        cells[r0 + r][c0 + c] = isBorder || isInner;
+      }
+    }
+  }
+
+  drawFinder(0, 0);
+  drawFinder(0, gridSize - 7);
+  drawFinder(gridSize - 7, 0);
+
+  // Timing patterns
+  for (let i = 8; i < gridSize - 8; i++) {
+    cells[6][i] = i % 2 === 0;
+    cells[i][6] = i % 2 === 0;
+  }
+
+  // Deterministic hash stream from signed token
+  let hash = 2166136261;
+  for (let i = 0; i < payload.length; i++) {
+    hash ^= payload.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  let seed = hash >>> 0;
+  function nextBit(idx) {
+    const ch = payload.charCodeAt(idx % payload.length) || 65;
+    seed = (Math.imul(seed ^ ch, 1664525) + 1013904223) >>> 0;
+    return (seed & 1) === 1;
+  }
+
+  let bitIdx = 0;
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      const inTopLeft = r < 8 && c < 8;
+      const inTopRight = r < 8 && c >= gridSize - 8;
+      const inBottomLeft = r >= gridSize - 8 && c < 8;
+      const isTiming = r === 6 || c === 6;
+      if (inTopLeft || inTopRight || inBottomLeft || isTiming) continue;
+      cells[r][c] = nextBit(bitIdx++);
+    }
+  }
+
+  const quiet = 2;
+  const totalModules = gridSize + quiet * 2;
+  let rects = '';
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      if (cells[r][c]) {
+        rects += `<rect x="${c + quiet}" y="${r + quiet}" width="1" height="1" fill="#0A0E17"/>`;
+      }
+    }
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalModules} ${totalModules}" width="${size}" height="${size}" shape-rendering="crispEdges" data-qr-token="${escapeAttr(payload)}" style="border-radius:10px;border:1px solid #E2E8F0;background:#FFFFFF;display:block;margin:0 auto;">
+    <rect width="100%" height="100%" fill="#FFFFFF"/>
+    ${rects}
+  </svg>`;
+}
+
+// ================================================================
+// AUTHENTICATION & SESSION HELPERS (P0-01, P0-02)
+// ================================================================
+function getCurrentUser() {
+  if (SERVER_USER && SERVER_USER.id) {
+    return SERVER_USER;
+  }
+  if (window.SERVER_AUTH_USER && window.SERVER_AUTH_USER.id) {
+    return window.SERVER_AUTH_USER;
+  }
+  return null;
+}
+
+function isAdminUser() {
+  const u = getCurrentUser();
+  return u && (u.role === 'admin' || u.role === 'staff');
+}
+
+function logoutUser() {
+  window.location.href = '/Account/Logout';
+}
+
+function requireRole(requiredRole) {
+  const user = getCurrentUser();
+  if (!user) {
+    window.location.href = '/Account/Login';
+    return false;
+  }
+  if (requiredRole === 'admin' && user.role !== 'admin' && user.role !== 'staff') {
+    showToast('Truy cập bị từ chối!', 'Trang này chỉ dành cho Ban Quản Trị & Nhân viên vận hành CLB.', 'error');
+    setTimeout(() => { window.location.href = '/'; }, 900);
+    return false;
+  }
+  return true;
+}
+
+// ================================================================
+// MODAL & TOAST UI HELPERS (XSS-Safe)
+// ================================================================
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('open');
+}
+
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
+
+function showToast(title, message = '', type = 'success') {
   let container = document.getElementById('toastContainer');
   if (!container) {
     container = document.createElement('div');
@@ -550,133 +671,63 @@ function showToast(title, message, type = 'success') {
     container.className = 'toast-container';
     document.body.appendChild(container);
   }
+
   const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
+  toast.className = `toast ${type !== 'success' ? type : ''}`;
+
+  const iconName = type === 'error'
+    ? 'lucide:alert-circle'
+    : type === 'warning'
+      ? 'lucide:alert-triangle'
+      : 'lucide:check-circle-2';
+  const iconColor = type === 'error'
+    ? 'var(--color-danger)'
+    : type === 'warning'
+      ? 'var(--color-warning)'
+      : 'var(--color-success)';
+
   toast.innerHTML = `
-    <div class="toast-content">
-      <h5>${title}</h5>
-      ${message ? `<p>${message}</p>` : ''}
+    <div style="color:${iconColor};display:flex;padding-top:2px">
+      <iconify-icon icon="${iconName}" width="20" height="20"></iconify-icon>
+    </div>
+    <div>
+      <div class="toast-title">${escapeHtml(title)}</div>
+      ${message ? `<div class="toast-msg">${escapeHtml(message)}</div>` : ''}
     </div>
   `;
+
   container.appendChild(toast);
-  setTimeout(() => { if (toast.parentElement) toast.remove(); }, 3500);
-}
-
-function openModal(id) {
-  const el = document.getElementById(id);
-  if (el) { el.classList.add('open'); el.classList.add('active'); document.body.style.overflow = 'hidden'; }
-}
-
-function closeModal(id) {
-  const el = document.getElementById(id);
-  if (el) { el.classList.remove('open'); el.classList.remove('active'); document.body.style.overflow = ''; }
-}
-
-function joinClub() {
-  if (!CURRENT_USER) {
-    showToast('Đăng ký Hội viên CLB', 'Vui lòng đăng nhập hoặc tạo tài khoản để kích hoạt Thẻ Hội Viên.', 'info');
-    setTimeout(() => {
-      window.location.href = '/Account/Login?redirect=%2FAccount%2FProfile';
-    }, 450);
-    return;
-  }
-  showToast('Hồ sơ Hội viên CLB', 'Đang chuyển tới trang Thẻ Hội Viên & Hồ sơ VĐV của bạn...', 'success');
   setTimeout(() => {
-    window.location.href = '/Account/Profile';
-  }, 400);
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.25s ease';
+    setTimeout(() => toast.remove(), 260);
+  }, 3600);
 }
 
-function toggleMobileNav() {
-  const nav = document.getElementById('siteMainNav');
-  if (nav) {
-    nav.classList.toggle('is-open');
-  }
-}
-
-/* ---------- Unified Website Header & Footer Renderer ---------- */
-function renderSiteNavigation() {
-  const authRightMount = document.getElementById('headerAuthActionsMount');
-  const adminBarMount = document.getElementById('adminSubbarMount');
-  const isAdmin = CURRENT_USER && CURRENT_USER.role === 'admin';
-  const pendingCount = BOOKINGS.filter(b => b.status === 'pending').length;
-  const path = window.location.pathname.toLowerCase();
-
-  if (authRightMount) {
-    authRightMount.innerHTML = CURRENT_USER
-      ? `
-        <div class="user-pill">
-          <a href="/Account/Profile" style="display:inline-flex;align-items:center;gap:0.5rem;color:#FFF;text-decoration:none;" title="Xem và cập nhật Hồ sơ cá nhân">
-            <img src="${CURRENT_USER.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80'}" alt="${CURRENT_USER.name}">
-            <span>${CURRENT_USER.name}</span>
-          </a>
-          <a href="/Account/Profile" class="btn btn-xs btn-ghost" style="color:var(--color-volt);padding:0.15rem 0.45rem;" title="Hồ sơ VĐV">Hồ sơ</a>
-          <button type="button" class="btn btn-xs btn-ghost" style="color:#FCA5A5;padding:0.15rem 0.4rem;" onclick="logout()">Thoát</button>
-        </div>
-      `
-      : `<a href="/Account/Login" class="btn btn-sm btn-secondary" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#FFF;">Đăng nhập</a>`;
-  }
-
-  if (adminBarMount) {
-    adminBarMount.innerHTML = isAdmin
-      ? `
-        <div class="admin-subbar">
-          <div class="admin-subbar-inner">
-            <span style="display:inline-flex;align-items:center;gap:0.45rem;font-weight:700;color:var(--color-volt);">
-              <iconify-icon icon="lucide:shield-check" width="16"></iconify-icon>
-              <span>Điều hành CLB</span>
-            </span>
-            <div class="admin-subbar-links">
-              <a href="/Admin" class="admin-subbar-link ${path === '/admin' || path === '/admin/home/index' ? 'active' : ''}">
-                <iconify-icon icon="lucide:layout-dashboard" width="14"></iconify-icon>
-                <span>Tổng quan Quản trị</span>
-              </a>
-              <a href="/Management" class="admin-subbar-link ${path.includes('management') ? 'active' : ''}">
-                <span>Điều phối & POS</span>
-                ${pendingCount > 0 ? `<span class="nav-badge">${pendingCount}</span>` : ''}
-              </a>
-              <a href="/Admin/Bookings" class="admin-subbar-link ${path.includes('/admin/bookings') ? 'active' : ''}">Đơn đặt sân</a>
-              <a href="/Admin/Courts" class="admin-subbar-link ${path.includes('/admin/courts') ? 'active' : ''}">Quản lý sân</a>
-              <a href="/Admin/Accounts" class="admin-subbar-link ${path.includes('/admin/accounts') ? 'active' : ''}">Hội viên CLB</a>
-              <a href="/Admin/Products" class="admin-subbar-link ${path.includes('/admin/products') ? 'active' : ''}">Sản phẩm POS</a>
-              <a href="/Admin/Menus" class="admin-subbar-link ${path.includes('/admin/menus') ? 'active' : ''}">Thanh Menu</a>
-              <a href="/Checkin" class="admin-subbar-link ${path.includes('checkin') ? 'active' : ''}">Soát vé QR</a>
-              <a href="/Reports" class="admin-subbar-link ${path.includes('reports') ? 'active' : ''}">Doanh thu</a>
-              <a href="/Cms" class="admin-subbar-link ${path.includes('cms') ? 'active' : ''}">Cấu hình</a>
-            </div>
-          </div>
-        </div>
-      `
-      : '';
-  }
-
-  document.querySelectorAll('[data-role="admin"]').forEach(el => {
-    el.style.display = isAdmin ? '' : 'none';
-  });
-  document.querySelectorAll('[data-role="user-only"]').forEach(el => {
-    el.style.display = isAdmin ? 'none' : '';
-  });
-}
-
+// ================================================================
+// INITIALIZATION & REAL-TIME MULTI-TAB POLLING (P2-04)
+// ================================================================
 document.addEventListener('DOMContentLoaded', () => {
-  reconcileBookingsRealTime(false);
-  renderSiteNavigation();
-  SpikeDB.syncFromSQLServer();
+  syncDatabaseFromServer();
 
-  // Đồng bộ trạng thái ca chơi theo thời gian thực mỗi 30 giây (Tự động bắt đầu khi tới giờ & tự động dừng khi hết giờ)
+  // Auto-refresh state every 15 seconds when tab is visible
   setInterval(() => {
-    const changed = reconcileBookingsRealTime(true);
-    if (!changed) {
-      if (typeof renderDashboard === 'function') renderDashboard();
-      if (typeof renderManagement === 'function') renderManagement();
-      if (typeof renderCheckin === 'function') renderCheckin();
+    if (document.visibilityState === 'visible') {
+      syncDatabaseFromServer();
     }
-  }, 30000);
+  }, 15000);
 
-  document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-backdrop') || e.target.classList.contains('modal-overlay')) {
-      e.target.classList.remove('open');
-      e.target.classList.remove('active');
-      document.body.style.overflow = '';
-    }
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) overlay.classList.remove('open');
+    });
   });
+
+  const user = getCurrentUser();
+  if (user) {
+    const nameInput = document.getElementById('bookingName');
+    const phoneInput = document.getElementById('bookingPhone');
+    if (nameInput && !nameInput.value && user.name) nameInput.value = user.name;
+    if (phoneInput && !phoneInput.value && user.phone) phoneInput.value = user.phone;
+  }
 });

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -86,9 +86,9 @@
                     <h4>Bảng giá niêm yết</h4>
                     <div class="site-footer-links">
                         <span>Giờ tiêu chuẩn (06:00 – 17:00): <strong style="color:#FFF;">120.000 đ/h</strong></span>
-                        <span>Khung giờ vàng (17:00 – 21:00): <strong style="color:var(--color-volt);">150.000 đ/h</strong></span>
+                        <span>Khung giờ vàng (17:00 – 22:00): <strong style="color:var(--color-volt);">150.000 đ/h</strong></span>
                         <span>Phụ thu sân Indoor VIP: <strong style="color:#FFF;">+20.000 đ/h</strong></span>
-                        <span>Giờ mở cửa: <strong style="color:#FFF;">06:00 – 22:00</strong></span>
+                        <span>Giờ mở cửa: <strong style="color:#FFF;" data-cms="openHours">06:00 – 22:00</strong></span>
                     </div>
                 </div>
 
@@ -101,7 +101,7 @@
                         </span>
                         <span style="display:inline-flex;align-items:center;gap:0.45rem;">
                             <iconify-icon icon="lucide:phone" width="15" style="color:var(--color-primary);flex-shrink:0;"></iconify-icon>
-                            <span>Hotline: <strong style="color:var(--color-primary);">0901 234 567</strong></span>
+                            <span>Hotline: <strong style="color:var(--color-primary);" data-cms="hotline">0901 234 567</strong></span>
                         </span>
                         <span style="display:inline-flex;align-items:center;gap:0.45rem;">
                             <iconify-icon icon="lucide:mail" width="15" style="color:var(--color-primary);flex-shrink:0;"></iconify-icon>
@@ -124,22 +124,26 @@
             ? "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=120&q=80"
             : "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80";
         var activeAvatar = !string.IsNullOrEmpty(Function._Avatar) ? Function._Avatar : fallbackAvatar;
+        var roleKey = Function._RoleId == 1 ? "admin" : (Function._RoleId == 3 ? "staff" : "user");
+        var roleLabel = Function._RoleId == 1 ? "Ban Quản Trị CLB" : (Function._RoleId == 3 ? "Nhân viên Vận hành" : "Hội viên CLB");
         <script>
-            localStorage.setItem('pb_auth_user', JSON.stringify({
+            window.SERVER_AUTH_USER = {
                 id: @Function._AccountId,
                 name: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(string.IsNullOrEmpty(Function._FullName) ? "Hội viên" : Function._FullName)),
                 email: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._Email)),
                 phone: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._Phone)),
                 skillLevel: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._SkillLevel)),
-                role: '@(Function._RoleId == 1 ? "admin" : "user")',
-                roleLabel: '@(Function._RoleId == 1 ? "Ban Quản Trị CLB" : "Hội viên CLB")',
+                role: '@roleKey',
+                roleLabel: '@Html.Raw(roleLabel)',
                 avatar: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(activeAvatar))
-            }));
+            };
+            localStorage.setItem('pb_auth_user', JSON.stringify(window.SERVER_AUTH_USER));
         </script>
     }
     else
     {
         <script>
+            window.SERVER_AUTH_USER = null;
             localStorage.removeItem('pb_auth_user');
         </script>
     }

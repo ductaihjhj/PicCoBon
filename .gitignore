@@ -1,9 +1,13 @@
 ## Build and compile outputs
 bin/
 obj/
+**/bin/
+**/obj/
 out/
 build/
 verify_build/
+TestResults/
+**/TestResults/
 *.dll
 *.exe
 *.pdb
@@ -17,6 +21,14 @@ verify_build/
 .vscode/*
 !.vscode/tasks.json
 !.vscode/launch.json
+
+## Local secrets & environment overrides
+appsettings.Local.json
+appsettings.Production.local.json
+.env
+*.pfx
+*.key
+*.bak
 
 ## Logs & caches
 *.log

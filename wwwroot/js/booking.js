@@ -1,116 +1,84 @@
-﻿/* ==========================================================================
-   PICKLEBALL PRO ARENA — INTERACTIVE BOOKING ENGINE
-   Date-Aware Slot Grid, Real-Time Conflict & Lock Detection, Split-Bill Calculator
-   ========================================================================== */
+/* ================================================================
+   SPIKE PICKLEBALL CLUB — BOOKING PAGE ENGINE (Server-Authoritative)
+   Supports segmented normal/peak pricing, VIP discounts & signed QR
+   ================================================================ */
 
-let selectedDateISO = getTodayISO();
-let selectedCourt = 1;
-let bookingDuration = 60;
+let selectedCourtId = 1;
+let selectedDate = getTodayStr();
+let selectedDuration = 60;
 let selectedStartTime = '17:00';
+let isSubmittingBooking = false;
 
-const DAY_NAMES_VN = ['CN', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+const BOOKING_TIME_SLOTS = [
+  '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
+  '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30',
+  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
+  '20:00', '20:30', '21:00'
+];
 
-function autoFillBookingUser() {
-  if (CURRENT_USER) {
-    const nameInput = document.getElementById('bookingName');
-    const phoneInput = document.getElementById('bookingPhone');
-    const skillSelect = document.getElementById('bookingSkill');
-    if (nameInput && !nameInput.value) nameInput.value = CURRENT_USER.name || '';
-    if (phoneInput && !phoneInput.value) phoneInput.value = CURRENT_USER.phone || '';
-    if (skillSelect && CURRENT_USER.skillLevel) {
-      const hasOption = Array.from(skillSelect.options).some(o => o.value === CURRENT_USER.skillLevel);
-      if (hasOption) skillSelect.value = CURRENT_USER.skillLevel;
-    }
-  }
-}
-
-function initBooking() {
-  // Restore draft if user just logged in and returned to /Booking
-  try {
-    const rawDraft = sessionStorage.getItem('pb_pending_booking_draft');
-    if (rawDraft) {
-      const draft = JSON.parse(rawDraft);
-      if (draft.date) selectedDateISO = draft.date;
-      if (draft.court) selectedCourt = Number(draft.court);
-      if (draft.duration) bookingDuration = Number(draft.duration);
-      if (draft.time) selectedStartTime = draft.time;
-      if (draft.players && document.getElementById('bookingPlayers')) {
-        document.getElementById('bookingPlayers').value = draft.players;
-      }
-      if (draft.skillLevel && document.getElementById('bookingSkill')) {
-        document.getElementById('bookingSkill').value = draft.skillLevel;
-      }
-      if (draft.extraPaddles && document.getElementById('extraPaddles')) {
-        document.getElementById('extraPaddles').checked = true;
-      }
-      if (draft.extraBalls && document.getElementById('extraBalls')) {
-        document.getElementById('extraBalls').checked = true;
-      }
-      if (draft.name && document.getElementById('bookingName')) {
-        document.getElementById('bookingName').value = draft.name;
-      }
-      if (draft.phone && document.getElementById('bookingPhone')) {
-        document.getElementById('bookingPhone').value = draft.phone;
-      }
-      sessionStorage.removeItem('pb_pending_booking_draft');
-    }
-  } catch (_) {}
-
-  // Read URL params if navigated from Dashboard Quick Matrix or Court Card
+function initBookingPage() {
   const params = new URLSearchParams(window.location.search);
-  if (params.get('court')) {
-    const cId = Number(params.get('court'));
-    if (cId > 0) selectedCourt = cId;
+  const courtParam = parseInt(params.get('court'));
+  const dateParam = params.get('date');
+  const timeParam = params.get('time');
+
+  if (courtParam && COURTS.some(c => Number(c.id) === courtParam)) {
+    selectedCourtId = courtParam;
+  } else if (COURTS.length > 0) {
+    selectedCourtId = Number(COURTS[0].id);
   }
-  if (params.get('time')) {
-    selectedStartTime = params.get('time');
-  }
-  if (params.get('date')) {
-    selectedDateISO = params.get('date');
+  if (dateParam) selectedDate = dateParam;
+  if (timeParam && BOOKING_TIME_SLOTS.includes(timeParam)) selectedStartTime = timeParam;
+
+  const user = getCurrentUser();
+  if (user) {
+    const nameEl = document.getElementById('bookingName');
+    const phoneEl = document.getElementById('bookingPhone');
+    if (nameEl && !nameEl.value && user.name) nameEl.value = user.name;
+    if (phoneEl && !phoneEl.value && user.phone) phoneEl.value = user.phone;
   }
 
-  // Pre-fill user info if logged in
-  autoFillBookingUser();
-
-  renderQuickDateStrip();
+  renderDateStrip();
   renderCourtOptions();
-  populateStartSelect();
-  setDuration(bookingDuration);
+  renderDurationPills();
+  renderTimeline();
+  renderTimeSlotGrid();
+  updatePriceBreakdown();
 }
 
-function renderQuickDateStrip() {
-  const stripEl = document.getElementById('quickDateStrip');
-  if (!stripEl) return;
+function renderDateStrip() {
+  const strip = document.getElementById('quickDateStrip');
+  const label = document.getElementById('selectedDateLabel');
+  if (!strip) return;
 
-  let html = '';
+  const dayNames = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+  const days = [];
+
   for (let i = 0; i < 7; i++) {
-    const dt = new Date();
-    dt.setDate(dt.getDate() + i);
-    const iso = getOffsetDateISO(i);
-    const dayName = i === 0 ? 'Hôm nay' : i === 1 ? 'Ngày mai' : DAY_NAMES_VN[dt.getDay()];
-    const dayNum = String(dt.getDate()).padStart(2, '0');
-    const monthNum = `Tháng ${dt.getMonth() + 1}`;
-    const isActive = iso === selectedDateISO;
+    const dateStr = getOffsetDateStr(i);
+    const d = new Date(dateStr + 'T00:00:00');
+    const dow = i === 0 ? 'Hôm nay' : i === 1 ? 'Ngày mai' : dayNames[d.getDay()];
+    const dayNum = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const active = dateStr === selectedDate ? 'active' : '';
 
-    html += `
-      <div class="date-pill ${isActive ? 'active' : ''}" onclick="selectDateISO('${iso}')">
-        <span class="date-pill-day">${dayName}</span>
-        <span class="date-pill-num">${dayNum}</span>
-        <span class="date-pill-month">${monthNum}</span>
-      </div>
-    `;
+    days.push(`
+      <button type="button" class="date-chip ${active}" onclick="selectBookingDate('${escapeAttr(dateStr)}')">
+        <span class="date-chip-dow">${escapeHtml(dow)}</span>
+        <span class="date-chip-day">${escapeHtml(dayNum)}</span>
+      </button>
+    `);
   }
-  stripEl.innerHTML = html;
 
-  const labelEl = document.getElementById('selectedDateLabel');
-  if (labelEl) labelEl.textContent = formatDateVN(selectedDateISO);
+  strip.innerHTML = days.join('');
+  if (label) label.textContent = formatDateVN(selectedDate);
 }
 
-function selectDateISO(iso) {
-  selectedDateISO = iso;
-  document.getElementById('conflictBanner')?.classList.remove('show');
-  renderQuickDateStrip();
-  renderTimelineAndSlots();
+function selectBookingDate(dateStr) {
+  selectedDate = dateStr;
+  renderDateStrip();
+  renderCourtOptions();
+  renderTimeline();
+  renderTimeSlotGrid();
   updatePriceBreakdown();
 }
 
@@ -118,312 +86,308 @@ function renderCourtOptions() {
   const container = document.getElementById('courtOptions');
   if (!container) return;
 
-  container.innerHTML = COURTS.map(c => {
-    const isSelected = Number(c.id) === Number(selectedCourt);
-    const baseRate = getCourtHourlyRate(c.id, '08:00');
+  container.innerHTML = COURTS.map(court => {
+    const active = Number(court.id) === Number(selectedCourtId) ? 'active' : '';
+    const bookingsCount = BOOKINGS.filter(b =>
+      Number(b.courtId) === Number(court.id) &&
+      b.date === selectedDate &&
+      b.status !== 'rejected' &&
+      b.status !== 'cancelled' &&
+      b.status !== 'expired'
+    ).length;
+
+    const stdRate = (Number(court.basePrice) || 120000) + (Number(court.surcharge) || 0);
+    const peakRate = stdRate + (Number(CMS_CONFIG.peakSurcharge) || 30000);
+
     return `
-      <div class="court-option ${isSelected ? 'selected' : ''}" onclick="selectCourt(${c.id})">
-        <div>
-          <div class="court-option-name">${c.name}</div>
-          <div class="court-option-type">${c.typeLabel}</div>
-          <div class="text-xs font-bold text-mono" style="color:var(--color-primary);margin-top:4px">Từ ${formatMoney(baseRate)}/h</div>
+      <div class="court-option ${active}" onclick="selectCourt(${Number(court.id)})">
+        <div class="flex-between mb-sm">
+          <span class="badge ${court.type === 'Indoor' ? 'badge-primary' : 'badge-neutral'}">${escapeHtml(court.type)}</span>
+          <span class="text-xs text-muted">${bookingsCount} ca đã đặt</span>
         </div>
-        <div class="court-option-dot"></div>
+        <div class="court-option-name">${escapeHtml(court.name)}</div>
+        <div class="court-option-meta">${escapeHtml(court.surface || 'Tiêu chuẩn USAPA')}</div>
+        <div class="court-option-price">${formatMoney(stdRate)}<span style="font-size:0.72rem;font-weight:500;color:var(--text-secondary)">/h · Giờ vàng ${formatMoney(peakRate)}/h</span></div>
       </div>
     `;
   }).join('');
 }
 
-function selectCourt(id) {
-  selectedCourt = Number(id);
-  document.getElementById('conflictBanner')?.classList.remove('show');
+function selectCourt(courtId) {
+  selectedCourtId = Number(courtId);
   renderCourtOptions();
-  renderTimelineAndSlots();
+  renderTimeline();
+  renderTimeSlotGrid();
   updatePriceBreakdown();
 }
 
-function setDuration(mins) {
-  bookingDuration = Number(mins);
+function renderDurationPills() {
   document.querySelectorAll('#durationPills .duration-pill').forEach(btn => {
-    btn.classList.toggle('active', Number(btn.getAttribute('data-dur')) === bookingDuration);
+    const dur = parseInt(btn.getAttribute('data-dur'));
+    btn.classList.toggle('active', dur === selectedDuration);
   });
-  document.getElementById('conflictBanner')?.classList.remove('show');
-  renderTimelineAndSlots();
+}
+
+function setDuration(dur) {
+  selectedDuration = dur;
+  renderDurationPills();
+  renderTimeline();
+  renderTimeSlotGrid();
   updatePriceBreakdown();
 }
 
-function populateStartSelect() {
-  const sel = document.getElementById('bookingStart');
-  if (!sel) return;
-  sel.innerHTML = '';
-  for (let h = 6; h <= 21; h++) {
-    const hh = String(h).padStart(2, '0');
-    for (const m of ['00', '30']) {
-      if (h === 21 && m === '30') continue;
-      const val = `${hh}:${m}`;
-      sel.innerHTML += `<option value="${val}">${val}</option>`;
-    }
-  }
-  sel.value = selectedStartTime;
-}
-
-function selectStartTime(timeStr) {
-  selectedStartTime = timeStr;
-  const sel = document.getElementById('bookingStart');
-  if (sel && sel.value !== timeStr) sel.value = timeStr;
-  document.getElementById('conflictBanner')?.classList.remove('show');
-  renderTimelineAndSlots();
-  updatePriceBreakdown();
-}
-
-function renderTimelineAndSlots() {
+function renderTimeline() {
   const bar = document.getElementById('bookingTimeline');
   const ticks = document.getElementById('bookingTicks');
-  const slotGrid = document.getElementById('timeSlotGrid');
-  if (!bar || !slotGrid) return;
+  if (!bar) return;
 
-  // 1. Render visual timeline bar (06:00 to 22:00 = 960 mins)
-  bar.innerHTML = '';
-  const totalMins = 16 * 60;
+  const slots = [];
+  for (let m = 6 * 60; m < 22 * 60; m += 30) {
+    const t = minutesToTime(m);
+    const check = checkCourtConflict(selectedCourtId, selectedDate, t, 30);
+    let cls = '';
+    let title = `${t} - Trống`;
 
-  const courtBookings = BOOKINGS.filter(b =>
-    Number(b.courtId) === Number(selectedCourt) &&
-    (b.date || getTodayISO()) === selectedDateISO &&
-    ['playing', 'pending', 'approved', 'completed'].includes(b.status)
-  );
+    if (check.conflict) {
+      if (check.type === 'lock') {
+        cls = 'locked';
+        title = `${t} - Bảo trì`;
+      } else if (check.booking.status === 'pending') {
+        cls = 'pending';
+        title = `${t} - Chờ duyệt`;
+      } else {
+        cls = 'booked';
+        title = `${t} - Đã đặt`;
+      }
+    }
 
-  courtBookings.forEach(b => {
-    const startOffset = timeToMinutes(b.time) - 360;
-    const left = Math.max(0, (startOffset / totalMins) * 100);
-    const width = Math.min(100 - left, (Number(b.duration) / totalMins) * 100);
-    const cls = b.status === 'pending' ? 'pending' : 'booked';
-    bar.innerHTML += `<div class="timeline-block ${cls}" style="left:${left}%;width:${width}%" title="${b.name}: ${b.time} (${b.duration}p)"></div>`;
-  });
+    slots.push(`<div class="timeline-seg ${cls}" title="${escapeAttr(title)}" onclick="selectStartTime('${t}')"></div>`);
+  }
 
-  const courtLocks = COURT_LOCKS.filter(l =>
-    Number(l.courtId) === Number(selectedCourt) &&
-    l.date === selectedDateISO
-  );
-
-  courtLocks.forEach(l => {
-    const startOffset = timeToMinutes(l.startTime) - 360;
-    const left = Math.max(0, (startOffset / totalMins) * 100);
-    const width = Math.min(100 - left, (Number(l.duration) / totalMins) * 100);
-    bar.innerHTML += `<div class="timeline-block locked" style="left:${left}%;width:${width}%" title="Bảo trì: ${l.reason}"></div>`;
-  });
+  bar.innerHTML = slots.join('');
 
   if (ticks) {
-    ticks.innerHTML = '';
-    for (let h = 6; h <= 22; h += 2) {
-      ticks.innerHTML += `<span class="timeline-tick">${String(h).padStart(2, '0')}:00</span>`;
-    }
+    ticks.innerHTML = ['06:00', '09:00', '12:00', '15:00', '18:00', '21:00']
+      .map(t => `<span class="timeline-tick">${t}</span>`)
+      .join('');
   }
+}
 
-  // 2. Render Interactive Time Slot Buttons (30-min intervals from 06:00 to 21:00)
-  const slots = [];
-  for (let h = 6; h <= 21; h++) {
-    const hh = String(h).padStart(2, '0');
-    slots.push(`${hh}:00`);
-    if (h < 21) slots.push(`${hh}:30`);
-  }
+function renderTimeSlotGrid() {
+  const grid = document.getElementById('timeSlotGrid');
+  const select = document.getElementById('bookingStart');
+  if (!grid) return;
 
-  slotGrid.innerHTML = slots.map(t => {
-    const startMins = timeToMinutes(t);
-    const endMins = startMins + bookingDuration;
-    const conflict = checkSlotConflict(selectedCourt, selectedDateISO, startMins, endMins);
-    const exceedsClosing = endMins > 22 * 60 + 30; // Allow finishing up to 22:30
-    const isDisabled = conflict.hasConflict || exceedsClosing;
-    const isSelected = t === selectedStartTime && !isDisabled;
-    const peak = isPeakHour(t);
-    const hourly = getCourtHourlyRate(selectedCourt, t);
+  const todayStr = getTodayStr();
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
 
-    let stateClass = '';
-    let subLabel = `${Math.round(hourly / 1000)}k/h`;
-    if (conflict.hasConflict) {
-      if (conflict.type === 'lock') {
-        stateClass = 'locked-slot';
-        subLabel = 'Bảo trì';
-      } else {
-        stateClass = 'booked';
-        subLabel = conflict.record.status === 'pending' ? 'Chờ duyệt' : 'Đã kín';
-      }
-    } else if (exceedsClosing) {
-      stateClass = 'booked';
-      subLabel = 'Quá giờ đóng';
-    } else if (isSelected) {
-      stateClass = 'selected';
-    } else if (peak) {
-      stateClass = 'peak';
+  grid.innerHTML = BOOKING_TIME_SLOTS.map(time => {
+    const check = checkCourtConflict(selectedCourtId, selectedDate, time, selectedDuration);
+    const isPastToday = selectedDate === todayStr && timeToMinutes(time) < (nowMins - 10);
+    const isConflict = check.conflict || isPastToday;
+    const isSelected = time === selectedStartTime && !isConflict;
+    const rate = getCourtHourlyRate(selectedCourtId, time);
+    const peakTag = isPeakHour(time) ? '⚡ Giờ vàng' : 'Giờ thường';
+
+    let subText = `${formatMoney(rate)}/h · ${peakTag}`;
+    if (isPastToday) {
+      subText = 'Đã qua giờ';
+    } else if (check.conflict) {
+      subText = check.type === 'lock' ? 'Bảo trì' : 'Đã kín lịch';
     }
 
     return `
-      <button type="button" class="slot-btn ${stateClass}" ${isDisabled ? 'disabled' : ''} onclick="selectStartTime('${t}')">
-        ${peak && !isDisabled ? '<span class="slot-peak-tag">HOT</span>' : ''}
-        <span class="slot-time">${t}</span>
-        <span class="slot-price">${subLabel}</span>
+      <button type="button"
+        class="slot-btn ${isSelected ? 'selected' : ''} ${isConflict ? 'occupied' : ''}"
+        ${isConflict ? 'disabled' : ''}
+        onclick="selectStartTime('${time}')">
+        <span class="slot-btn-time">${time} – ${getEndTime(time, selectedDuration)}</span>
+        <span class="slot-btn-price">${escapeHtml(subText)}</span>
       </button>
     `;
   }).join('');
+
+  if (select) {
+    select.innerHTML = BOOKING_TIME_SLOTS.map(t => {
+      const c = checkCourtConflict(selectedCourtId, selectedDate, t, selectedDuration);
+      return `<option value="${t}" ${t === selectedStartTime ? 'selected' : ''}>${t} (${c.conflict ? 'Đã kín' : 'Còn trống'})</option>`;
+    }).join('');
+  }
 }
 
-function getSelectedExtrasTotal() {
-  let extras = 0;
-  const paddles = document.getElementById('extraPaddles');
-  const balls = document.getElementById('extraBalls');
-  if (paddles && paddles.checked) extras += 80000;
-  if (balls && balls.checked) extras += 50000;
-  return extras;
-}
-
-function updatePriceBreakdown() {
-  const court = getCourtById(selectedCourt);
-  const extrasTotal = getSelectedExtrasTotal();
-  const calc = calculateBookingTotal(selectedCourt, selectedStartTime, bookingDuration, extrasTotal);
-  const endTime = minutesToTime(timeToMinutes(selectedStartTime) + bookingDuration);
-  const players = Number(document.getElementById('bookingPlayers')?.value) || 4;
-  const splitAmount = Math.round(calc.grandTotal / players);
-
-  const formTitle = document.getElementById('bookingFormTitle');
-  if (formTitle) formTitle.textContent = `Phiếu đặt: ${court.name}`;
-
-  const badge = document.getElementById('bookingCourtPriceBadge');
-  if (badge) {
-    badge.textContent = `${formatMoney(calc.hourlyRate)} / giờ ${isPeakHour(selectedStartTime) ? '(Giờ vàng)' : ''}`;
-  }
-
-  const dtEl = document.getElementById('summaryDateTime');
-  if (dtEl) dtEl.textContent = `${selectedStartTime}→${endTime} · ${formatDateVN(selectedDateISO)}`;
-
-  const rateEl = document.getElementById('summaryHourlyRate');
-  if (rateEl) rateEl.textContent = `${formatMoney(calc.hourlyRate)}/h × ${bookingDuration}p`;
-
-  const courtFeeEl = document.getElementById('summaryCourtFee');
-  if (courtFeeEl) courtFeeEl.textContent = formatMoney(calc.courtFee);
-
-  const extrasRow = document.getElementById('summaryExtrasRow');
-  const extrasFeeEl = document.getElementById('summaryExtrasFee');
-  if (extrasRow && extrasFeeEl) {
-    extrasRow.style.display = extrasTotal > 0 ? 'flex' : 'none';
-    extrasFeeEl.textContent = formatMoney(extrasTotal);
-  }
-
-  const totalEl = document.getElementById('summaryTotal');
-  if (totalEl) totalEl.textContent = formatMoney(calc.grandTotal);
-
-  const splitEl = document.getElementById('summarySplitPerPerson');
-  if (splitEl) splitEl.textContent = `${formatMoney(splitAmount)} / người (${players} người)`;
-}
-
-function submitBooking() {
-  const name = document.getElementById('bookingName')?.value.trim() || '';
-  const phone = document.getElementById('bookingPhone')?.value.trim() || '';
-  const players = Number(document.getElementById('bookingPlayers')?.value) || 4;
-  const skillLevel = document.getElementById('bookingSkill')?.value || 'Giao lưu';
-
-  if (!CURRENT_USER) {
-    sessionStorage.setItem('pb_pending_booking_draft', JSON.stringify({
-      date: selectedDateISO,
-      court: selectedCourt,
-      duration: bookingDuration,
-      time: selectedStartTime,
-      players,
-      skillLevel,
-      extraPaddles: !!document.getElementById('extraPaddles')?.checked,
-      extraBalls: !!document.getElementById('extraBalls')?.checked,
-      name,
-      phone
-    }));
-    const returnUrl = `/Booking?date=${encodeURIComponent(selectedDateISO)}&court=${encodeURIComponent(selectedCourt)}&time=${encodeURIComponent(selectedStartTime)}`;
-    requireAuth(returnUrl);
-    return;
-  }
-
-  const banner = document.getElementById('conflictBanner');
-  const bannerText = document.getElementById('conflictBannerText');
-
-  if (!name || !phone) {
-    showToast('Thiếu thông tin', 'Vui lòng nhập đầy đủ họ tên và số điện thoại liên hệ.', 'warning');
-    return;
-  }
-
-  const phoneClean = phone.replace(/\s+/g, '');
-  if (!/^0\d{8,10}$/.test(phoneClean)) {
-    showToast('Số điện thoại chưa hợp lệ', 'Vui lòng nhập số điện thoại Việt Nam hợp lệ (bắt đầu bằng số 0, từ 9-11 số).', 'warning');
-    return;
-  }
-
-  const startMins = timeToMinutes(selectedStartTime);
-  const endMins = startMins + bookingDuration;
-  const conflict = checkSlotConflict(selectedCourt, selectedDateISO, startMins, endMins);
-
-  if (conflict.hasConflict) {
-    if (banner && bannerText) {
-      bannerText.textContent = conflict.type === 'lock'
-        ? `Sân đang tạm khóa bảo trì (${conflict.record.reason}). Vui lòng chọn giờ hoặc sân khác!`
-        : `Khung giờ ${selectedStartTime} → ${minutesToTime(endMins)} đã có người đặt trên sân này. Vui lòng chọn khung giờ trống!`;
-      banner.classList.add('show');
-    }
-    showToast('Trùng khung giờ', 'Khung giờ bạn chọn đã kín hoặc đang bảo trì.', 'error');
-    return;
-  }
-
-  if (banner) banner.classList.remove('show');
-
-  const extrasTotal = getSelectedExtrasTotal();
-  const calc = calculateBookingTotal(selectedCourt, selectedStartTime, bookingDuration, extrasTotal);
-  const posItems = [];
-  if (document.getElementById('extraPaddles')?.checked) {
-    posItems.push({ id: 9, name: 'Thuê Vợt Carbon Pro', price: 40000, qty: 2 });
-  }
-  if (document.getElementById('extraBalls')?.checked) {
-    posItems.push({ id: 10, name: 'Bóng Thi Đấu Franklin X-40', price: 50000, qty: 1 });
-  }
-
-  const ref = generateRef();
-  const court = getCourtById(selectedCourt);
-  const newBooking = {
-    id: ref,
-    courtId: court.id,
-    userId: CURRENT_USER ? CURRENT_USER.id : null,
-    date: selectedDateISO,
-    name,
-    phone: phoneClean,
-    time: selectedStartTime,
-    duration: bookingDuration,
-    status: 'pending',
-    players,
-    skillLevel,
-    courtFee: calc.courtFee,
-    posItems,
-    totalPaid: calc.grandTotal
-  };
-
-  BOOKINGS.unshift(newBooking);
-  saveData();
-
-  // Populate QR Modal
-  document.getElementById('qrCodeBadge').textContent = ref;
-  document.getElementById('qrRef').textContent = ref;
-  document.getElementById('qrName').textContent = `${name} (${phoneClean})`;
-  document.getElementById('qrDate').textContent = formatDateVN(selectedDateISO);
-  document.getElementById('qrCourt').textContent = `${court.name} (${court.type === 'Indoor' ? 'Trong nhà' : 'Ngoài trời'})`;
-  document.getElementById('qrTime').textContent = `${selectedStartTime} → ${minutesToTime(endMins)} (${bookingDuration} phút)`;
-  document.getElementById('qrTotal').textContent = formatMoney(calc.grandTotal);
-
-  openModal('modalQR');
-  showToast('Đặt sân thành công!', `Mã vé: ${ref} đã được ghi nhận.`, 'success');
-
-  // Reset optional extras and re-render grid
-  if (document.getElementById('extraPaddles')) document.getElementById('extraPaddles').checked = false;
-  if (document.getElementById('extraBalls')) document.getElementById('extraBalls').checked = false;
-  renderTimelineAndSlots();
+function selectStartTime(time) {
+  selectedStartTime = time;
+  renderTimeSlotGrid();
   updatePriceBreakdown();
 }
 
-document.addEventListener('DOMContentLoaded', initBooking);
+function updatePriceBreakdown() {
+  const court = getCourtById(selectedCourtId);
+  const endTime = getEndTime(selectedStartTime, selectedDuration);
+
+  // Segmented calculation across normal (< 17:00) and peak (>= 17:00) slices (P1-08, P1-09)
+  const quote = calculateSegmentedPricing(selectedCourtId, selectedStartTime, selectedDuration);
+
+  const paddlesChecked = document.getElementById('extraPaddles')?.checked;
+  const ballsChecked = document.getElementById('extraBalls')?.checked;
+  const extrasFee = (paddlesChecked ? 80000 : 0) + (ballsChecked ? 50000 : 0);
+  const grandTotal = quote.netCourtFee + extrasFee;
+  const players = parseInt(document.getElementById('bookingPlayers')?.value || '4');
+  const perPerson = Math.ceil(grandTotal / players);
+
+  const titleEl = document.getElementById('bookingFormTitle');
+  if (titleEl && court) titleEl.textContent = `Phiếu đặt — ${court.name}`;
+
+  const priceBadge = document.getElementById('bookingCourtPriceBadge');
+  if (priceBadge) {
+    if (quote.normalMinutes > 0 && quote.peakMinutes > 0) {
+      priceBadge.textContent = `Kết hợp Giờ thường & Giờ vàng ⚡`;
+    } else {
+      const curRate = quote.peakMinutes > 0 ? quote.peakRate : quote.standardRate;
+      priceBadge.textContent = `${formatMoney(curRate)} / giờ ${quote.peakMinutes > 0 ? '(Giờ vàng)' : ''}`;
+    }
+  }
+
+  const dtEl = document.getElementById('summaryDateTime');
+  if (dtEl) dtEl.textContent = `${selectedStartTime} → ${endTime} · ${formatDateVN(selectedDate)}`;
+
+  const rateEl = document.getElementById('summaryHourlyRate');
+  if (rateEl) {
+    if (quote.normalMinutes > 0 && quote.peakMinutes > 0) {
+      rateEl.textContent = `${quote.normalMinutes}p thường (${formatMoney(quote.normalSubtotal)}) + ${quote.peakMinutes}p vàng (${formatMoney(quote.peakSubtotal)})`;
+    } else {
+      const r = quote.peakMinutes > 0 ? quote.peakRate : quote.standardRate;
+      rateEl.textContent = `${formatMoney(r)}/h × ${selectedDuration} phút`;
+    }
+  }
+
+  const feeEl = document.getElementById('summaryCourtFee');
+  if (feeEl) {
+    if (quote.discountAmount > 0) {
+      feeEl.innerHTML = `<span style="text-decoration:line-through;color:var(--text-muted);margin-right:6px;">${formatMoney(quote.grossCourtFee)}</span><strong style="color:var(--color-success)">${formatMoney(quote.netCourtFee)} (-${quote.discountPercent}% ${escapeHtml(quote.memberTier)})</strong>`;
+    } else {
+      feeEl.textContent = formatMoney(quote.netCourtFee);
+    }
+  }
+
+  const extrasRow = document.getElementById('summaryExtrasRow');
+  const extrasVal = document.getElementById('summaryExtrasFee');
+  if (extrasRow && extrasVal) {
+    extrasRow.style.display = extrasFee > 0 ? 'flex' : 'none';
+    extrasVal.textContent = formatMoney(extrasFee);
+  }
+
+  const totalEl = document.getElementById('summaryTotal');
+  if (totalEl) totalEl.textContent = formatMoney(grandTotal);
+
+  const splitEl = document.getElementById('summarySplitPerPerson');
+  if (splitEl) splitEl.textContent = `${formatMoney(perPerson)} / người (${players} VĐV)`;
+
+  const conflictBanner = document.getElementById('conflictBanner');
+  const conflictText = document.getElementById('conflictBannerText');
+  const check = checkCourtConflict(selectedCourtId, selectedDate, selectedStartTime, selectedDuration);
+  if (conflictBanner) {
+    if (check.conflict) {
+      conflictBanner.classList.add('show');
+      if (conflictText) conflictText.textContent = check.reason;
+    } else {
+      conflictBanner.classList.remove('show');
+    }
+  }
+}
+
+async function submitBooking() {
+  if (isSubmittingBooking) return;
+
+  const name = document.getElementById('bookingName')?.value.trim();
+  const phone = document.getElementById('bookingPhone')?.value.trim();
+  const players = parseInt(document.getElementById('bookingPlayers')?.value || '4');
+  const skillLevel = document.getElementById('bookingSkill')?.value || 'Giao lưu (DUPR 3.0)';
+
+  if (!name || name.length < 2) {
+    showToast('Thiếu thông tin!', 'Vui lòng nhập Họ và tên (tối thiểu 2 ký tự).', 'error');
+    return;
+  }
+
+  if (!phone || !/^(0|\+84)[0-9]{8,10}$/.test(phone.replace(/[\s.-]/g, ''))) {
+    showToast('Số điện thoại chưa hợp lệ!', 'Vui lòng nhập đúng số điện thoại 10 chữ số để nhận mã QR.', 'error');
+    return;
+  }
+
+  const check = checkCourtConflict(selectedCourtId, selectedDate, selectedStartTime, selectedDuration);
+  if (check.conflict) {
+    showToast('Trùng khung giờ!', check.reason, 'error');
+    return;
+  }
+
+  isSubmittingBooking = true;
+  try {
+    const res = await fetch('/api/bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        courtId: selectedCourtId,
+        customerName: name,
+        customerPhone: phone,
+        date: selectedDate,
+        time: selectedStartTime,
+        duration: selectedDuration,
+        players,
+        skillLevel,
+        paymentMethod: 'cash'
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      showToast('Không thể đặt sân!', data.error || 'Khung giờ đã có người đặt, vui lòng chọn giờ khác.', 'error');
+      await syncDatabaseFromServer();
+      return;
+    }
+
+    const createdBooking = data.booking;
+
+    // Refresh global state from server
+    await syncDatabaseFromServer();
+
+    // Render real signed QR code in modal (P1-01)
+    const court = getCourtById(createdBooking.courtId);
+    const qrToken = createdBooking.checkInToken || createdBooking.id;
+    const qrPlaceholder = document.querySelector('#modalQR .qr-placeholder');
+    if (qrPlaceholder) {
+      qrPlaceholder.innerHTML = `
+        ${renderQrCodeSvg(qrToken, 152)}
+        <div class="text-xs font-bold text-mono mt-sm" id="qrCodeBadge" style="color:var(--color-indigo)">${escapeHtml(createdBooking.id)}</div>
+        <div style="font-size:0.68rem;color:var(--text-muted);font-family:var(--font-mono);word-break:break-all;max-width:220px;margin:2px auto 0;">Token: ${escapeHtml(qrToken.slice(0, 26))}...</div>
+      `;
+    }
+
+    const setEl = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+
+    setEl('qrRef', createdBooking.id);
+    setEl('qrName', `${createdBooking.name} (${createdBooking.phone})`);
+    setEl('qrDate', formatDateVN(createdBooking.date));
+    setEl('qrCourt', court ? court.name : `Sân #${createdBooking.courtId}`);
+    setEl('qrTime', `${createdBooking.time} → ${getEndTime(createdBooking.time, createdBooking.duration)} (${createdBooking.duration} phút)`);
+    setEl('qrTotal', `${formatMoney(createdBooking.amountDue || createdBooking.courtFee)} (Chờ thanh toán tại quầy)`);
+
+    openModal('modalQR');
+    showToast('Đặt sân thành công!', `Mã vé điện tử của bạn là ${createdBooking.id}`);
+  } catch (err) {
+    showToast('Lỗi kết nối!', 'Không thể gửi yêu cầu đặt sân tới máy chủ.', 'error');
+  } finally {
+    isSubmittingBooking = false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', initBookingPage);
 window.addEventListener('pickleball:db-synced', () => {
-  autoFillBookingUser();
   renderCourtOptions();
-  renderTimelineAndSlots();
+  renderTimeline();
+  renderTimeSlotGrid();
   updatePriceBreakdown();
 });

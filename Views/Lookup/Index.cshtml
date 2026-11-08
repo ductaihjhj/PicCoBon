@@ -22,17 +22,21 @@
         <div class="card">
             <div class="card-body">
                 <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
-                    <div class="input-icon-wrap" style="flex:1;min-width:240px">
-                        <iconify-icon icon="lucide:search" class="input-icon-left"></iconify-icon>
-                        <input class="form-input text-mono" type="text" id="lookupPhone" placeholder="Nhập Số điện thoại, Mã vé (PB-...) hoặc Họ tên người đặt..." onkeydown="if(event.key==='Enter')searchLookup()">
+                    <div class="input-icon-wrap" style="flex:1;min-width:200px">
+                        <iconify-icon icon="lucide:ticket" class="input-icon-left"></iconify-icon>
+                        <input class="form-input text-mono" type="text" id="lookupCode" placeholder="Mã đặt sân (VD: PB-XXXXXX)" onkeydown="if(event.key==='Enter')searchLookup()">
+                    </div>
+                    <div class="input-icon-wrap" style="flex:1;min-width:200px">
+                        <iconify-icon icon="lucide:phone" class="input-icon-left"></iconify-icon>
+                        <input class="form-input text-mono" type="tel" id="lookupPhone" placeholder="Số điện thoại đặt sân (VD: 0901234567)" onkeydown="if(event.key==='Enter')searchLookup()">
                     </div>
                     <button class="btn btn-primary" onclick="searchLookup()">
                         <iconify-icon icon="lucide:search" width="16"></iconify-icon>
-                        <span>Tra cứu ngay</span>
+                        <span>Tra cứu bảo mật</span>
                     </button>
-                    <button class="btn btn-outline" onclick="showAllLookup()">
+                    <button class="btn btn-outline" id="lookupShowAllBtn" style="display:none" onclick="showAllLookup()">
                         <iconify-icon icon="lucide:list" width="16"></iconify-icon>
-                        <span>Xem lịch đặt gần đây</span>
+                        <span>Xem vé của tôi</span>
                     </button>
                 </div>
             </div>
