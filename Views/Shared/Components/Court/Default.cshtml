@@ -1,4 +1,4 @@
-﻿@model IEnumerable<PickleballClub.Models.TbCourt>
+@model IEnumerable<PickleballClub.Models.TbCourt>
 
 @foreach (var court in Model)
 {
@@ -14,7 +14,7 @@
             </div>
             <div>
                 <h3 style="font-family:var(--font-display);font-size:1.55rem;font-weight:700;text-transform:uppercase;">@court.CourtName</h3>
-                <p style="font-size:0.82rem;color:#E2E8F0;">@court.TypeLabel — Mặt sân @court.Surface</p>
+                <p style="font-size:0.82rem;color:#E2E8F0;">@court.TypeLabel — Mặt sân @((court.Surface ?? "Acrylic Cushion 8 lớp").Replace("USAPA ", "").Replace("USAPA", "").Trim())</p>
             </div>
         </div>
         <div class="match-card-body">

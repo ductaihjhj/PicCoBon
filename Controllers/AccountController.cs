@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Security.Claims;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -23,15 +23,18 @@ public class AccountController : Controller
     private readonly PickleballContext _context;
     private readonly PasswordService _passwordService;
     private readonly PricingService _pricingService;
+    private readonly ClubSettingsService _settingsService;
 
     public AccountController(
         PickleballContext context,
         PasswordService passwordService,
-        PricingService pricingService)
+        PricingService pricingService,
+        ClubSettingsService settingsService)
     {
         _context = context;
         _passwordService = passwordService;
         _pricingService = pricingService;
+        _settingsService = settingsService;
     }
 
     public IActionResult Login()
@@ -50,44 +53,58 @@ public class AccountController : Controller
     {
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
         {
-            Function._Message = "Vui lòng nhập đầy đủ tài khoản và mật khẩu!";
+            TempData["AuthError"] = "Vui lòng nhập đầy đủ tài khoản và mật khẩu!";
             return RedirectToAction("Login", "Account");
         }
 
         string u = username.Trim();
+        string normPhone = BookingService.NormalizePhone(u);
         var check = await _context.TbAccounts
-            .FirstOrDefaultAsync(m => m.Username == u || m.Phone == u || m.Email == u);
+            .FirstOrDefaultAsync(m =>
+                m.Username == u ||
+                m.Phone == u ||
+                (!string.IsNullOrEmpty(normPhone) && m.Phone == normPhone) ||
+                m.Email == u);
 
         if (check == null)
         {
-            Function._Message = "Tài khoản hoặc mật khẩu không chính xác!";
+            TempData["AuthError"] = "Tài khoản hoặc mật khẩu không chính xác!";
             return RedirectToAction("Login", "Account");
         }
 
         var verifyResult = _passwordService.VerifyPassword(check, check.Password, password, out string? upgradedHash);
         if (verifyResult == PasswordVerificationResult.Failed)
         {
-            Function._Message = "Tài khoản hoặc mật khẩu không chính xác!";
+            TempData["AuthError"] = "Tài khoản hoặc mật khẩu không chính xác!";
             return RedirectToAction("Login", "Account");
         }
 
         if (!check.IsActive)
         {
-            Function._Message = "Tài khoản của bạn đã bị khóa!";
+            TempData["AuthError"] = "Tài khoản của bạn hiện đang bị khóa!";
             return RedirectToAction("Login", "Account");
         }
 
-        // Transparently upgrade legacy MD5 hash to PBKDF2 (P0-09)
         if (verifyResult == PasswordVerificationResult.SuccessRehashNeeded && !string.IsNullOrEmpty(upgradedHash))
         {
             check.Password = upgradedHash;
         }
 
+        if (string.IsNullOrEmpty(check.SecurityStamp))
+        {
+            check.SecurityStamp = Function.GenerateSecurityStamp();
+        }
+
         check.LastLogin = BookingService.GetVietnamNow().ToString("yyyy-MM-dd");
         await _context.SaveChangesAsync();
 
-        Function._Message = string.Empty;
         await Function.SignInAccountAsync(HttpContext, check);
+
+        if (check.MustChangePassword)
+        {
+            TempData["ProfileError"] = "Tài khoản đang sử dụng mật khẩu tạm thời. Vui lòng cập nhật mật khẩu mới ngay bên dưới để bảo mật!";
+            return RedirectToAction("Profile", "Account");
+        }
 
         if (check.RoleId == 1 || check.RoleId == 3)
         {
@@ -104,37 +121,37 @@ public class AccountController : Controller
     {
         if (account == null || string.IsNullOrWhiteSpace(account.Username) || string.IsNullOrEmpty(account.Password))
         {
-            Function._Message = "Vui lòng điền đầy đủ tên đăng nhập và mật khẩu!";
+            TempData["AuthError"] = "Vui lòng điền đầy đủ tên đăng nhập và mật khẩu!";
             return RedirectToAction("Login", "Account");
         }
 
         string username = account.Username.Trim();
         if (username.Length < 3 || username.Length > 50)
         {
-            Function._Message = "Tên đăng nhập phải từ 3 đến 50 ký tự!";
+            TempData["AuthError"] = "Tên đăng nhập phải từ 3 đến 50 ký tự!";
             return RedirectToAction("Login", "Account");
         }
 
         if (account.Password.Length < 6)
         {
-            Function._Message = "Mật khẩu phải có tối thiểu 6 ký tự!";
+            TempData["AuthError"] = "Mật khẩu phải có tối thiểu 6 ký tự!";
             return RedirectToAction("Login", "Account");
         }
 
         if (!string.IsNullOrEmpty(ConfirmPassword) && account.Password != ConfirmPassword)
         {
-            Function._Message = "Mật khẩu xác nhận không khớp!";
+            TempData["AuthError"] = "Mật khẩu xác nhận không khớp!";
             return RedirectToAction("Login", "Account");
         }
 
         if (!BookingService.IsValidPhone(account.Phone))
         {
-            Function._Message = "Số điện thoại không hợp lệ (gồm 10 chữ số, bắt đầu bằng 0 hoặc +84)!";
+            TempData["AuthError"] = "Số điện thoại không hợp lệ (gồm 10 chữ số, bắt đầu bằng 0 hoặc +84)!";
             return RedirectToAction("Login", "Account");
         }
 
         string normalizedPhone = BookingService.NormalizePhone(account.Phone);
-        string? normalizedEmail = string.IsNullOrWhiteSpace(account.Email) ? null : account.Email.Trim();
+        string? normalizedEmail = string.IsNullOrWhiteSpace(account.Email) ? null : account.Email.Trim().ToLowerInvariant();
 
         var existing = await _context.TbAccounts.FirstOrDefaultAsync(m =>
             m.Username == username ||
@@ -143,7 +160,7 @@ public class AccountController : Controller
 
         if (existing != null)
         {
-            Function._Message = "Tên đăng nhập, Email hoặc Số điện thoại đã được đăng ký!";
+            TempData["AuthError"] = "Tên đăng nhập, Email hoặc Số điện thoại đã được đăng ký!";
             return RedirectToAction("Login", "Account");
         }
 
@@ -158,6 +175,8 @@ public class AccountController : Controller
             DominantHand = "Tay phải",
             RoleId = 2, // Strictly Customer role (P0-03)
             IsActive = true,
+            MustChangePassword = false,
+            SecurityStamp = Function.GenerateSecurityStamp(),
             LastLogin = BookingService.GetVietnamNow().ToString("yyyy-MM-dd")
         };
 
@@ -166,11 +185,28 @@ public class AccountController : Controller
         _context.TbAccounts.Add(newAccount);
         await _context.SaveChangesAsync();
 
-        Function._Message = string.Empty;
         await Function.SignInAccountAsync(HttpContext, newAccount);
 
         TempData["ProfileSuccess"] = "Chào mừng hội viên mới! Hãy hoàn thiện hồ sơ VĐV của bạn.";
         return RedirectToAction("Profile", "Account");
+    }
+
+    /// <summary>
+    /// P1-02 (BLOCKED_EXTERNAL): Honest server endpoint when SMS/SMTP OTP provider is not configured.
+    /// Never fakes OTP success!
+    /// </summary>
+    [HttpPost("/api/auth/forgot-password")]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("AuthAndLookup")]
+    public async Task<IActionResult> ForgotPasswordRequest()
+    {
+        var settings = await _settingsService.GetSettingsAsync(_context);
+        return StatusCode(503, new
+        {
+            ok = false,
+            code = "OTP_PROVIDER_NOT_CONFIGURED",
+            error = $"Tính năng khôi phục mật khẩu tự động qua SMS/Email OTP hiện chưa được kích hoạt cổng nhà mạng. Vui lòng liên hệ Quầy lễ tân CLB hoặc Hotline {settings.Hotline} để xác minh chính chủ và cấp mật khẩu tạm thời một lần."
+        });
     }
 
     [Authorize]
@@ -184,7 +220,7 @@ public class AccountController : Controller
         int currentAccountId = Function._AccountId;
         var account = await _context.TbAccounts
             .Include(a => a.Role)
-            .FirstOrDefaultAsync(a => a.AccountId == currentAccountId);
+            .FirstOrDefaultAsync(a => a.AccountId == currentAccountId && a.IsActive);
 
         if (account == null)
         {
@@ -192,24 +228,25 @@ public class AccountController : Controller
             return RedirectToAction("Login", "Account");
         }
 
+        // P0-07 & P1-16: Strictly query bookings owned by verified AccountId (NEVER by unverified phone match!)
         var myBookings = await _context.TbBookings
+            .AsNoTracking()
             .Include(b => b.Court)
-            .Where(b => b.AccountId == account.AccountId ||
-                        (!string.IsNullOrEmpty(account.Phone) && b.Phone == account.Phone))
+            .Where(b => b.AccountId == account.AccountId)
             .OrderByDescending(b => b.BookingDate)
             .ThenByDescending(b => b.StartTime)
             .ToListAsync();
 
         var validBookings = myBookings
-            .Where(b => b.Status != "cancelled" && b.Status != "rejected" && b.Status != "expired")
+            .Where(b => b.Status is not ("cancelled" or "rejected" or "expired" or "no_show"))
             .ToList();
 
         int totalMatches = validBookings.Count;
         double totalHours = Math.Round(validBookings.Sum(b => (b.Duration > 0 ? b.Duration : 60) / 60.0), 1);
 
-        // P1-16: Calculate member tier strictly from verified PAID spend, never unpaid bookings
-        int totalSpent = await _pricingService.GetVerifiedCustomerPaidSpendAsync(_context, account.AccountId, account.Phone);
-        var (resolvedTier, discountPercent) = PricingService.ResolveMemberTier(totalSpent, account.RoleId, account.MemberTier);
+        // P1-16: Calculate member tier strictly from net ledger PAID spend, never unpaid bookings
+        int totalSpent = await _pricingService.GetVerifiedAccountNetPaidSpendAsync(_context, account.AccountId);
+        var (resolvedTier, discountPercent) = PricingService.ResolveMemberTier(totalSpent, account.MemberTier);
 
         if (string.IsNullOrWhiteSpace(account.MemberTier) ||
             (totalSpent >= 5_000_000 && account.MemberTier != "Hội viên Vàng VIP") ||
@@ -256,7 +293,7 @@ public class AccountController : Controller
 
         int currentAccountId = Function._AccountId;
         var account = await _context.TbAccounts.FindAsync(currentAccountId);
-        if (account == null)
+        if (account == null || !account.IsActive)
         {
             return RedirectToAction("Login", "Account");
         }
@@ -283,7 +320,7 @@ public class AccountController : Controller
             return RedirectToAction("Profile");
         }
 
-        string? normalizedEmail = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
+        string? normalizedEmail = string.IsNullOrWhiteSpace(email) ? null : email.Trim().ToLowerInvariant();
         if (normalizedEmail != null)
         {
             if (!normalizedEmail.Contains('@') || normalizedEmail.Length > 150)
@@ -342,8 +379,6 @@ public class AccountController : Controller
         }
 
         await _context.SaveChangesAsync();
-
-        // Refresh authentication cookie claims so header & session reflect updated name/phone
         await Function.SignInAccountAsync(HttpContext, account);
 
         TempData["ProfileSuccess"] = "Đã cập nhật Hồ sơ Hội viên & Vận động viên thành công!";
@@ -361,7 +396,7 @@ public class AccountController : Controller
         }
 
         var account = await _context.TbAccounts.FindAsync(Function._AccountId);
-        if (account == null)
+        if (account == null || !account.IsActive)
         {
             return RedirectToAction("Login", "Account");
         }
@@ -386,7 +421,12 @@ public class AccountController : Controller
         }
 
         account.Password = _passwordService.HashPassword(account, newPassword);
+        account.MustChangePassword = false;
+        account.SecurityStamp = Function.GenerateSecurityStamp();
         await _context.SaveChangesAsync();
+
+        // Re-sign current browser session with rotated SecurityStamp while revoking other stale sessions
+        await Function.SignInAccountAsync(HttpContext, account);
 
         TempData["ProfileSuccess"] = "Đổi mật khẩu bảo mật thành công!";
         return RedirectToAction("Profile");

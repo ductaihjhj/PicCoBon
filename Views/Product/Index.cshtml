@@ -1,4 +1,4 @@
-﻿@model IEnumerable<PickleballClub.Models.TbProduct>
+@model IEnumerable<PickleballClub.Models.TbProduct>
 @{
     ViewData["Title"] = "Cửa Hàng Pro Shop & F&B — Spike Pickleball Club";
 }
@@ -8,9 +8,9 @@
         <div>
             <span class="section-kicker" style="color:var(--color-volt);">Tiện ích &amp; Dịch vụ tại sân</span>
             <h1 class="page-hero-title">Cửa Hàng Pro Shop, Giải Khát &amp; Dụng Cụ</h1>
-            <p class="page-hero-sub">Đặt nước bù khoáng, đồ ăn nhẹ và thuê vợt Carbon T700 giao tận sân thi đấu hoặc nhận tại quầy</p>
+            <p class="page-hero-sub">Đặt nước bù khoáng, đồ ăn nhẹ và thuê vợt Carbon T700 giao tận sân thi đấu hoặc mua lẻ nhận tại quầy</p>
         </div>
-        <div class="page-hero-actions">
+        <div class="page-hero-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap;">
             <a href="/Booking" class="btn btn-outline btn-sm" style="border-color:rgba(255,255,255,0.22);color:#FFFFFF;">
                 <iconify-icon icon="lucide:calendar-check" width="16"></iconify-icon>
                 <span>Đặt lịch sân</span>
@@ -38,38 +38,17 @@
         <div class="card" id="addMenuItemCard" data-role="admin" style="display:none;">
             <div class="card-header">
                 <span class="card-header-title">
-                    <iconify-icon icon="lucide:plus-circle" width="18" style="color:var(--color-primary)"></iconify-icon>
-                    <span>Thêm mặt hàng nhanh vào danh mục Pro Shop &amp; POS</span>
+                    <iconify-icon icon="lucide:package-check" width="18" style="color:var(--color-primary)"></iconify-icon>
+                    <span>Quản trị tồn kho &amp; Danh mục mặt hàng Pro Shop / POS</span>
                 </span>
-                <a href="/Admin/Products" class="btn btn-outline btn-xs">Quản lý chi tiết</a>
-            </div>
-            <div class="card-body">
-                <div class="shop-admin-add-row">
-                    <div class="form-group" style="margin-bottom:0">
-                        <label class="form-label" for="menuNewName">Tên mặt hàng / Dịch vụ *</label>
-                        <input class="form-input" type="text" id="menuNewName" placeholder="VD: Nước khoáng điện giải...">
-                    </div>
-                    <div class="form-group" style="margin-bottom:0">
-                        <label class="form-label" for="menuNewPrice">Đơn giá (VNĐ) *</label>
-                        <input class="form-input text-mono" type="number" id="menuNewPrice" step="5000" placeholder="VD: 25000">
-                    </div>
-                    <div class="form-group" style="margin-bottom:0">
-                        <label class="form-label" for="menuNewType">Danh mục</label>
-                        <select class="form-select" id="menuNewType">
-                            <option value="drink">Đồ uống giải khát</option>
-                            <option value="food">Đồ ăn nhẹ</option>
-                            <option value="other">Dụng cụ / Cho thuê</option>
-                        </select>
-                    </div>
-                    <button type="button" class="btn btn-primary" style="height:42px" onclick="addMenuItem()">
-                        <iconify-icon icon="lucide:plus" width="16"></iconify-icon>
-                        <span>Thêm mặt hàng</span>
-                    </button>
+                <div style="display:flex;gap:0.5rem;">
+                    <a href="/Admin/Products/Create" class="btn btn-primary btn-xs">+ Thêm sản phẩm mới</a>
+                    <a href="/Admin/Products" class="btn btn-outline btn-xs">Quản lý tồn kho</a>
                 </div>
             </div>
         </div>
 
-        <!-- Bố cục 2 cột: Danh mục sản phẩm (3 cột cân đối) & Giỏ hàng (340px) -->
+        <!-- Bố cục 2 cột: Danh mục sản phẩm & Giỏ hàng -->
         <div class="shop-layout">
             <div class="shop-main-col">
                 <div class="menu-grid" id="menuGrid"></div>
@@ -90,10 +69,21 @@
 
                     <div class="shop-checkout-form">
                         <div class="form-group">
-                            <label class="form-label" for="shopOrderBooking">Gộp vào ca đặt sân (Tùy chọn)</label>
-                            <select id="shopOrderBooking" class="form-select">
+                            <label class="form-label" for="shopOrderBooking">Hình thức thanh toán / Gộp vào sân</label>
+                            <select id="shopOrderBooking" class="form-select" onchange="toggleGuestBookingAttach()">
                                 <option value="">-- Mua lẻ / Nhận trực tiếp tại quầy --</option>
                             </select>
+                        </div>
+
+                        <div id="guestBookingAttachFields" style="display:none;padding:0.65rem;background:#F8FAFC;border:1px solid var(--border-color);border-radius:var(--radius-xs);margin-bottom:0.75rem;">
+                            <div class="form-group" style="margin-bottom:0.5rem;">
+                                <label class="form-label text-xs" for="shopGuestBookingCode">Mã đặt sân đang chơi / đã duyệt *</label>
+                                <input type="text" id="shopGuestBookingCode" class="form-input text-mono" placeholder="VD: PB-2611A9">
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label class="form-label text-xs" for="shopGuestAccessToken">Mã bảo mật vé (bk_...) để xác thực chủ sân *</label>
+                                <input type="text" id="shopGuestAccessToken" class="form-input text-mono" placeholder="Nhập mã bk_... đã cấp khi đặt sân">
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -113,12 +103,12 @@
 
                         <div class="payment-summary">
                             <div class="payment-line total" style="padding-top:0;border-top:none;">
-                                <span>Tổng thanh toán</span>
+                                <span>Tổng phải thu</span>
                                 <span class="text-mono" id="shopCartTotal">0 đ</span>
                             </div>
                         </div>
 
-                        <button type="button" class="btn btn-primary btn-block btn-lg mt-sm" onclick="submitShopOrder()">
+                        <button type="button" class="btn btn-primary btn-block btn-lg mt-sm" id="btnSubmitShopOrder" onclick="submitShopOrder()">
                             <iconify-icon icon="lucide:check-circle-2" width="18"></iconify-icon>
                             <span>Xác nhận Đặt Dịch Vụ</span>
                         </button>
@@ -141,12 +131,12 @@
                 <iconify-icon icon="lucide:cup-soda" width="56" style="color:var(--color-primary);"></iconify-icon>
                 <div class="text-sm font-bold text-mono mt-xs" id="ordSuccessCode">ORD-0001</div>
             </div>
-            <p class="text-xs text-muted mt-sm">Nhân viên quầy Pro Shop đã nhận được yêu cầu và sẽ chuẩn bị ngay cho bạn.</p>
+            <p class="text-xs text-muted mt-sm">Tồn kho đã được giữ cho đơn của bạn. Thanh toán được thực hiện tại quầy thu ngân CLB.</p>
 
             <div class="payment-summary mt-md" style="text-align:left;">
                 <div class="payment-line"><span class="text-muted">Khách hàng</span><span class="font-bold" id="ordSuccessName"></span></div>
                 <div class="payment-line"><span class="text-muted">Hình thức nhận</span><span class="font-semibold" id="ordSuccessDelivery"></span></div>
-                <div class="payment-line total"><span>Tổng thanh toán</span><span class="font-bold text-mono" id="ordSuccessTotal"></span></div>
+                <div class="payment-line total"><span>Tổng phải thanh toán</span><span class="font-bold text-mono" id="ordSuccessTotal"></span></div>
             </div>
         </div>
         <div class="modal-footer">

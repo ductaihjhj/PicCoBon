@@ -1,23 +1,26 @@
 @model IEnumerable<PickleballClub.Models.TbBooking>
+@using PickleballClub.Utilities
 @{
     ViewData["Title"] = "Quản lý Đơn Đặt Sân";
     Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
     var courts = ViewBag.Courts as List<PickleballClub.Models.TbCourt> ?? new List<PickleballClub.Models.TbCourt>();
+    var msgSuccess = (TempData["AdminBookingSuccess"] ?? TempData["Success"]) as string;
+    var msgError = (TempData["AdminBookingError"] ?? TempData["Error"]) as string;
+    bool isAdmin = Function.IsAdmin();
 }
 
 <div class="content-wrapper">
     <section class="content-header">
         <div class="container-fluid">
             <div class="row mb-2">
-                <div class="col-sm-6">
+                <div>
+                    <span class="section-kicker" style="color:var(--color-volt);">Điều hành Lịch Sân &amp; Sổ Quỹ</span>
                     <h1>Quản lý Đơn Đặt Sân</h1>
                 </div>
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="/Admin">Quản trị</a></li>
-                        <li class="breadcrumb-item active">Đơn đặt sân</li>
-                    </ol>
-                </div>
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/Admin">Quản trị</a></li>
+                    <li class="breadcrumb-item active">Đơn đặt sân</li>
+                </ol>
             </div>
         </div>
     </section>
@@ -25,16 +28,16 @@
     <section class="content">
         <div class="container-fluid">
 
-            @if (TempData["Success"] != null)
+            @if (!string.IsNullOrEmpty(msgSuccess))
             {
-                <div class="card" style="background:#ECFDF5;border-color:#A7F3D0;padding:0.85rem 1.2rem;margin-bottom:1.2rem;color:#065F46;font-weight:600;">
-                    @TempData["Success"]
+                <div class="card" style="background:#ECFDF5;border-color:#A7F3D0;padding:0.9rem 1.2rem;margin-bottom:1.2rem;color:#065F46;font-weight:600;word-break:break-word;">
+                    ✓ @msgSuccess
                 </div>
             }
-            @if (TempData["Error"] != null)
+            @if (!string.IsNullOrEmpty(msgError))
             {
-                <div class="card" style="background:#FEF2F2;border-color:#FECACA;padding:0.85rem 1.2rem;margin-bottom:1.2rem;color:#991B1B;font-weight:600;">
-                    @TempData["Error"]
+                <div class="card" style="background:#FEF2F2;border-color:#FECACA;padding:0.9rem 1.2rem;margin-bottom:1.2rem;color:#991B1B;font-weight:600;">
+                    ⚠ @msgError
                 </div>
             }
 
@@ -43,21 +46,21 @@
                 <div class="card-header">
                     <h3 class="card-title">
                         <iconify-icon icon="lucide:calendar-plus" width="18" style="color:var(--color-primary);"></iconify-icon>
-                        <span>Tạo đơn đặt sân nhanh (Khách đặt trực tiếp tại quầy)</span>
+                        <span>Tạo đơn đặt sân nhanh (Khách vãng lai tại quầy)</span>
                     </h3>
-                    <span class="badge badge-primary">Kiểm tra trùng lịch &amp; tự động duyệt</span>
+                    <span class="badge badge-primary">Kiểm tra trùng lịch SQL &amp; cấp Mã bảo mật vé</span>
                 </div>
                 <div class="card-body">
                     <form asp-action="CreateWalkIn" method="post">
                         @Html.AntiForgeryToken()
-                        <div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.85rem; align-items: end;">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:0.85rem;align-items:end;">
                             <div class="form-group" style="margin-bottom:0;">
                                 <label>Tên khách hàng *</label>
                                 <input type="text" name="customerName" class="form-control" placeholder="VD: Anh Minh" required />
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label>Số điện thoại *</label>
-                                <input type="tel" name="phone" class="form-control" placeholder="VD: 0901234567" required />
+                                <input type="tel" name="phone" class="form-control text-mono" placeholder="VD: 0901234567" required />
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label>Chọn sân</label>
@@ -70,7 +73,7 @@
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label>Ngày thi đấu</label>
-                                <input type="date" name="bookingDate" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" required />
+                                <input type="date" name="bookingDate" class="form-control" value="@PickleballClub.Services.BookingService.GetVietnamNow().ToString("yyyy-MM-dd")" required />
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label>Giờ bắt đầu</label>
@@ -104,127 +107,184 @@
                 </div>
             </div>
 
-            <!-- DANH SÁCH ĐƠN ĐẶT SÂN -->
+            <!-- DANH SÁCH ĐƠN ĐẶT SÂN (TÁCH BIỆT ĐÓNG CA & XÁC NHẬN THU TIỀN) -->
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h3 class="card-title">
                         <iconify-icon icon="lucide:list-checks" width="18" style="color:var(--color-indigo);"></iconify-icon>
-                        <span>Danh sách đơn đặt sân hiện tại (@Model.Count() đơn)</span>
+                        <span>Danh sách đơn đặt sân (@Model.Count() đơn gần nhất)</span>
                     </h3>
                     <div class="card-tools">
-                        <a href="/Management" class="btn btn-primary btn-sm">Mở Trung tâm Điều phối &amp; POS trực quan</a>
+                        <a href="/Management" class="btn btn-primary btn-sm">Mở Trung tâm Điều phối &amp; Thu ngân POS</a>
                     </div>
                 </div>
-                <div class="card-body table-responsive p-0">
-                    <table class="table table-hover text-nowrap">
-                        <thead>
-                            <tr>
-                                <th>Mã vé</th>
-                                <th>Khách hàng</th>
-                                <th>Số điện thoại</th>
-                                <th>Sân thi đấu</th>
-                                <th>Ngày &amp; Giờ</th>
-                                <th>Phải thu / Thực thu</th>
-                                <th>Trạng thái</th>
-                                <th>Thao tác xử lý</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (!Model.Any())
-                            {
+                <div class="card-body p-0">
+                    <div style="overflow-x:auto;">
+                        <table class="table table-hover">
+                            <thead>
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">
-                                        Hiện chưa có đơn đặt sân nào. Bạn có thể tạo nhanh đơn ở biểu mẫu phía trên.
-                                    </td>
+                                    <th>Mã vé</th>
+                                    <th>Khách hàng</th>
+                                    <th>Sân &amp; Khung giờ</th>
+                                    <th>Phải thu / Thực thu Sổ quỹ</th>
+                                    <th>Trạng thái ca</th>
+                                    <th>Điều hành Ca &amp; Thu ngân</th>
                                 </tr>
-                            }
-                            @foreach (var item in Model)
-                            {
-                                var amountDue = item.AmountDue > 0 ? item.AmountDue : (item.TotalPaid > 0 ? item.TotalPaid : item.CourtFee);
-                                var paidAmt = item.PaidAmount;
-                                <tr>
-                                    <td><code style="font-weight:700;color:var(--color-indigo);">@item.BookingCode</code></td>
-                                    <td class="font-weight-bold">@item.CustomerName</td>
-                                    <td class="text-mono">@item.Phone</td>
-                                    <td>@(item.Court?.CourtName ?? "Sân " + item.CourtId)</td>
-                                    <td class="text-mono">@item.BookingDate · @item.StartTime (@(item.Duration)p)</td>
-                                    <td>
-                                        <div class="font-weight-bold text-mono">@string.Format("{0:N0} đ", amountDue)</div>
-                                        <div style="font-size:0.75rem;" class="text-mono @(paidAmt >= amountDue && amountDue > 0 ? "text-success" : "text-muted")">
-                                            Đã thu: @string.Format("{0:N0} đ", paidAmt)
-                                        </div>
-                                    </td>
-                                    <td>
-                                        @if (item.Status == "pending")
-                                        {
-                                            <span class="badge badge-warning">Chờ duyệt</span>
-                                        }
-                                        else if (item.Status == "approved" || item.Status == "confirmed")
-                                        {
-                                            <span class="badge badge-primary">Đã duyệt</span>
-                                        }
-                                        else if (item.Status == "playing" || item.Status == "active")
-                                        {
-                                            <span class="badge badge-success">Đang thi đấu</span>
-                                        }
-                                        else if (item.Status == "completed")
-                                        {
-                                            <span class="badge badge-neutral">Hoàn thành</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge badge-danger">Đã hủy</span>
-                                        }
-                                    </td>
-                                    <td>
-                                        <div class="d-flex" style="gap: 6px; flex-wrap: wrap;">
+                            </thead>
+                            <tbody>
+                                @if (!Model.Any())
+                                {
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">
+                                            Hiện chưa có đơn đặt sân nào.
+                                        </td>
+                                    </tr>
+                                }
+                                @foreach (var item in Model)
+                                {
+                                    var amountDue = item.AmountDue > 0 ? item.AmountDue : Math.Max(0, item.CourtFee - item.DiscountAmount + item.PosTotal);
+                                    var paidAmt = item.PaidAmount;
+                                    var remaining = Math.Max(0, amountDue - paidAmt);
+                                    bool canCollect = remaining > 0 && item.Status is not ("cancelled" or "rejected" or "expired");
+                                    <tr>
+                                        <td>
+                                            <code style="font-weight:700;color:var(--color-indigo);">@item.BookingCode</code>
+                                            <div>
+                                                <a href="/api/bookings/@item.BookingCode/qr.svg" target="_blank" class="text-xs" style="color:var(--color-primary);text-decoration:none;font-weight:600;">Xem QR vé</a>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="font-weight-bold">@item.CustomerName</div>
+                                            <div class="text-xs text-mono text-muted">@item.Phone</div>
+                                        </td>
+                                        <td class="text-mono">
+                                            <div class="font-weight-bold">@(item.Court?.CourtName ?? "Sân " + item.CourtId)</div>
+                                            <div class="text-xs text-muted">@item.BookingDate · @item.StartTime (@(item.Duration)p)</div>
+                                        </td>
+                                        <td>
+                                            <div class="font-weight-bold text-mono">@string.Format("{0:N0} đ", amountDue)</div>
+                                            @if (paidAmt >= amountDue && amountDue > 0)
+                                            {
+                                                <span class="badge badge-success">Đã thu đủ: @string.Format("{0:N0} đ", paidAmt)</span>
+                                            }
+                                            else if (paidAmt > 0)
+                                            {
+                                                <span class="badge badge-warning">Thu 1 phần: @string.Format("{0:N0} đ", paidAmt) (Còn @string.Format("{0:N0} đ", remaining))</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge badge-neutral">Chưa thu (0 đ)</span>
+                                            }
+                                        </td>
+                                        <td>
                                             @if (item.Status == "pending")
                                             {
-                                                <form asp-action="UpdateStatus" method="post" class="d-inline">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="id" value="@item.BookingId" />
-                                                    <input type="hidden" name="status" value="approved" />
-                                                    <button type="submit" class="btn btn-success btn-xs">Duyệt vé</button>
-                                                </form>
+                                                <span class="badge badge-warning">Chờ duyệt</span>
                                             }
-                                            @if (item.Status == "approved" || item.Status == "confirmed")
+                                            else if (item.Status == "approved" || item.Status == "confirmed")
                                             {
-                                                <form asp-action="UpdateStatus" method="post" class="d-inline">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="id" value="@item.BookingId" />
-                                                    <input type="hidden" name="status" value="playing" />
-                                                    <button type="submit" class="btn btn-primary btn-xs">Nhận sân</button>
-                                                </form>
+                                                <span class="badge badge-primary">Đã duyệt</span>
                                             }
-                                            @if (item.Status == "playing" || item.Status == "active")
+                                            else if (item.Status == "playing" || item.Status == "active")
                                             {
-                                                <form asp-action="UpdateStatus" method="post" class="d-inline">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="id" value="@item.BookingId" />
-                                                    <input type="hidden" name="status" value="completed" />
-                                                    <button type="submit" class="btn btn-info btn-xs">Thu tiền &amp; Hoàn tất</button>
-                                                </form>
+                                                <span class="badge badge-success">Đang thi đấu</span>
                                             }
-                                            @if (item.Status == "pending" || item.Status == "approved")
+                                            else if (item.Status == "completed")
                                             {
-                                                <form asp-action="UpdateStatus" method="post" class="d-inline">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="id" value="@item.BookingId" />
-                                                    <input type="hidden" name="status" value="rejected" />
-                                                    <button type="submit" class="btn btn-outline btn-xs">Hủy đơn</button>
-                                                </form>
+                                                <span class="badge badge-neutral">Đã đóng ca</span>
                                             }
-                                            <form asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Xác nhận hủy/xóa đơn đặt sân này?');">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="id" value="@item.BookingId" />
-                                                <button type="submit" class="btn btn-danger btn-xs">Xóa</button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+                                            else if (item.Status == "no_show")
+                                            {
+                                                <span class="badge badge-danger">No-show</span>
+                                            }
+                                            else if (item.Status == "expired")
+                                            {
+                                                <span class="badge badge-danger">Quá hạn duyệt</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge badge-danger">Đã hủy</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                                                @if (item.Status == "pending")
+                                                {
+                                                    <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@item.BookingId" />
+                                                        <input type="hidden" name="status" value="approved" />
+                                                        <button type="submit" class="btn btn-success btn-xs">Duyệt vé</button>
+                                                    </form>
+                                                }
+                                                @if (item.Status == "approved" || item.Status == "confirmed")
+                                                {
+                                                    <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@item.BookingId" />
+                                                        <input type="hidden" name="status" value="playing" />
+                                                        <button type="submit" class="btn btn-primary btn-xs">Check-in Nhận sân</button>
+                                                    </form>
+                                                }
+                                                @if (item.Status == "playing" || item.Status == "active")
+                                                {
+                                                    <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@item.BookingId" />
+                                                        <input type="hidden" name="status" value="completed" />
+                                                        <button type="submit" class="btn btn-info btn-xs" title="Chỉ đóng ca thi đấu, không tự động đánh dấu đã thu tiền">Đóng ca</button>
+                                                    </form>
+                                                }
+                                                @if (canCollect)
+                                                {
+                                                    <form asp-action="RecordPayment" method="post" class="d-inline" style="display:inline-flex !important;gap:4px;align-items:center;">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@item.BookingId" />
+                                                        <input type="hidden" name="idempotencyKey" value="ADM-PAY-@item.BookingId-@paidAmt-@Guid.NewGuid().ToString("N")[..8]" />
+                                                        <input type="number" name="amount" value="@remaining" min="1000" max="@remaining" step="1000" class="form-control" style="width:96px;padding:0.2rem 0.45rem;font-size:0.75rem;height:28px;" required />
+                                                        <select name="paymentMethod" class="form-control" style="width:auto;padding:0.2rem 0.4rem;font-size:0.75rem;height:28px;">
+                                                            <option value="cash">Tiền mặt</option>
+                                                            <option value="transfer">CK</option>
+                                                        </select>
+                                                        <input type="text" name="referenceCode" placeholder="Mã CK" class="form-control" style="width:76px;padding:0.2rem 0.4rem;font-size:0.75rem;height:28px;" />
+                                                        <button type="submit" class="btn btn-success btn-xs">Thu tiền</button>
+                                                    </form>
+                                                }
+                                                @if (paidAmt > 0)
+                                                {
+                                                    <form asp-action="RefundPayment" method="post" class="d-inline" onsubmit="return confirm('Xác nhận ghi bút toán Hoàn tiền (Refund) vào sổ quỹ?');">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@item.BookingId" />
+                                                        <input type="hidden" name="refundAmount" value="@paidAmt" />
+                                                        <input type="hidden" name="paymentMethod" value="@(item.PaymentMethod ?? "cash")" />
+                                                        <input type="hidden" name="reason" value="Hoàn tiền tại quầy" />
+                                                        <button type="submit" class="btn btn-outline btn-xs" style="color:#B45309;border-color:#F59E0B;">Hoàn tiền</button>
+                                                    </form>
+                                                }
+                                                @if ((item.Status == "pending" || item.Status == "approved") && paidAmt == 0)
+                                                {
+                                                    <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@item.BookingId" />
+                                                        <input type="hidden" name="status" value="rejected" />
+                                                        <button type="submit" class="btn btn-outline btn-xs">Hủy đơn</button>
+                                                    </form>
+                                                }
+                                                @if (isAdmin && paidAmt == 0)
+                                                {
+                                                    <form asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Xác nhận xóa/lưu trữ đơn này?');">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@item.BookingId" />
+                                                        <button type="submit" class="btn btn-danger btn-xs">Xóa</button>
+                                                    </form>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 

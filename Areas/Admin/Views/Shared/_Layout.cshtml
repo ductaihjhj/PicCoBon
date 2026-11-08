@@ -1,12 +1,16 @@
 @using PickleballClub.Utilities
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
     var currentPath = Context.Request.Path.Value?.ToLower() ?? "";
+    var csrfTokens = Antiforgery.GetAndStoreTokens(Context);
+    bool isAdminOnly = Function.IsAdmin();
 }
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="@csrfTokens.RequestToken">
     <title>@(ViewData["Title"] ?? "Quản Trị Hệ Thống") — Spike Pickleball Club</title>
     <link rel="stylesheet" href="~/css/styles.css" asp-append-version="true">
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
@@ -220,11 +224,11 @@
                 <div class="user-pill">
                     <a href="/Account/Profile" style="display:inline-flex;align-items:center;gap:0.45rem;color:#FFF;text-decoration:none;" title="Hồ sơ cá nhân">
                         <iconify-icon icon="lucide:shield-check" width="16" style="color:var(--color-volt);"></iconify-icon>
-                        <span>@(string.IsNullOrEmpty(Function._FullName) ? "Ban Quản Trị CLB" : Function._FullName)</span>
+                        <span>@(string.IsNullOrEmpty(Function._FullName) ? "Điều hành CLB" : Function._FullName)</span>
                     </a>
                     <a href="/Admin/Home/Logout" class="btn btn-xs btn-ghost" style="color:#FCA5A5;">Thoát</a>
                 </div>
-                <a href="/" class="btn btn-outline btn-sm btn-pill" style="border-color:rgba(255,255,255,0.2);color:#FFF;">Xem Trang Chủ</a>
+                <a href="/" class="btn btn-outline btn-sm btn-pill header-cta-book" style="border-color:rgba(255,255,255,0.2);color:#FFF;">Xem Trang Chủ</a>
                 <button type="button" class="mobile-menu-btn" onclick="toggleMobileNav()" aria-label="Mở menu điều hướng">
                     <iconify-icon icon="lucide:menu" width="20"></iconify-icon>
                 </button>
@@ -236,7 +240,7 @@
         <div class="admin-subbar-inner">
             <span style="display:inline-flex;align-items:center;gap:0.45rem;font-weight:700;color:var(--color-volt);">
                 <iconify-icon icon="lucide:shield-check" width="16"></iconify-icon>
-                <span>Trung Tâm Quản Trị CLB</span>
+                <span>@(isAdminOnly ? "Trung Tâm Quản Trị CLB" : "Bàn Điều Phối & Thu Ngân")</span>
             </span>
             <div class="admin-subbar-links">
                 <a href="/Admin" class="admin-subbar-link @(currentPath == "/admin" || currentPath == "/admin/home" || currentPath == "/admin/home/index" ? "active" : "")">
@@ -249,27 +253,30 @@
                 <a href="/Admin/Bookings" class="admin-subbar-link @(currentPath.Contains("/admin/bookings") ? "active" : "")">
                     <span>Đơn đặt sân</span>
                 </a>
-                <a href="/Admin/Courts" class="admin-subbar-link @(currentPath.Contains("/admin/courts") ? "active" : "")">
-                    <span>Quản lý sân</span>
-                </a>
-                <a href="/Admin/Accounts" class="admin-subbar-link @(currentPath.Contains("/admin/accounts") ? "active" : "")">
-                    <span>Hội viên CLB</span>
-                </a>
-                <a href="/Admin/Products" class="admin-subbar-link @(currentPath.Contains("/admin/products") ? "active" : "")">
-                    <span>Sản phẩm POS</span>
-                </a>
-                <a href="/Admin/Menus" class="admin-subbar-link @(currentPath.Contains("/admin/menus") ? "active" : "")">
-                    <span>Thanh Menu</span>
-                </a>
                 <a href="/Checkin" class="admin-subbar-link @(currentPath.Contains("checkin") ? "active" : "")">
                     <span>Soát vé QR</span>
                 </a>
                 <a href="/Reports" class="admin-subbar-link @(currentPath.Contains("reports") ? "active" : "")">
-                    <span>Báo cáo doanh thu</span>
+                    <span>Sổ quỹ &amp; Báo cáo</span>
                 </a>
-                <a href="/Cms" class="admin-subbar-link @(currentPath.Contains("cms") ? "active" : "")">
-                    <span>Cấu hình Website</span>
-                </a>
+                @if (isAdminOnly)
+                {
+                    <a href="/Admin/Courts" class="admin-subbar-link @(currentPath.Contains("/admin/courts") ? "active" : "")">
+                        <span>Quản lý sân</span>
+                    </a>
+                    <a href="/Admin/Accounts" class="admin-subbar-link @(currentPath.Contains("/admin/accounts") ? "active" : "")">
+                        <span>Hội viên CLB</span>
+                    </a>
+                    <a href="/Admin/Products" class="admin-subbar-link @(currentPath.Contains("/admin/products") ? "active" : "")">
+                        <span>Sản phẩm POS</span>
+                    </a>
+                    <a href="/Admin/Menus" class="admin-subbar-link @(currentPath.Contains("/admin/menus") ? "active" : "")">
+                        <span>Thanh Menu</span>
+                    </a>
+                    <a href="/Cms" class="admin-subbar-link @(currentPath.Contains("cms") ? "active" : "")">
+                        <span>Cấu hình Website</span>
+                    </a>
+                }
             </div>
         </div>
     </div>
@@ -282,7 +289,7 @@
         <div class="container">
             <div class="site-footer-bottom" style="border-top:none;padding-top:0;">
                 <span>© 2026 Spike Pickleball Club — Hệ thống Quản trị &amp; Điều hành Cụm sân.</span>
-                <span>Tổ hợp sân đạt chuẩn thi đấu quốc tế USAPA</span>
+                <span>Sổ quỹ đối soát thời gian thực · Bảo mật xác thực phân quyền RBAC</span>
             </div>
         </div>
     </footer>
@@ -299,9 +306,9 @@
                 phone: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._Phone)),
                 role: '@roleKey',
                 roleLabel: '@Html.Raw(roleLabel)',
-                avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=120&q=80'
+                avatar: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._Avatar))
             };
-            localStorage.setItem('pb_auth_user', JSON.stringify(window.SERVER_AUTH_USER));
+            try { localStorage.removeItem('pb_auth_user'); } catch (_) {}
         </script>
     }
     <script src="~/js/shared.js" asp-append-version="true"></script>

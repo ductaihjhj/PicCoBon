@@ -35,7 +35,13 @@ public class RegisterController : Controller
     {
         if (account == null || string.IsNullOrWhiteSpace(account.Username) || string.IsNullOrWhiteSpace(account.Password))
         {
-            Function._Message = "Vui lòng nhập đầy đủ thông tin tài khoản!";
+            TempData["AuthError"] = "Vui lòng nhập đầy đủ thông tin tài khoản!";
+            return RedirectToAction("Index", "Register", new { area = "Admin" });
+        }
+
+        if (account.Password.Trim().Length < 8)
+        {
+            TempData["AuthError"] = "Mật khẩu tài khoản nội bộ phải có tối thiểu 8 ký tự!";
             return RedirectToAction("Index", "Register", new { area = "Admin" });
         }
 
@@ -45,14 +51,16 @@ public class RegisterController : Controller
 
         if (check != null)
         {
-            Function._Message = "Trùng tài khoản hoặc Email đã tồn tại!";
+            TempData["AuthError"] = "Trùng tài khoản hoặc Email đã tồn tại!";
             return RedirectToAction("Index", "Register", new { area = "Admin" });
         }
 
-        Function._Message = string.Empty;
-        account.Password = _passwordService.HashPassword(account, account.Password);
+        account.Username = account.Username.Trim();
+        account.Password = _passwordService.HashPassword(account, account.Password.Trim());
         account.RoleId = account.RoleId is 1 or 2 or 3 ? account.RoleId : 3;
         account.IsActive = true;
+        account.MustChangePassword = false;
+        account.SecurityStamp = Function.GenerateSecurityStamp();
         account.LastLogin = BookingService.GetVietnamNow().ToString("yyyy-MM-dd");
 
         _context.Add(account);

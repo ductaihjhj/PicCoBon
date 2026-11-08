@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace PickleballClub.Models;
@@ -44,6 +44,10 @@ public partial class TbAccount
     public string? LastLogin { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    public bool MustChangePassword { get; set; } = false;
+
+    public string? SecurityStamp { get; set; }
 
     public virtual TbRole? Role { get; set; }
 

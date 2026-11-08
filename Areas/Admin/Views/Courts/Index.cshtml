@@ -26,7 +26,7 @@
         <div class="container-fluid">
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Danh sách sân tiêu chuẩn USAPA</h3>
+                    <h3 class="card-title">Danh sách cụm sân thi đấu CLB</h3>
                     <a asp-action="Create" class="btn btn-primary btn-sm">+ Thêm sân thi đấu mới</a>
                 </div>
                 <div class="card-body table-responsive p-0">
@@ -67,6 +67,7 @@
                                         <div class="d-flex" style="gap:6px;">
                                             <a asp-action="Edit" asp-route-id="@item.CourtId" class="btn btn-primary btn-xs">Sửa thông tin &amp; giá</a>
                                             <form asp-action="ToggleActive" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
                                                 <input type="hidden" name="id" value="@item.CourtId" />
                                                 <button type="submit" class="btn btn-outline btn-xs">@(item.IsActive ? "Tạm ngưng" : "Kích hoạt")</button>
                                             </form>

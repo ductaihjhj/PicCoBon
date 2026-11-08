@@ -25,6 +25,7 @@ public class ProductsController : Controller
     public async Task<IActionResult> Index()
     {
         var items = _context.TbProducts
+            .AsNoTracking()
             .Include(t => t.CategoryProduct)
             .OrderBy(p => p.ProductId);
         return View(await items.ToListAsync());
@@ -57,9 +58,11 @@ public class ProductsController : Controller
         {
             tbProduct.Title = tbProduct.Title!.Trim();
             tbProduct.Alias = Function.TitleSlugGenerationAlias(tbProduct.Title);
+            tbProduct.Icon = IconSanitizer.ExtractSafeIconName(tbProduct.Icon, "mdi:cup-water");
             tbProduct.UnitInStock ??= tbProduct.Quantity ?? 100;
             tbProduct.Quantity = tbProduct.UnitInStock;
             tbProduct.CreatedDate = BookingService.GetVietnamNow();
+            tbProduct.CreatedBy = Function._Username;
             _context.Add(tbProduct);
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
@@ -98,12 +101,42 @@ public class ProductsController : Controller
 
         if (ModelState.IsValid)
         {
-            tbProduct.Title = tbProduct.Title!.Trim();
-            tbProduct.Alias = Function.TitleSlugGenerationAlias(tbProduct.Title);
-            tbProduct.UnitInStock ??= tbProduct.Quantity ?? 0;
-            tbProduct.Quantity = tbProduct.UnitInStock;
-            tbProduct.ModifiedDate = BookingService.GetVietnamNow();
-            _context.Update(tbProduct);
+            var existing = await _context.TbProducts.FindAsync(id);
+            if (existing == null) return NotFound();
+
+            int oldStock = existing.UnitInStock ?? existing.Quantity ?? 0;
+            int newStock = tbProduct.UnitInStock ?? tbProduct.Quantity ?? 0;
+
+            existing.Title = tbProduct.Title!.Trim();
+            existing.Alias = Function.TitleSlugGenerationAlias(existing.Title);
+            existing.CategoryProductId = tbProduct.CategoryProductId;
+            existing.Description = tbProduct.Description;
+            existing.Image = tbProduct.Image;
+            existing.Icon = IconSanitizer.ExtractSafeIconName(tbProduct.Icon, "mdi:cup-water");
+            existing.Price = tbProduct.Price;
+            existing.PriceSale = tbProduct.PriceSale;
+            existing.UnitInStock = newStock;
+            existing.Quantity = newStock;
+            existing.IsNew = tbProduct.IsNew;
+            existing.IsBestSeller = tbProduct.IsBestSeller;
+            existing.IsActive = tbProduct.IsActive;
+            existing.Star = tbProduct.Star;
+            existing.ModifiedDate = BookingService.GetVietnamNow();
+            existing.ModifiedBy = Function._Username;
+
+            if (newStock != oldStock)
+            {
+                _context.TbInventoryMovements.Add(new TbInventoryMovement
+                {
+                    ProductId = existing.ProductId,
+                    ChangeQty = newStock - oldStock,
+                    BalanceAfter = newStock,
+                    Reason = "Admin manual stock adjustment",
+                    ActorAccountId = Function._AccountId,
+                    CreatedAt = BookingService.GetVietnamNow()
+                });
+            }
+
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
@@ -115,6 +148,7 @@ public class ProductsController : Controller
     {
         if (id == null) return NotFound();
         var tbProduct = await _context.TbProducts
+            .AsNoTracking()
             .Include(t => t.CategoryProduct)
             .FirstOrDefaultAsync(m => m.ProductId == id);
         if (tbProduct == null) return NotFound();
@@ -127,15 +161,16 @@ public class ProductsController : Controller
     {
         var tbProduct = await _context.TbProducts
             .Include(p => p.TbOrderDetails)
+            .Include(p => p.TbInventoryMovements)
             .FirstOrDefaultAsync(p => p.ProductId == id);
 
         if (tbProduct != null)
         {
-            // P1-17: Soft-deactivate if referenced by historical orders to prevent FK crash
-            if (tbProduct.TbOrderDetails.Any())
+            if (tbProduct.TbOrderDetails.Any() || tbProduct.TbInventoryMovements.Any())
             {
                 tbProduct.IsActive = false;
                 tbProduct.ModifiedDate = BookingService.GetVietnamNow();
+                tbProduct.ModifiedBy = Function._Username;
             }
             else
             {

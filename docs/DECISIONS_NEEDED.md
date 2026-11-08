@@ -1,54 +1,49 @@
-# DECISIONS & POLICIES APPLIED — SPIKE PICKLEBALL CLUB
+# Các Quyết Định Vận Hành & Tích Hợp Bên Ngoài Cần Chủ Đầu Tư Phê Duyệt (`DECISIONS_NEEDED.md`)
 
-This document records the default operational policies and external integration boundaries applied during the implementation of the 40-item Master Prompt (`Antigravity_Master_Prompt_Spike_Pickleball.md`).
-
----
-
-## 1. Business Logic & Operational Policies
-
-1. **Cross-Boundary Pricing Policy (`P1-08`)**:
-   - **Rule**: Peak hours start at `17:00` (`17:00`–`22:30`). Standard hours are `06:00`–`17:00`.
-   - **Calculation**: Every booking is divided into 30-minute slices (`[t, t + 30m)`). Slices before `17:00` are billed at the court's standard rate (`PricePerHour`, default `170,000đ/h`), and slices from `17:00` onward are billed at the peak rate (`PeakPricePerHour`, default `250,000đ/h`).
-   - **Example**: A 2-hour booking from `16:30` to `18:30` consists of `0.5h` standard (`85,000đ`) + `1.5h` peak (`375,000đ`) = **`460,000đ`**.
-
-2. **Member Tier & VIP Discount Policy (`P1-09`, `P1-16`)**:
-   - **Qualification**: Member tiers are calculated strictly from **actual collected payments** (`PaidAmount` on non-cancelled bookings + paid retail orders), never from unpaid/pending bookings:
-     - **Hạng Đồng (Bronze)**: `< 2,000,000đ` paid spend (`0%` court fee discount).
-     - **Hạng Bạc (Silver)**: `2,000,000đ – 4,999,999đ` paid spend (`5%` court fee discount).
-     - **Hạng Vàng VIP (Gold VIP)**: `>= 5,000,000đ` paid spend (`15%` court fee discount).
-
-3. **Booking Lifecycle & State Machine (`P1-07`)**:
-   - `pending` (Chờ duyệt) → `approved` (Đã duyệt / Chờ check-in) → `playing` (Đang thi đấu) → `completed` (Hoàn thành).
-   - Terminal/exception states: `cancelled` (Đã hủy), `rejected` (Từ chối), `expired` / `no_show` (Quá hạn không đến).
-   - **Crucial Rule**: `approved` bookings do **NOT** automatically transition to `playing` when the wall clock reaches `StartTime`. A booking only enters `playing` when checked in via QR/code at `/CheckIn` or started by Staff/Admin in `/Management`.
-   - Active `playing` bookings automatically transition to `completed` once `now >= EndTime`.
-   - `pending` or `approved` bookings whose `EndTime` has already passed without check-in are marked `expired`.
-
-4. **Cancellation Cutoff Policy (`P1-12`)**:
-   - **Customer / Guest**:
-     - Can cancel `pending` bookings at any time prior to `StartTime`.
-     - Can cancel `approved` bookings up to **120 minutes (2 hours)** prior to `StartTime`.
-     - Within 2 hours of `StartTime`, or once in `playing`/`completed` state, customers must contact the club hotline/counter; only `Admin`/`Staff` can force-cancel.
-
-5. **Payment Separation (`P1-04`, `P1-05`, `P1-06`)**:
-   - `AmountDue = CourtFee - DiscountAmount + PosTotal`.
-   - `PaidAmount` starts at `0` (`PaymentStatus = "unpaid"`) upon booking creation unless paid via a verified online gateway callback.
-   - Revenue reports (`/Reports`, `/Admin`) report **Doanh thu thực thu (Collected Revenue)** from actual `PaidAmount` / `TbPaymentTransaction`, alongside **Công nợ / Tạm tính (Receivables)** so unpaid bookings never inflate collected revenue.
+Tài liệu này liệt kê minh bạch các hạng mục phụ thuộc vào tài khoản nhà cung cấp bên thứ ba hoặc chính sách vận hành thực tế của Câu lạc bộ mà hệ thống **tuyệt đối không giả lập (no fake / no mock)** theo chuẩn nghiệm thu V2.
 
 ---
 
-## 2. External Provider Credentials & Safe Fallbacks
+## 1. Hạng Mục Đang Chờ Tài Khoản Bên Ngoài (`BLOCKED_EXTERNAL`)
 
-Per Rule 7 of the Master Prompt (*"Do not invent fake credentials or pretend external services work"*):
+### `P1-02` — Cổng Gửi OTP Tự Động (SMS Brandname / Zalo ZNS / Transactional SMTP) Cho Luồng Quên Mật Khẩu
+- **Trạng thái hiện tại**: `BLOCKED_EXTERNAL` (đã khóa an toàn luồng giả lập).
+- **Hành vi hiện tại trên hệ thống**:
+  - Endpoint `POST /api/auth/forgot-password` trả về mã chuẩn `HTTP 503 Service Unavailable` (`code: "OTP_PROVIDER_NOT_CONFIGURED"`), tuyệt đối không tự đặt lại mật khẩu hay báo "đã gửi OTP thành công" giả.
+  - Giao diện `/Account/Login` hiển thị thông báo minh bạch hướng dẫn hội viên liên hệ Quầy lễ tân / Hotline CLB để xác minh chính chủ và nhận mật khẩu tạm thời dùng 1 lần (`MustChangePassword = true`) do Admin cấp.
+- **Quyết định cần Chủ CLB cung cấp khi muốn bật tự động**:
+  1. Chọn nhà cung cấp: **Zalo ZNS**, **SMS Brandname** (Viettel/VNPT/eSMS), hoặc **Transactional Email** (Amazon SES / SendGrid / Postmark).
+  2. Cung cấp API Key / Sender ID / Template ID thực tế qua biến môi trường máy chủ.
 
-1. **Social OAuth (`Google`, `Zalo`, `Apple`) (`P1-02`)**:
-   - Configuration keys are structured under `Authentication:Google:ClientId`, `Authentication:Zalo:AppId`, `Authentication:Apple:ClientId`.
-   - Because no live OAuth credentials are provided in the environment, the fake `demoToast` buttons on `/Account/Login` are replaced with a clean disabled/unconfigured notice when keys are absent.
+---
 
-2. **Password Reset (`SMS / Email OTP`) (`P1-03`)**:
-   - Because no live SMS/SMTP gateway credentials are configured, the insecure client-side fake OTP reset (which allowed resetting any password in JS without verification) has been removed. Instead, users can submit a verified password-reset support request or change their password securely when logged in (`/Account/ChangePassword`).
+## 2. Tùy Chọn Mở Rộng Cổng Thanh Toán Trực Tuyến Tự Động (Nếu Có Nhu Cầu)
 
-3. **Online Payment Gateway (`VNPAY`) (`P1-04`)**:
-   - Hardcoded test secrets were removed from `appsettings.json`.
-   - Counter payment methods (**Tiền mặt tại quầy**, **Chuyển khoản VietQR tại quầy — chờ thu ngân xác nhận**) work end-to-end with `PaymentStatus = "unpaid"` until confirmed by staff in `/Management`.
-   - VNPAY online redirect/IPN is wired cleanly via configuration (`VnPay:TmnCode`, `VnPay:HashSecret`) and only activates when live/sandbox merchant credentials are provided in environment variables.
+- **Trạng thái hiện tại**: Sổ cái thu ngân (`TbPaymentTransaction`) cho **Tiền mặt (`cash`)** và **Chuyển khoản ngân hàng có đối soát mã tham chiếu (`transfer` + `ReferenceCode`)** đã hoàn thiện `100%` (`P1-04`, `P1-05`, `P1-06`). Hệ thống không tự động cộng doanh thu khi chưa có xác nhận thu tiền thật.
+- **Nếu CLB muốn tự động gạch nợ tức thì không cần thu ngân đối soát tay**:
+  1. Đăng ký tài khoản Merchant **VNPAY** (`VnPay:TmnCode`, `VnPay:HashSecret` + URL Return/IPN công khai HTTPS) hoặc **Casso / SePay VietQR Webhook**.
+  2. Cấu hình khóa bí mật qua biến môi trường để đối chiếu chữ ký HMAC-SHA512 và ghi tự động vào `TbPaymentTransaction` với `IdempotencyKey = BankTransactionId`.
+
+---
+
+## 3. Chính Sách Nghiệp Vụ Đã Áp Dụng Mặc Định (Có Thể Tinh Chỉnh Qua CMS `/Cms`)
+
+Các thông số dưới đây đang áp dụng giá trị mặc định hợp lý và **Admin có thể chỉnh trực tiếp trên trang `/Cms` mà không cần sửa code**:
+
+| Tham số CMS | Giá trị mặc định | Ý nghĩa nghiệp vụ |
+|---|---|---|
+| `openTime` / `closeTime` | `06:00` – `22:00` | Khung giờ mở/đóng cửa sân áp dụng đồng bộ trên UI và API. |
+| `peakStart` | `17:00` | Mốc bắt đầu tính phụ thu khung giờ vàng (tính tách đoạn chính xác từng phút). |
+| `courtPrice` | `120.000đ / giờ` | Giá cơ sở giờ thường (cộng thêm phụ thu sân VIP nếu có). |
+| `peakSurcharge` | `30.000đ / giờ` | Phụ thu cộng thêm cho phần thời lượng rơi vào khung giờ vàng. |
+| `checkInEarlyMinutes` | `30 phút` | Thời gian tối đa cho phép quét QR Check-in sớm trước giờ bắt đầu ca. |
+| `cancelCutoffMinutes` | `120 phút` | Thời hạn tối thiểu trước giờ thi đấu để khách tự hủy vé đã duyệt trên `/Lookup`. |
+
+---
+
+## 4. Checklist Hạ Tầng Trước Khi Go-Live Môi Trường Thật
+
+1. Sinh khóa `SPIKE_QR_SIGNING_KEY` ngẫu nhiên tối thiểu 32–64 ký tự trên máy chủ Production.
+2. Đổi mật khẩu toàn bộ tài khoản quản trị (`Admin`) và nhân viên thu ngân (`Staff`) ngay lần đăng nhập đầu tiên.
+3. Cấu hình chứng chỉ HTTPS hợp lệ trên Reverse Proxy (IIS / Nginx / Cloudflare).
+4. Thiết lập lịch Windows Task Scheduler hoặc SQL Agent chạy sao lưu `.bak` hàng đêm sang ổ đĩa độc lập / Cloud Storage theo mẫu lệnh trong `docs/DEPLOY_AND_ROLLBACK.md`.

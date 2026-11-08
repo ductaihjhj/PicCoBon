@@ -1,12 +1,13 @@
-﻿@model IEnumerable<PickleballClub.Models.TbProduct>
+@model IEnumerable<PickleballClub.Models.TbProduct>
 
 @foreach (var p in Model)
 {
+    var stock = p.UnitInStock ?? p.Quantity ?? 0;
     <div class="card">
         <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
             <div style="display:flex;align-items:center;gap:0.85rem;">
                 <div class="stat-icon" style="background:var(--color-primary-50);color:var(--color-primary);">
-                    @Html.Raw(p.Icon ?? "<iconify-icon icon='mdi:cup-water' width='24'></iconify-icon>")
+                    @PickleballClub.Services.IconSanitizer.RenderSafeIcon(p.Icon)
                 </div>
                 <div>
                     <div class="font-bold">@p.Title</div>
@@ -15,7 +16,14 @@
             </div>
             <div style="text-align:right;">
                 <div class="font-bold text-mono" style="color:var(--color-primary);">@((p.Price ?? 0).ToString("N0")) đ</div>
-                <span class="badge badge-success">Còn hàng (@(p.UnitInStock ?? 100))</span>
+                @if (stock > 0)
+                {
+                    <span class="badge badge-success">Còn hàng (@stock)</span>
+                }
+                else
+                {
+                    <span class="badge badge-danger">Tạm hết hàng</span>
+                }
             </div>
         </div>
     </div>

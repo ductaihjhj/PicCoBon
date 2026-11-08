@@ -14,19 +14,32 @@ public partial class TbPaymentTransaction
 
     public int Amount { get; set; }
 
+    public decimal AmountDec { get; set; }
+
+    public string Currency { get; set; } = "VND";
+
     /// <summary>
-    /// cash, transfer, vnpay, refund
+    /// payment, refund
+    /// </summary>
+    public string TransactionType { get; set; } = "payment";
+
+    /// <summary>
+    /// cash, transfer, vnpay
     /// </summary>
     public string PaymentMethod { get; set; } = "cash";
 
     /// <summary>
-    /// completed, pending, failed, refunded
+    /// completed, pending, failed
     /// </summary>
     public string Status { get; set; } = "completed";
+
+    public string? IdempotencyKey { get; set; }
 
     public string? ReferenceCode { get; set; }
 
     public string? Note { get; set; }
+
+    public int? ActorAccountId { get; set; }
 
     public string? RecordedBy { get; set; }
 

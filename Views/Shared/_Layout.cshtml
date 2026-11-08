@@ -1,9 +1,14 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    var csrfTokens = Antiforgery.GetAndStoreTokens(Context);
+}
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@(ViewData["Title"] ?? "Spike Pickleball Club — Tổ Hợp Sân Pickleball Chuẩn Quốc Tế USAPA")</title>
+    <meta name="csrf-token" content="@csrfTokens.RequestToken">
+    <title>@(ViewData["Title"] ?? "Spike Pickleball Club — Tổ Hợp Sân Pickleball Trong Nhà & Ngoài Trời")</title>
     <link rel="stylesheet" href="~/css/styles.css" asp-append-version="true">
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
 </head>
@@ -68,7 +73,7 @@
                         </div>
                     </a>
                     <p style="font-size:0.85rem;line-height:1.7;">
-                        Tổ hợp sân thi đấu Pickleball tiêu chuẩn quốc tế USAPA với mặt sân Cushion 8 lớp giảm chấn, hệ thống chiếu sáng LED chống chói 1000 Lux và không gian Pro Shop chuyên nghiệp.
+                        Tổ hợp sân thi đấu Pickleball trong nhà &amp; ngoài trời với mặt sân Cushion 8 lớp giảm chấn, hệ thống chiếu sáng LED chống chói 1000 Lux và không gian Pro Shop chuyên nghiệp.
                     </p>
                 </div>
 
@@ -85,8 +90,8 @@
                 <div class="site-footer-col">
                     <h4>Bảng giá niêm yết</h4>
                     <div class="site-footer-links">
-                        <span>Giờ tiêu chuẩn (06:00 – 17:00): <strong style="color:#FFF;">120.000 đ/h</strong></span>
-                        <span>Khung giờ vàng (17:00 – 22:00): <strong style="color:var(--color-volt);">150.000 đ/h</strong></span>
+                        <span>Giờ tiêu chuẩn (<span data-cms="openTime">06:00</span> – <span data-cms="peakStart">17:00</span>): <strong style="color:#FFF;" data-cms-price="courtPrice">120.000 đ/h</strong></span>
+                        <span>Khung giờ vàng (<span data-cms="peakStart">17:00</span> – <span data-cms="closeTime">22:00</span>): <strong style="color:var(--color-volt);" data-cms-peak-total="true">150.000 đ/h</strong></span>
                         <span>Phụ thu sân Indoor VIP: <strong style="color:#FFF;">+20.000 đ/h</strong></span>
                         <span>Giờ mở cửa: <strong style="color:#FFF;" data-cms="openHours">06:00 – 22:00</strong></span>
                     </div>
@@ -113,17 +118,13 @@
 
             <div class="site-footer-bottom">
                 <span>© 2026 Spike Pickleball Club. Bảo lưu mọi quyền.</span>
-                <span>Tổ hợp sân đạt chuẩn thi đấu quốc tế USAPA</span>
+                <span>Tổ hợp sân Pickleball mặt Cushion 8 lớp &amp; Đèn LED 1000 Lux</span>
             </div>
         </div>
     </footer>
 
     @if (Function.IsLogin())
     {
-        var fallbackAvatar = Function._RoleId == 1
-            ? "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=120&q=80"
-            : "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80";
-        var activeAvatar = !string.IsNullOrEmpty(Function._Avatar) ? Function._Avatar : fallbackAvatar;
         var roleKey = Function._RoleId == 1 ? "admin" : (Function._RoleId == 3 ? "staff" : "user");
         var roleLabel = Function._RoleId == 1 ? "Ban Quản Trị CLB" : (Function._RoleId == 3 ? "Nhân viên Vận hành" : "Hội viên CLB");
         <script>
@@ -135,16 +136,16 @@
                 skillLevel: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._SkillLevel)),
                 role: '@roleKey',
                 roleLabel: '@Html.Raw(roleLabel)',
-                avatar: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(activeAvatar))
+                avatar: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._Avatar))
             };
-            localStorage.setItem('pb_auth_user', JSON.stringify(window.SERVER_AUTH_USER));
+            try { localStorage.removeItem('pb_auth_user'); } catch (_) {}
         </script>
     }
     else
     {
         <script>
             window.SERVER_AUTH_USER = null;
-            localStorage.removeItem('pb_auth_user');
+            try { localStorage.removeItem('pb_auth_user'); } catch (_) {}
         </script>
     }
     <script src="~/js/shared.js" asp-append-version="true"></script>

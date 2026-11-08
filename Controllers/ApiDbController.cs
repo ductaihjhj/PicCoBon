@@ -1,10 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -18,59 +25,56 @@ namespace PickleballClub.Controllers;
 [ApiController]
 public class ApiDbController : ControllerBase
 {
-    private static readonly Regex SafeIconNameRegex = new(@"^[a-zA-Z0-9\-_]+:[a-zA-Z0-9\-_]+$", RegexOptions.Compiled);
-
     private readonly PickleballContext _context;
     private readonly BookingService _bookingService;
+    private readonly OrderService _orderService;
     private readonly PricingService _pricingService;
     private readonly QrTokenService _qrTokenService;
+    private readonly ClubSettingsService _settingsService;
     private readonly PasswordService _passwordService;
+    private readonly IAntiforgery _antiforgery;
 
     public ApiDbController(
         PickleballContext context,
         BookingService bookingService,
+        OrderService orderService,
         PricingService pricingService,
         QrTokenService qrTokenService,
-        PasswordService passwordService)
+        ClubSettingsService settingsService,
+        PasswordService passwordService,
+        IAntiforgery antiforgery)
     {
         _context = context;
         _bookingService = bookingService;
+        _orderService = orderService;
         _pricingService = pricingService;
         _qrTokenService = qrTokenService;
+        _settingsService = settingsService;
         _passwordService = passwordService;
+        _antiforgery = antiforgery;
     }
 
-    public static string FormatIconHtml(string? rawIcon)
+    public static string FormatIconHtml(string? rawIcon) =>
+        IconSanitizer.FormatSafeIconHtmlString(rawIcon, width: 26, fallback: "mdi:cup-water");
+
+    private string? ClientIp => HttpContext.Connection.RemoteIpAddress?.ToString();
+
+    [HttpGet("/api/security/csrf")]
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    public IActionResult GetCsrfToken()
     {
-        if (string.IsNullOrWhiteSpace(rawIcon))
+        var tokens = _antiforgery.GetAndStoreTokens(HttpContext);
+        return Ok(new
         {
-            return "<iconify-icon icon=\"mdi:cup-water\" width=\"26\"></iconify-icon>";
-        }
-
-        string trimmed = rawIcon.Trim();
-        // Extract icon="xxx:yyy" if stored as HTML
-        if (trimmed.StartsWith("<", StringComparison.Ordinal))
-        {
-            var match = Regex.Match(trimmed, @"icon=[""']([a-zA-Z0-9\-_]+:[a-zA-Z0-9\-_]+)[""']");
-            if (match.Success)
-            {
-                return $"<iconify-icon icon=\"{match.Groups[1].Value}\" width=\"26\"></iconify-icon>";
-            }
-            return "<iconify-icon icon=\"mdi:cup-water\" width=\"26\"></iconify-icon>";
-        }
-
-        if (!SafeIconNameRegex.IsMatch(trimmed))
-        {
-            return "<iconify-icon icon=\"mdi:cup-water\" width=\"26\"></iconify-icon>";
-        }
-
-        return $"<iconify-icon icon=\"{trimmed}\" width=\"26\"></iconify-icon>";
+            ok = true,
+            token = tokens.RequestToken
+        });
     }
 
-    private object MapBookingDto(TbBooking b, bool includePiiAndQr)
+    private object MapOwnerOrStaffBookingDto(TbBooking b, string? accessTokenForUrl = null, bool embedQrSvg = false)
     {
         var posItemsObj = BookingService.ParsePosItems(b.PosItemsJson)
-            .Select(i => new { id = i.Id, name = i.Name, price = i.Price, qty = i.Qty })
+            .Select(i => new { id = i.ProductId, productId = i.ProductId, name = i.Name, price = i.Price, qty = i.Qty })
             .ToList();
 
         object? pricingBreakdown = null;
@@ -80,44 +84,25 @@ public class ApiDbController : ControllerBase
             {
                 pricingBreakdown = JsonSerializer.Deserialize<object>(b.PricingBreakdownJson);
             }
-            catch { }
+            catch
+            {
+                // Ignore malformed historical breakdown JSON
+            }
         }
 
         int amountDue = b.AmountDue > 0 ? b.AmountDue : Math.Max(0, b.CourtFee + b.PosTotal - b.DiscountAmount);
         int paidAmount = b.PaidAmount;
 
-        if (!includePiiAndQr)
-        {
-            // P0-06: Strip PII (CustomerName, Phone, real BookingCode, CheckInToken) for non-owners / anonymous callers
-            return new
-            {
-                id = $"SLOT-{b.BookingId}",
-                courtId = b.CourtId,
-                userId = (int?)null,
-                date = b.BookingDate,
-                name = "Đã đặt sân",
-                phone = "",
-                time = b.StartTime,
-                duration = b.Duration,
-                status = b.Status,
-                players = b.Players,
-                skillLevel = b.SkillLevel ?? "Phong trào",
-                courtFee = 0,
-                discountAmount = 0,
-                posTotal = 0,
-                amountDue = 0,
-                paidAmount = 0,
-                totalPaid = 0,
-                paymentStatus = b.PaymentStatus,
-                paymentMethod = "cash",
-                posItems = Array.Empty<object>(),
-                checkInToken = "",
-                isAnonymized = true
-            };
-        }
+        string qrToken = !string.IsNullOrWhiteSpace(b.CheckInToken)
+            ? b.CheckInToken
+            : _qrTokenService.GenerateCheckInToken(b.BookingCode, b.BookingDate, DateTime.UtcNow.AddDays(30));
 
-        string qrToken = b.CheckInToken ?? _qrTokenService.GenerateToken(
-            b.BookingCode, b.CourtId, b.BookingDate, b.StartTime, b.Duration);
+        string tokenQuery = !string.IsNullOrWhiteSpace(accessTokenForUrl)
+            ? $"?accessToken={Uri.EscapeDataString(accessTokenForUrl)}"
+            : string.Empty;
+
+        string qrSvgUrl = $"/api/bookings/{Uri.EscapeDataString(b.BookingCode)}/qr.svg{tokenQuery}";
+        string qrPngUrl = $"/api/bookings/{Uri.EscapeDataString(b.BookingCode)}/qr.png{tokenQuery}";
 
         return new
         {
@@ -128,81 +113,192 @@ public class ApiDbController : ControllerBase
             userId = b.AccountId,
             date = b.BookingDate,
             name = b.CustomerName ?? "Khách hàng",
-            phone = b.Phone ?? "",
+            phone = b.Phone ?? string.Empty,
             time = b.StartTime,
             duration = b.Duration,
             status = b.Status,
             players = b.Players,
-            skillLevel = b.SkillLevel ?? "Phong trào",
+            skillLevel = b.SkillLevel ?? "Giao lưu",
             courtFee = b.CourtFee,
             discountAmount = b.DiscountAmount,
             posTotal = b.PosTotal,
             amountDue,
             paidAmount,
             totalPaid = paidAmount,
-            paymentStatus = b.PaymentStatus ?? (paidAmount >= amountDue && amountDue > 0 ? "paid" : "unpaid"),
+            remainingDue = Math.Max(0, amountDue - paidAmount),
+            paymentStatus = b.PaymentStatus ?? BookingService.ComputePaymentStatus(paidAmount, amountDue),
             paymentMethod = b.PaymentMethod ?? "cash",
             posItems = posItemsObj,
             pricingBreakdown,
             checkInToken = qrToken,
+            qrSvgUrl,
+            qrPngUrl,
+            qrSvg = embedQrSvg ? _qrTokenService.GenerateQrSvg(qrToken, 6) : null,
             checkedInAt = b.CheckedInAt?.ToString("yyyy-MM-dd HH:mm:ss"),
             completedAt = b.CompletedAt?.ToString("yyyy-MM-dd HH:mm:ss"),
-            isAnonymized = false
+            cancelledAt = b.CancelledAt?.ToString("yyyy-MM-dd HH:mm:ss"),
+            cancelReason = b.CancelReason,
+            isBusySlot = false
         };
     }
 
+    private static object MapAnonymousBusyIntervalDto(TbBooking b) => new
+    {
+        courtId = b.CourtId,
+        date = b.BookingDate,
+        time = b.StartTime,
+        duration = b.Duration,
+        status = "occupied",
+        isBusySlot = true
+    };
+
+    /// <summary>
+    /// P0-06, P1-07, P2-04: Read-only state snapshot with zero DB writes, ETag/304 conditional caching,
+    /// bounded public date window, and strict anonymous busy-interval projection (zero PII or booking metadata leaks).
+    /// </summary>
     [HttpGet("/api/db/state")]
     public async Task<IActionResult> GetState()
     {
-        await _bookingService.ReconcileBookingStatusesAsync();
-
         bool isStaffOrAdmin = Function.IsStaffOrAdmin();
         int? currentAccountId = Function.IsLogin() ? Function._AccountId : null;
-        string currentPhone = Function.IsLogin() ? BookingService.NormalizePhone(Function._Phone) : string.Empty;
+        int currentRoleId = Function.IsLogin() ? Function._RoleId : 0;
 
-        var courts = await _context.TbCourts
+        var vnNow = BookingService.GetVietnamNow();
+        var today = DateOnly.FromDateTime(vnNow);
+        string publicMinDate = today.AddDays(-1).ToString("yyyy-MM-dd");
+        string publicMaxDate = today.AddDays(30).ToString("yyyy-MM-dd");
+
+        var settings = await _settingsService.GetSettingsAsync(_context);
+
+        var courtsRaw = await _context.TbCourts
+            .AsNoTracking()
             .Where(c => c.IsActive)
             .OrderBy(c => c.CourtId)
-            .Select(c => new
-            {
-                id = c.CourtId,
-                name = c.CourtName,
-                type = c.CourtType,
-                typeLabel = c.TypeLabel,
-                surface = c.Surface,
-                surcharge = c.Surcharge,
-                basePrice = c.BasePrice,
-                imageUrl = c.Image,
-                description = c.Description,
-                isActive = c.IsActive
-            })
             .ToListAsync();
 
-        var rawBookings = await _context.TbBookings
-            .Include(b => b.Court)
-            .OrderByDescending(b => b.BookingDate)
-            .ThenBy(b => b.StartTime)
+        var rawProducts = await _context.TbProducts
+            .AsNoTracking()
+            .Include(p => p.CategoryProduct)
+            .Where(p => p.IsActive && p.Title != null && p.Title.Trim().ToLower() != "slot")
+            .OrderBy(p => p.ProductId)
             .ToListAsync();
 
-        var bookings = rawBookings.Select(b =>
+        List<TbBooking> scopedBookings;
+        if (isStaffOrAdmin)
         {
-            bool isOwner = currentAccountId != null &&
-                           (b.AccountId == currentAccountId ||
-                            (!string.IsNullOrEmpty(currentPhone) && BookingService.NormalizePhone(b.Phone) == currentPhone));
-            return MapBookingDto(b, includePiiAndQr: isStaffOrAdmin || isOwner);
+            string staffMinDate = today.AddDays(-60).ToString("yyyy-MM-dd");
+            scopedBookings = await _context.TbBookings
+                .AsNoTracking()
+                .Include(b => b.Court)
+                .Where(b => string.Compare(b.BookingDate, staffMinDate) >= 0)
+                .OrderByDescending(b => b.BookingDate)
+                .ThenBy(b => b.StartTime)
+                .Take(600)
+                .ToListAsync();
+        }
+        else
+        {
+            var blockingStatuses = new[] { "pending", "approved", "confirmed", "playing", "active" };
+            scopedBookings = await _context.TbBookings
+                .AsNoTracking()
+                .Include(b => b.Court)
+                .Where(b => (string.Compare(b.BookingDate, publicMinDate) >= 0 &&
+                             string.Compare(b.BookingDate, publicMaxDate) <= 0 &&
+                             blockingStatuses.Contains(b.Status)) ||
+                            (currentAccountId.HasValue && b.AccountId == currentAccountId.Value))
+                .OrderByDescending(b => b.BookingDate)
+                .ThenBy(b => b.StartTime)
+                .ToListAsync();
+        }
+
+        var locksQuery = _context.TbCourtLocks.AsNoTracking();
+        if (!isStaffOrAdmin)
+        {
+            locksQuery = locksQuery.Where(l =>
+                string.Compare(l.LockDate, publicMinDate) >= 0 &&
+                string.Compare(l.LockDate, publicMaxDate) <= 0);
+        }
+        var rawLocks = await locksQuery.OrderByDescending(l => l.LockDate).ToListAsync();
+
+        List<TbOrder> standaloneOrders = new();
+        if (isStaffOrAdmin)
+        {
+            standaloneOrders = await _context.TbOrders
+                .AsNoTracking()
+                .Include(o => o.TbOrderDetails)
+                .Where(o => o.BookingId == null)
+                .OrderByDescending(o => o.CreatedDate)
+                .Take(100)
+                .ToListAsync();
+        }
+
+        // Compute deterministic ETag for conditional 304 Not Modified responses (P2-04)
+        var etagSb = new StringBuilder(512);
+        etagSb.Append($"u:{currentAccountId ?? 0}|r:{currentRoleId}|pv:{settings.PricingVersion}|");
+        etagSb.Append($"c:{courtsRaw.Count}:{courtsRaw.Sum(c => c.BasePrice + c.Surcharge)}|");
+        etagSb.Append($"p:{rawProducts.Count}:{rawProducts.Sum(p => (p.UnitInStock ?? p.Quantity ?? 0) + (p.Price ?? 0))}|");
+        etagSb.Append($"l:{rawLocks.Count}:{string.Join(',', rawLocks.Select(l => l.LockId))}|");
+        etagSb.Append($"b:{scopedBookings.Count}:");
+        foreach (var b in scopedBookings)
+        {
+            etagSb.Append($"{b.BookingId}:{b.CourtId}:{b.Duration}:{b.Status}:{b.PaidAmount}:{b.AmountDue};");
+        }
+        if (isStaffOrAdmin)
+        {
+            etagSb.Append($"o:{standaloneOrders.Count}:{standaloneOrders.Sum(o => o.PaidAmount + (o.TotalAmount ?? 0))}:{string.Join(',', standaloneOrders.Select(o => o.Status))}|");
+        }
+        foreach (var kv in settings.RawCms.OrderBy(k => k.Key))
+        {
+            etagSb.Append($"{kv.Key}={kv.Value};");
+        }
+
+        string etagHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(etagSb.ToString())))[..20].ToLowerInvariant();
+        string etag = $"\"spk-{etagHash}\"";
+
+        Response.Headers["Cache-Control"] = "private, no-cache";
+        Response.Headers.ETag = etag;
+
+        if (Request.Headers.IfNoneMatch.Any(v => v != null && v.Split(',').Select(s => s.Trim()).Contains(etag, StringComparer.Ordinal)))
+        {
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
+
+        var courts = courtsRaw.Select(c => new
+        {
+            id = c.CourtId,
+            name = c.CourtName,
+            type = c.CourtType,
+            typeLabel = c.TypeLabel,
+            surface = c.Surface,
+            surcharge = c.Surcharge,
+            basePrice = c.BasePrice,
+            imageUrl = c.Image,
+            description = c.Description,
+            isActive = c.IsActive
         }).ToList();
 
-        var myBookings = currentAccountId != null
-            ? rawBookings
-                .Where(b => b.AccountId == currentAccountId ||
-                            (!string.IsNullOrEmpty(currentPhone) && BookingService.NormalizePhone(b.Phone) == currentPhone))
-                .Select(b => MapBookingDto(b, includePiiAndQr: true))
+        var bookings = new List<object>(scopedBookings.Count);
+        foreach (var b in scopedBookings)
+        {
+            if (isStaffOrAdmin || (currentAccountId.HasValue && b.AccountId == currentAccountId.Value))
+            {
+                bookings.Add(MapOwnerOrStaffBookingDto(b));
+            }
+            else
+            {
+                bookings.Add(MapAnonymousBusyIntervalDto(b));
+            }
+        }
+
+        var myBookings = currentAccountId.HasValue
+            ? scopedBookings
+                .Where(b => b.AccountId == currentAccountId.Value)
+                .Select(b => MapOwnerOrStaffBookingDto(b))
                 .ToList()
             : new List<object>();
 
-        var courtLocks = await _context.TbCourtLocks
-            .OrderByDescending(l => l.LockDate)
-            .Select(l => new
+        var courtLocks = rawLocks.Select(l => isStaffOrAdmin
+            ? (object)new
             {
                 id = l.LockCode,
                 courtId = l.CourtId,
@@ -210,14 +306,15 @@ public class ApiDbController : ControllerBase
                 startTime = l.StartTime,
                 duration = l.Duration,
                 reason = l.Reason
-            })
-            .ToListAsync();
-
-        var rawProducts = await _context.TbProducts
-            .Include(p => p.CategoryProduct)
-            .Where(p => p.IsActive)
-            .OrderBy(p => p.ProductId)
-            .ToListAsync();
+            }
+            : new
+            {
+                courtId = l.CourtId,
+                date = l.LockDate,
+                startTime = l.StartTime,
+                duration = l.Duration,
+                status = "locked"
+            }).ToList();
 
         var menu = rawProducts.Select(p => new
         {
@@ -229,47 +326,61 @@ public class ApiDbController : ControllerBase
             icon = FormatIconHtml(p.Icon)
         }).ToList();
 
-        var cmsRows = await _context.TbCmsConfigs.ToListAsync();
-        var cmsConfig = new Dictionary<string, object>();
-        foreach (var row in cmsRows)
+        var cmsConfig = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in settings.RawCms)
         {
-            if (int.TryParse(row.ConfigValue, out int numVal))
-                cmsConfig[row.ConfigKey] = numVal;
+            if (int.TryParse(kv.Value, out int numVal))
+                cmsConfig[kv.Key] = numVal;
             else
-                cmsConfig[row.ConfigKey] = row.ConfigValue;
+                cmsConfig[kv.Key] = kv.Value;
         }
+        cmsConfig["openTime"] = settings.OpenTime;
+        cmsConfig["closeTime"] = settings.CloseTime;
+        cmsConfig["openHours"] = $"{settings.OpenTime} – {settings.CloseTime}";
+        cmsConfig["peakStart"] = settings.PeakStart;
+        cmsConfig["courtPrice"] = settings.BaseCourtPrice;
+        cmsConfig["peakSurcharge"] = settings.PeakSurchargePerHour;
+        cmsConfig["checkInEarlyMinutes"] = settings.CheckInEarlyMinutes;
+        cmsConfig["cancelCutoffMinutes"] = settings.CancelCutoffMinutes;
+        cmsConfig["hotline"] = settings.Hotline;
+        cmsConfig["pricingVersion"] = settings.PricingVersion;
 
-        // Current user info & tier discount
         object? currentUserDto = null;
-        if (Function.IsLogin() && currentAccountId != null)
+        if (Function.IsLogin() && currentAccountId.HasValue)
         {
-            var acc = await _context.TbAccounts.FindAsync(currentAccountId.Value);
+            var acc = await _context.TbAccounts.AsNoTracking().FirstOrDefaultAsync(a => a.AccountId == currentAccountId.Value && a.IsActive);
             if (acc != null)
             {
-                int paidSpend = await _pricingService.GetVerifiedCustomerPaidSpendAsync(_context, acc.AccountId, acc.Phone);
-                var (tierName, discountPct) = PricingService.ResolveMemberTier(paidSpend, acc.RoleId, acc.MemberTier);
+                int paidSpend = await _pricingService.GetVerifiedAccountNetPaidSpendAsync(_context, acc.AccountId);
+                var (tierName, discountPct) = PricingService.ResolveMemberTier(paidSpend, acc.MemberTier);
                 currentUserDto = new
                 {
                     id = acc.AccountId,
                     name = acc.FullName ?? acc.Username ?? "Hội viên",
-                    email = acc.Email ?? "",
-                    phone = acc.Phone ?? "",
+                    email = acc.Email ?? string.Empty,
+                    phone = acc.Phone ?? string.Empty,
                     skillLevel = acc.SkillLevel ?? "Giao lưu (DUPR 3.0)",
                     memberTier = tierName,
                     discountPercent = discountPct,
                     paidSpend,
+                    mustChangePassword = acc.MustChangePassword,
                     role = acc.RoleId == 1 ? "admin" : acc.RoleId == 3 ? "staff" : "user",
                     roleLabel = acc.RoleId == 1 ? "Ban Quản Trị CLB" : acc.RoleId == 3 ? "Nhân viên Vận hành" : "Hội viên CLB",
-                    avatar = acc.Avatar ?? ""
+                    avatar = acc.Avatar ?? string.Empty
                 };
             }
         }
 
+        var ordersDto = isStaffOrAdmin
+            ? standaloneOrders.Select(MapOrderDto).ToList()
+            : new List<object>();
+
         return Ok(new
         {
             ok = true,
-            stateVersion = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            serverTime = BookingService.GetVietnamNow().ToString("yyyy-MM-dd HH:mm:ss"),
+            etag,
+            pricingVersion = settings.PricingVersion,
+            serverTime = vnNow.ToString("yyyy-MM-dd HH:mm:ss"),
             isStaffOrAdmin,
             currentUser = currentUserDto,
             courts,
@@ -277,129 +388,419 @@ public class ApiDbController : ControllerBase
             myBookings,
             courtLocks,
             menu,
+            orders = ordersDto,
             cmsConfig
         });
     }
 
-    /// <summary>
-    /// P0-05: Block unauthenticated snapshot overwrite & clearAll wipe on /api/db/sync.
-    /// Only Admin/Staff may sync CMS config or court locks through this legacy endpoint; clearAll is permanently forbidden.
-    /// </summary>
-    [HttpPost("/api/db/sync")]
-    public async Task<IActionResult> SyncState([FromBody] JsonElement payload)
+    private static object MapOrderDto(TbOrder o)
     {
-        if (payload.TryGetProperty("clearAll", out JsonElement clearEl) && clearEl.ValueKind == JsonValueKind.True)
+        int total = o.TotalAmount ?? 0;
+        int paid = o.PaidAmount;
+        return new
         {
-            return StatusCode(403, new { ok = false, error = "Thao tác xóa toàn bộ dữ liệu (clearAll) đã bị khóa để bảo vệ toàn vẹn dữ liệu." });
-        }
-
-        if (!Function.IsStaffOrAdmin())
-        {
-            return StatusCode(403, new { ok = false, error = "Chỉ Quản trị viên / Thu ngân mới có quyền đồng bộ cấu hình quản trị." });
-        }
-
-        // Only allow Admin to update cmsConfig if provided
-        if (Function.IsAdmin() && payload.TryGetProperty("cmsConfig", out JsonElement cmsEl) && cmsEl.ValueKind == JsonValueKind.Object)
-        {
-            foreach (var prop in cmsEl.EnumerateObject())
+            orderId = o.OrderId,
+            code = o.Code,
+            bookingId = o.BookingId,
+            bookingCode = o.BookingCode ?? string.Empty,
+            customerName = o.CustomerName ?? "Khách lẻ",
+            phone = o.Phone ?? string.Empty,
+            address = o.Address ?? "Nhận tại quầy Pro Shop",
+            totalAmount = total,
+            paidAmount = paid,
+            remainingDue = Math.Max(0, total - paid),
+            paymentStatus = o.PaymentStatus ?? BookingService.ComputePaymentStatus(paid, total),
+            paymentMethod = o.PaymentMethod ?? "cash",
+            status = o.Status ?? "confirmed",
+            quantity = o.Quanlity ?? 0,
+            createdDate = o.CreatedDate?.ToString("yyyy-MM-dd HH:mm:ss"),
+            items = o.TbOrderDetails?.Select(d => new
             {
-                string valStr = prop.Value.ValueKind == JsonValueKind.String ? (prop.Value.GetString() ?? "") : prop.Value.GetRawText();
-                var existingCfg = await _context.TbCmsConfigs.FindAsync(prop.Name);
-                if (existingCfg != null)
-                {
-                    existingCfg.ConfigValue = valStr;
-                }
-                else
-                {
-                    _context.TbCmsConfigs.Add(new TbCmsConfig
-                    {
-                        ConfigKey = prop.Name,
-                        ConfigValue = valStr
-                    });
-                }
-            }
-            await _context.SaveChangesAsync();
-        }
-
-        return await GetState();
+                productId = d.ProductId,
+                price = d.Price ?? 0,
+                qty = d.Quantity ?? 0
+            }).ToList()
+        };
     }
 
     // ================================================================
-    // GRANULAR BOOKING & PRICING ENDPOINTS (P0-08, P1-08, P1-09)
+    // ADMIN CMS CONFIGURATION ENDPOINT (P0-05, P2-05 — replaces /api/db/sync)
     // ================================================================
 
+    [Authorize(Roles = "Admin")]
+    [ValidateAntiForgeryToken]
+    [HttpPut("/api/admin/cms")]
+    [HttpPost("/api/admin/cms")]
+    public async Task<IActionResult> UpdateCmsConfig([FromBody] JsonElement payload)
+    {
+        JsonElement cmsObj = payload;
+        if (payload.ValueKind == JsonValueKind.Object &&
+            payload.TryGetProperty("cmsConfig", out var nested) &&
+            nested.ValueKind == JsonValueKind.Object)
+        {
+            cmsObj = nested;
+        }
+
+        if (cmsObj.ValueKind != JsonValueKind.Object)
+        {
+            return BadRequest(new { ok = false, error = "Dữ liệu cấu hình CMS không hợp lệ." });
+        }
+
+        var updates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var prop in cmsObj.EnumerateObject())
+        {
+            if (!ClubSettingsService.AllowedCmsKeys.ContainsKey(prop.Name))
+            {
+                return BadRequest(new { ok = false, error = $"Khóa cấu hình '{prop.Name}' không nằm trong danh sách cho phép." });
+            }
+
+            string rawVal = prop.Value.ValueKind == JsonValueKind.String
+                ? (prop.Value.GetString() ?? string.Empty)
+                : prop.Value.GetRawText().Trim('"');
+
+            // Strip HTML tags to prevent stored XSS in CMS fields
+            string sanitized = Regex.Replace(rawVal, "<.*?>", string.Empty).Trim();
+            if (sanitized.Length > 500)
+            {
+                return BadRequest(new { ok = false, error = $"Nội dung trường '{prop.Name}' vượt quá tối đa 500 ký tự." });
+            }
+
+            updates[prop.Name] = sanitized;
+        }
+
+        // Validate time & pricing fields before saving
+        if (updates.TryGetValue("openTime", out var openStr) && !PricingService.TryParseTimeMinutes(openStr, out _))
+        {
+            return BadRequest(new { ok = false, error = "Giờ mở cửa (openTime) phải theo định dạng HH:mm." });
+        }
+        if (updates.TryGetValue("closeTime", out var closeStr) && !PricingService.TryParseTimeMinutes(closeStr, out _))
+        {
+            return BadRequest(new { ok = false, error = "Giờ đóng cửa (closeTime) phải theo định dạng HH:mm." });
+        }
+        if (updates.TryGetValue("peakStart", out var peakStr) && !PricingService.TryParseTimeMinutes(peakStr, out _))
+        {
+            return BadRequest(new { ok = false, error = "Giờ bắt đầu khung giờ vàng (peakStart) phải theo định dạng HH:mm." });
+        }
+
+        var currentSettings = await _settingsService.GetSettingsAsync(_context);
+        string effOpen = updates.TryGetValue("openTime", out var o1) ? o1 : currentSettings.OpenTime;
+        string effClose = updates.TryGetValue("closeTime", out var c1) ? c1 : currentSettings.CloseTime;
+        PricingService.TryParseTimeMinutes(effOpen, out int effOpenMins);
+        PricingService.TryParseTimeMinutes(effClose, out int effCloseMins);
+
+        if (effCloseMins <= effOpenMins + 60)
+        {
+            return BadRequest(new { ok = false, error = "Giờ đóng cửa phải lớn hơn giờ mở cửa ít nhất 60 phút." });
+        }
+
+        if (updates.TryGetValue("courtPrice", out var cpStr))
+        {
+            if (!int.TryParse(cpStr, out int cp) || cp < 20_000 || cp > 5_000_000)
+            {
+                return BadRequest(new { ok = false, error = "Đơn giá thuê sân tiêu chuẩn phải nằm trong khoảng 20.000đ – 5.000.000đ." });
+            }
+        }
+
+        if (updates.TryGetValue("peakSurcharge", out var psStr))
+        {
+            if (!int.TryParse(psStr, out int ps) || ps < 0 || ps > 2_000_000)
+            {
+                return BadRequest(new { ok = false, error = "Phụ thu khung giờ vàng phải nằm trong khoảng 0đ – 2.000.000đ." });
+            }
+        }
+
+        var vnNow = BookingService.GetVietnamNow();
+        string actor = Function._Username;
+
+        foreach (var kv in updates)
+        {
+            var existing = await _context.TbCmsConfigs.FirstOrDefaultAsync(c => c.ConfigKey == kv.Key);
+            if (existing != null)
+            {
+                existing.ConfigValue = kv.Value;
+                existing.UpdatedAt = vnNow;
+                existing.UpdatedBy = actor;
+            }
+            else
+            {
+                _context.TbCmsConfigs.Add(new TbCmsConfig
+                {
+                    ConfigKey = kv.Key,
+                    ConfigValue = kv.Value,
+                    Description = ClubSettingsService.AllowedCmsKeys[kv.Key],
+                    UpdatedAt = vnNow,
+                    UpdatedBy = actor
+                });
+            }
+        }
+
+        _context.TbAuditLogs.Add(new TbAuditLog
+        {
+            Action = "CMS_CONFIG_UPDATED",
+            EntityType = "CmsConfig",
+            EntityId = "GLOBAL",
+            ActorAccountId = Function._AccountId,
+            ActorUsername = actor,
+            Details = $"Keys={string.Join(',', updates.Keys)}",
+            IpAddress = ClientIp,
+            CreatedAt = vnNow
+        });
+
+        await _context.SaveChangesAsync();
+        var refreshed = await _settingsService.GetSettingsAsync(_context);
+
+        return Ok(new
+        {
+            ok = true,
+            pricingVersion = refreshed.PricingVersion,
+            openTime = refreshed.OpenTime,
+            closeTime = refreshed.CloseTime,
+            openHours = $"{refreshed.OpenTime} – {refreshed.CloseTime}",
+            peakStart = refreshed.PeakStart,
+            courtPrice = refreshed.BaseCourtPrice,
+            peakSurcharge = refreshed.PeakSurchargePerHour
+        });
+    }
+
+    // ================================================================
+    // BOOKING QUOTE, CREATE, REAL QR & SECURE LOOKUP (P0-07, P0-08, P1-01, P1-08..12)
+    // ================================================================
+
+    [HttpGet("/api/bookings/quote")]
+    public async Task<IActionResult> GetBookingQuoteGet(
+        [FromQuery] int courtId = 1,
+        [FromQuery] string time = "17:00",
+        [FromQuery] double duration = 60)
+    {
+        return await ComputeQuoteResponseAsync(courtId, time, duration);
+    }
+
+    [ValidateAntiForgeryToken]
     [HttpPost("/api/bookings/quote")]
-    public async Task<IActionResult> GetBookingQuote([FromBody] JsonElement payload)
+    public async Task<IActionResult> GetBookingQuotePost([FromBody] JsonElement payload)
     {
         int courtId = payload.TryGetProperty("courtId", out var cEl) && cEl.TryGetInt32(out int cid) ? cid : 1;
         string time = payload.TryGetProperty("time", out var tEl) ? (tEl.GetString() ?? "17:00") : "17:00";
         double rawDur = payload.TryGetProperty("duration", out var dEl) && dEl.TryGetDouble(out double d) ? d : 60;
-        string phone = payload.TryGetProperty("phone", out var pEl) ? (pEl.GetString() ?? "") : "";
+        return await ComputeQuoteResponseAsync(courtId, time, rawDur);
+    }
 
-        int durationMinutes = BookingService.NormalizeDurationMinutes(rawDur);
+    private async Task<IActionResult> ComputeQuoteResponseAsync(int courtId, string time, double rawDuration)
+    {
+        int durationMinutes = rawDuration <= 8
+            ? (int)Math.Round(rawDuration * 60, MidpointRounding.AwayFromZero)
+            : (int)Math.Round(rawDuration, MidpointRounding.AwayFromZero);
+
         if (durationMinutes < 30 || durationMinutes > 480 || durationMinutes % 30 != 0)
         {
             return BadRequest(new { ok = false, error = "Thời lượng đặt sân phải từ 30 đến 480 phút (bội số 30 phút)." });
         }
 
-        var court = await _context.TbCourts.FirstOrDefaultAsync(c => c.CourtId == courtId);
+        var court = await _context.TbCourts.AsNoTracking().FirstOrDefaultAsync(c => c.CourtId == courtId && c.IsActive);
         if (court == null)
         {
             return NotFound(new { ok = false, error = "Không tìm thấy sân thi đấu." });
         }
 
-        int? currentAccountId = Function.IsLogin() ? Function._AccountId : null;
-        int? currentRoleId = Function.IsLogin() ? Function._RoleId : null;
+        var settings = await _settingsService.GetSettingsAsync(_context);
+        bool isAuthenticatedMember = Function.IsLogin() && Function._AccountId > 0;
+        int verifiedSpend = 0;
         string? explicitTier = null;
 
-        if (currentAccountId != null)
+        if (isAuthenticatedMember)
         {
-            var acc = await _context.TbAccounts.FindAsync(currentAccountId.Value);
-            explicitTier = acc?.MemberTier;
-            if (string.IsNullOrEmpty(phone)) phone = acc?.Phone ?? "";
+            var acc = await _context.TbAccounts.AsNoTracking()
+                .FirstOrDefaultAsync(a => a.AccountId == Function._AccountId && a.IsActive);
+            if (acc != null)
+            {
+                explicitTier = acc.MemberTier;
+                verifiedSpend = await _pricingService.GetVerifiedAccountNetPaidSpendAsync(_context, acc.AccountId);
+            }
+            else
+            {
+                isAuthenticatedMember = false;
+            }
         }
 
-        int verifiedSpend = await _pricingService.GetVerifiedCustomerPaidSpendAsync(_context, currentAccountId, BookingService.NormalizePhone(phone));
-        var quote = _pricingService.CalculateQuote(court, time, durationMinutes, verifiedSpend, currentRoleId, explicitTier);
+        var quote = _pricingService.CalculateQuote(
+            court,
+            time,
+            durationMinutes,
+            posTotal: 0,
+            verifiedPaidSpend: verifiedSpend,
+            explicitMemberTier: explicitTier,
+            settings: settings,
+            isAuthenticatedMember: isAuthenticatedMember);
+
+        return Ok(new { ok = true, quote });
+    }
+
+    [ValidateAntiForgeryToken]
+    [HttpPost("/api/bookings")]
+    public async Task<IActionResult> CreateBooking([FromBody] JsonElement payload)
+    {
+        int courtId = payload.TryGetProperty("courtId", out var cEl) && cEl.TryGetInt32(out int cid) ? cid : 0;
+        string customerName = payload.TryGetProperty("customerName", out var cnEl)
+            ? (cnEl.GetString() ?? string.Empty)
+            : (payload.TryGetProperty("name", out var nEl) ? (nEl.GetString() ?? string.Empty) : string.Empty);
+        string phone = payload.TryGetProperty("customerPhone", out var cpEl)
+            ? (cpEl.GetString() ?? string.Empty)
+            : (payload.TryGetProperty("phone", out var pEl) ? (pEl.GetString() ?? string.Empty) : string.Empty);
+        string date = payload.TryGetProperty("bookingDate", out var bdEl)
+            ? (bdEl.GetString() ?? string.Empty)
+            : (payload.TryGetProperty("date", out var dEl) ? (dEl.GetString() ?? string.Empty) : string.Empty);
+        string startTime = payload.TryGetProperty("startTime", out var stEl)
+            ? (stEl.GetString() ?? string.Empty)
+            : (payload.TryGetProperty("time", out var tEl) ? (tEl.GetString() ?? string.Empty) : string.Empty);
+
+        double rawDur = payload.TryGetProperty("duration", out var durEl) && durEl.TryGetDouble(out double dVal) ? dVal : 60;
+        int durationMins = rawDur <= 8
+            ? (int)Math.Round(rawDur * 60, MidpointRounding.AwayFromZero)
+            : (int)Math.Round(rawDur, MidpointRounding.AwayFromZero);
+
+        int players = payload.TryGetProperty("players", out var plEl) && plEl.TryGetInt32(out int pl) ? pl : 4;
+        string? skillLevel = payload.TryGetProperty("skillLevel", out var skEl) ? skEl.GetString() : null;
+        string? paymentMethod = payload.TryGetProperty("paymentMethod", out var pmEl) ? pmEl.GetString() : "cash";
+        string? idempotencyKey = payload.TryGetProperty("idempotencyKey", out var ikEl) ? ikEl.GetString() : null;
+        string? expectedPricingVersion = payload.TryGetProperty("pricingVersion", out var pvEl) ? pvEl.GetString() : null;
+        int? expectedAmountDue = payload.TryGetProperty("expectedAmountDue", out var eaEl) && eaEl.TryGetInt32(out int ea) ? ea : null;
+
+        bool isStaffOrAdmin = Function.IsStaffOrAdmin();
+        bool autoApproveWalkIn = isStaffOrAdmin &&
+                                 payload.TryGetProperty("autoApprove", out var aaEl) &&
+                                 aaEl.ValueKind == JsonValueKind.True;
+
+        var input = new BookingCreateInput
+        {
+            CourtId = courtId,
+            CustomerName = customerName,
+            Phone = phone,
+            BookingDate = date,
+            StartTime = startTime,
+            Duration = durationMins,
+            Players = players,
+            SkillLevel = skillLevel,
+            PaymentMethod = paymentMethod,
+            AccountId = Function.IsLogin() ? Function._AccountId : null,
+            ActorRoleId = Function.IsLogin() ? Function._RoleId : null,
+            AutoApproveWalkIn = autoApproveWalkIn,
+            IdempotencyKey = idempotencyKey,
+            ExpectedPricingVersion = expectedPricingVersion,
+            ExpectedAmountDue = expectedAmountDue,
+            IpAddress = ClientIp
+        };
+
+        var result = await _bookingService.CreateBookingAsync(_context, input);
+        if (!result.Success || result.Booking == null)
+        {
+            return StatusCode(result.StatusCode, new
+            {
+                ok = false,
+                error = result.ErrorMessage,
+                latestQuote = result.Quote
+            });
+        }
+
+        if (result.Booking.Court == null)
+        {
+            result.Booking.Court = await _context.TbCourts.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.CourtId == result.Booking.CourtId);
+        }
 
         return Ok(new
         {
             ok = true,
-            quote
+            deduplicated = result.IsIdempotentReplay,
+            guestAccessToken = result.GuestAccessToken,
+            booking = MapOwnerOrStaffBookingDto(result.Booking, result.GuestAccessToken, embedQrSvg: true)
         });
     }
 
-    [HttpPost("/api/bookings")]
-    public async Task<IActionResult> CreateBooking([FromBody] CreateBookingRequest request)
+    private bool CallerCanAccessBookingTicket(TbBooking booking, string? accessToken)
     {
-        int? currentAccountId = Function.IsLogin() ? Function._AccountId : null;
-        int? currentRoleId = Function.IsLogin() ? Function._RoleId : null;
-        bool isStaffOrAdmin = Function.IsStaffOrAdmin();
-
-        var result = await _bookingService.CreateBookingAsync(request, currentAccountId, currentRoleId, isStaffOrAdmin);
-        if (!result.Success)
+        if (Function.IsStaffOrAdmin())
         {
-            return StatusCode(result.StatusCode, new { ok = false, error = result.ErrorMessage });
+            return true;
         }
 
-        return Ok(new
+        if (Function.IsLogin() && booking.AccountId.HasValue && booking.AccountId.Value == Function._AccountId)
         {
-            ok = true,
-            booking = MapBookingDto(result.Data!, includePiiAndQr: true)
-        });
+            return true;
+        }
+
+        string? providedToken = !string.IsNullOrWhiteSpace(accessToken)
+            ? accessToken.Trim()
+            : Request.Headers["X-Booking-Access-Token"].FirstOrDefault()?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(providedToken))
+        {
+            if (providedToken.StartsWith("SPK1.", StringComparison.Ordinal))
+            {
+                return string.Equals(booking.CheckInToken, providedToken, StringComparison.Ordinal) &&
+                       _qrTokenService.TryValidateCheckInToken(providedToken, out _, out _, out _);
+            }
+
+            return QrTokenService.VerifyGuestAccessToken(providedToken, booking.AccessTokenHash);
+        }
+
+        return false;
+    }
+
+    [HttpGet("/api/bookings/{code}/qr.svg")]
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    public async Task<IActionResult> GetBookingQrSvg(string code, [FromQuery] string? accessToken = null)
+    {
+        var booking = await BookingService.FindBookingAsync(_context, code);
+        if (booking == null)
+        {
+            return NotFound();
+        }
+
+        if (!CallerCanAccessBookingTicket(booking, accessToken))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        string qrToken = !string.IsNullOrWhiteSpace(booking.CheckInToken)
+            ? booking.CheckInToken
+            : _qrTokenService.GenerateCheckInToken(booking.BookingCode, booking.BookingDate, DateTime.UtcNow.AddDays(30));
+
+        string svg = _qrTokenService.GenerateQrSvg(qrToken, 6);
+        return Content(svg, "image/svg+xml; charset=utf-8");
+    }
+
+    [HttpGet("/api/bookings/{code}/qr.png")]
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    public async Task<IActionResult> GetBookingQrPng(string code, [FromQuery] string? accessToken = null)
+    {
+        var booking = await BookingService.FindBookingAsync(_context, code);
+        if (booking == null)
+        {
+            return NotFound();
+        }
+
+        if (!CallerCanAccessBookingTicket(booking, accessToken))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        string qrToken = !string.IsNullOrWhiteSpace(booking.CheckInToken)
+            ? booking.CheckInToken
+            : _qrTokenService.GenerateCheckInToken(booking.BookingCode, booking.BookingDate, DateTime.UtcNow.AddDays(30));
+
+        byte[] pngBytes = _qrTokenService.GenerateQrPngBytes(qrToken, 8);
+        return File(pngBytes, "image/png", $"{booking.BookingCode}-QR.png");
     }
 
     [Authorize]
     [HttpGet("/api/bookings/me")]
     public async Task<IActionResult> GetMyBookings()
     {
-        await _bookingService.ReconcileBookingStatusesAsync();
         int accountId = Function._AccountId;
-        string phone = BookingService.NormalizePhone(Function._Phone);
-
         var myBookings = await _context.TbBookings
+            .AsNoTracking()
             .Include(b => b.Court)
-            .Where(b => b.AccountId == accountId || (!string.IsNullOrEmpty(phone) && b.Phone == phone))
+            .Where(b => b.AccountId == accountId)
             .OrderByDescending(b => b.BookingDate)
             .ThenByDescending(b => b.StartTime)
             .ToListAsync();
@@ -407,53 +808,72 @@ public class ApiDbController : ControllerBase
         return Ok(new
         {
             ok = true,
-            bookings = myBookings.Select(b => MapBookingDto(b, includePiiAndQr: true)).ToList()
+            bookings = myBookings.Select(b => MapOwnerOrStaffBookingDto(b, embedQrSvg: true)).ToList()
         });
     }
 
     /// <summary>
-    /// P0-07: Secure Lookup.
-    /// - Admin/Staff can search by code OR phone OR view all.
-    /// - Authenticated Customer sees their own bookings automatically, or can look up a guest booking only with matching Code + Phone.
-    /// - Anonymous Guest MUST supply BOTH BookingCode AND matching Phone (or a valid signed QR token).
+    /// P0-07 & P1-12: Secure Booking Lookup.
+    /// - Staff/Admin: search by code or phone across operational bookings.
+    /// - Authenticated Customer: sees bookings strictly linked to AccountId == currentAccountId (NEVER phone!).
+    /// - Guest (or looking up a guest booking): MUST supply BookingCode + secret BookingAccessToken (or signed SPK1 QR token).
+    ///   Self-declared phone number NEVER grants lookup access!
     /// </summary>
     [HttpGet("/api/bookings/lookup")]
     [EnableRateLimiting("AuthAndLookup")]
-    public async Task<IActionResult> LookupBookings([FromQuery] string? code, [FromQuery] string? phone)
+    public async Task<IActionResult> LookupBookings(
+        [FromQuery] string? code,
+        [FromQuery] string? accessToken,
+        [FromQuery] string? phone)
     {
-        await _bookingService.ReconcileBookingStatusesAsync();
-
         bool isStaffOrAdmin = Function.IsStaffOrAdmin();
-        string cleanCode = (code ?? "").Trim().ToUpperInvariant();
-        string cleanPhone = BookingService.NormalizePhone(phone);
+        string cleanCode = (code ?? string.Empty).Trim();
+        string? effectiveAccessToken = !string.IsNullOrWhiteSpace(accessToken)
+            ? accessToken.Trim()
+            : Request.Headers["X-Booking-Access-Token"].FirstOrDefault()?.Trim();
 
-        // If user pasted a signed QR token into the code box
-        if (cleanCode.StartsWith("SPK1.", StringComparison.OrdinalIgnoreCase))
+        // Signed QR token pasted into code or accessToken field
+        string? candidateQr = cleanCode.StartsWith("SPK1.", StringComparison.Ordinal) ? cleanCode
+            : (effectiveAccessToken != null && effectiveAccessToken.StartsWith("SPK1.", StringComparison.Ordinal) ? effectiveAccessToken : null);
+
+        if (candidateQr != null)
         {
-            var qrCheck = _qrTokenService.ValidateToken(cleanCode);
-            if (qrCheck.IsValid)
+            if (!_qrTokenService.TryValidateCheckInToken(candidateQr, out string qrBookingCode, out _, out string qrErr))
             {
-                var qrBooking = await _context.TbBookings
-                    .Include(b => b.Court)
-                    .FirstOrDefaultAsync(b => b.BookingCode == qrCheck.BookingCode);
-                if (qrBooking != null)
-                {
-                    return Ok(new { ok = true, bookings = new[] { MapBookingDto(qrBooking, includePiiAndQr: true) } });
-                }
+                return BadRequest(new { ok = false, error = qrErr });
             }
+
+            var qrBooking = await _context.TbBookings
+                .AsNoTracking()
+                .Include(b => b.Court)
+                .FirstOrDefaultAsync(b => b.BookingCode == qrBookingCode);
+
+            if (qrBooking == null || !string.Equals(qrBooking.CheckInToken, candidateQr, StringComparison.Ordinal))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { ok = false, error = "Mã QR không hợp lệ hoặc đã bị thu hồi." });
+            }
+
+            return Ok(new
+            {
+                ok = true,
+                bookings = new[] { MapOwnerOrStaffBookingDto(qrBooking, candidateQr, embedQrSvg: true) }
+            });
         }
 
         if (isStaffOrAdmin)
         {
-            var query = _context.TbBookings.Include(b => b.Court).AsQueryable();
+            var query = _context.TbBookings.AsNoTracking().Include(b => b.Court).AsQueryable();
             if (!string.IsNullOrEmpty(cleanCode))
             {
-                query = query.Where(b => b.BookingCode.ToUpper().Contains(cleanCode));
+                string upper = cleanCode.ToUpperInvariant();
+                query = query.Where(b => b.BookingCode.ToUpper().Contains(upper));
             }
-            if (!string.IsNullOrEmpty(cleanPhone))
+            if (!string.IsNullOrWhiteSpace(phone))
             {
+                string cleanPhone = BookingService.NormalizePhone(phone);
                 query = query.Where(b => b.Phone != null && b.Phone.Contains(cleanPhone));
             }
+
             var staffResults = await query
                 .OrderByDescending(b => b.BookingDate)
                 .ThenBy(b => b.StartTime)
@@ -463,92 +883,103 @@ public class ApiDbController : ControllerBase
             return Ok(new
             {
                 ok = true,
-                bookings = staffResults.Select(b => MapBookingDto(b, includePiiAndQr: true)).ToList()
+                bookings = staffResults.Select(b => MapOwnerOrStaffBookingDto(b, embedQrSvg: true)).ToList()
             });
         }
 
-        // Non-admin caller:
-        if (string.IsNullOrEmpty(cleanCode) && string.IsNullOrEmpty(cleanPhone))
+        // Logged-in member viewing their own bookings when no guest token is supplied
+        if (Function.IsLogin() && string.IsNullOrWhiteSpace(effectiveAccessToken))
         {
-            if (Function.IsLogin())
+            int accId = Function._AccountId;
+            if (string.IsNullOrEmpty(cleanCode))
             {
                 return await GetMyBookings();
             }
-            return BadRequest(new { ok = false, error = "Vui lòng nhập đồng thời Mã đặt sân (PB-XXXXXX) và Số điện thoại đặt sân để tra cứu bảo mật." });
-        }
 
-        // If logged-in customer searches within their own bookings by code or phone
-        if (Function.IsLogin())
-        {
-            int accId = Function._AccountId;
-            string myPhone = BookingService.NormalizePhone(Function._Phone);
-
-            var ownMatches = await _context.TbBookings
+            string upperCode = cleanCode.ToUpperInvariant();
+            var target = await _context.TbBookings
+                .AsNoTracking()
                 .Include(b => b.Court)
-                .Where(b => (b.AccountId == accId || (!string.IsNullOrEmpty(myPhone) && b.Phone == myPhone)) &&
-                            (string.IsNullOrEmpty(cleanCode) || b.BookingCode.ToUpper() == cleanCode) &&
-                            (string.IsNullOrEmpty(cleanPhone) || b.Phone == cleanPhone))
-                .OrderByDescending(b => b.BookingDate)
-                .ToListAsync();
+                .FirstOrDefaultAsync(b => b.BookingCode == upperCode);
 
-            if (ownMatches.Count > 0)
+            if (target == null)
             {
-                return Ok(new
+                return NotFound(new { ok = false, error = "Không tìm thấy mã đặt sân này." });
+            }
+
+            if (target.AccountId != accId)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
                 {
-                    ok = true,
-                    bookings = ownMatches.Select(b => MapBookingDto(b, includePiiAndQr: true)).ToList()
+                    ok = false,
+                    error = "Vé này không thuộc tài khoản đang đăng nhập. Nếu đây là vé đặt vãng lai, vui lòng nhập kèm Mã bảo mật vé (bk_...)."
                 });
             }
+
+            return Ok(new
+            {
+                ok = true,
+                bookings = new[] { MapOwnerOrStaffBookingDto(target, embedQrSvg: true) }
+            });
         }
 
-        // Guest lookup requires BOTH bookingCode AND matching phone (P0-07)
-        if (string.IsNullOrEmpty(cleanCode) || string.IsNullOrEmpty(cleanPhone))
+        // Guest lookup MUST provide both BookingCode AND cryptographic BookingAccessToken (NEVER phone!)
+        if (string.IsNullOrEmpty(cleanCode) || string.IsNullOrWhiteSpace(effectiveAccessToken))
         {
             return BadRequest(new
             {
                 ok = false,
-                error = "Để bảo mật thông tin khách hàng, vui lòng nhập đầy đủ cả Mã đặt sân (VD: PB-XXXXXX) VÀ Số điện thoại đã dùng khi đặt sân."
+                error = "Khách vãng lai cần nhập đồng thời Mã đặt sân (PB-XXXXXX) VÀ Mã bảo mật vé (bk_...) được cấp khi đặt sân. (Số điện thoại không được dùng để xác thực quyền sở hữu vé)."
             });
         }
 
-        var exactMatch = await _context.TbBookings
+        string lookupUpper = cleanCode.ToUpperInvariant();
+        var guestBooking = await _context.TbBookings
+            .AsNoTracking()
             .Include(b => b.Court)
-            .Where(b => b.BookingCode.ToUpper() == cleanCode && b.Phone == cleanPhone)
-            .ToListAsync();
+            .FirstOrDefaultAsync(b => b.BookingCode == lookupUpper);
+
+        if (guestBooking == null || !QrTokenService.VerifyGuestAccessToken(effectiveAccessToken, guestBooking.AccessTokenHash))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                ok = false,
+                error = "Mã đặt sân hoặc Mã bảo mật vé không chính xác!"
+            });
+        }
 
         return Ok(new
         {
             ok = true,
-            bookings = exactMatch.Select(b => MapBookingDto(b, includePiiAndQr: true)).ToList()
+            bookings = new[] { MapOwnerOrStaffBookingDto(guestBooking, effectiveAccessToken, embedQrSvg: true) }
         });
     }
 
+    [ValidateAntiForgeryToken]
     [HttpPost("/api/bookings/{code}/cancel")]
     public async Task<IActionResult> CancelBooking(string code, [FromBody] JsonElement payload)
     {
-        string? phone = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("phone", out var pEl)
-            ? pEl.GetString()
-            : null;
+        string? accessToken = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("accessToken", out var atEl)
+            ? atEl.GetString()
+            : Request.Headers["X-Booking-Access-Token"].FirstOrDefault();
+
         string? reason = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("reason", out var rEl)
             ? rEl.GetString()
             : null;
 
         int? callerAccountId = Function.IsLogin() ? Function._AccountId : null;
-        string? callerPhone = !string.IsNullOrWhiteSpace(phone)
-            ? phone
-            : (Function.IsLogin() ? Function._Phone : null);
-        bool isStaffOrAdmin = Function.IsStaffOrAdmin();
-        string actor = Function.IsLogin() ? Function._Username : (callerPhone ?? "Guest");
+        int? callerRoleId = Function.IsLogin() ? Function._RoleId : null;
 
         var result = await _bookingService.CancelBookingAsync(
+            _context,
             code.Trim().ToUpperInvariant(),
             callerAccountId,
-            callerPhone,
-            isStaffOrAdmin,
+            callerRoleId,
+            accessToken,
             reason,
-            actor);
+            ClientIp);
 
-        if (!result.Success)
+        if (!result.Success || result.Booking == null)
         {
             return StatusCode(result.StatusCode, new { ok = false, error = result.ErrorMessage });
         }
@@ -556,182 +987,448 @@ public class ApiDbController : ControllerBase
         return Ok(new
         {
             ok = true,
-            booking = MapBookingDto(result.Data!, includePiiAndQr: true)
+            booking = MapOwnerOrStaffBookingDto(result.Booking, accessToken)
         });
     }
 
     // ================================================================
-    // ADMIN / STAFF OPERATIONAL ENDPOINTS (Management, CheckIn, POS)
+    // ADMIN / STAFF OPERATIONAL, QR DECODE, CHECK-IN & PAYMENT LEDGER
     // ================================================================
 
     [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
     [HttpPost("/api/admin/bookings/{code}/approve")]
     public async Task<IActionResult> ApproveBookingApi(string code)
     {
-        var res = await _bookingService.ApproveBookingAsync(code.Trim().ToUpperInvariant(), Function._Username);
-        if (!res.Success)
+        var res = await _bookingService.ApproveBookingAsync(
+            _context,
+            code.Trim().ToUpperInvariant(),
+            Function._AccountId,
+            Function._Username,
+            ClientIp);
+
+        if (!res.Success || res.Booking == null)
         {
             return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
         }
-        return Ok(new { ok = true, booking = MapBookingDto(res.Data!, includePiiAndQr: true) });
+
+        return Ok(new { ok = true, booking = MapOwnerOrStaffBookingDto(res.Booking) });
     }
 
     [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
     [HttpPost("/api/admin/bookings/{code}/reject")]
     public async Task<IActionResult> RejectBookingApi(string code, [FromBody] JsonElement payload)
     {
         string? reason = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("reason", out var rEl)
             ? rEl.GetString()
-            : "REJECT";
+            : "rejected";
 
         var res = await _bookingService.CancelBookingAsync(
+            _context,
             code.Trim().ToUpperInvariant(),
             Function._AccountId,
-            null,
-            isStaffOrAdmin: true,
-            cancelReason: string.IsNullOrWhiteSpace(reason) ? "REJECT" : reason,
-            actorUsername: Function._Username);
+            Function._RoleId,
+            guestAccessToken: null,
+            reason: string.IsNullOrWhiteSpace(reason) ? "rejected" : reason,
+            ipAddress: ClientIp);
 
-        if (!res.Success)
+        if (!res.Success || res.Booking == null)
         {
             return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
         }
-        return Ok(new { ok = true, booking = MapBookingDto(res.Data!, includePiiAndQr: true) });
+
+        return Ok(new { ok = true, booking = MapOwnerOrStaffBookingDto(res.Booking) });
     }
 
     [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("CheckInLimiter")]
     [HttpPost("/api/checkin/verify")]
     [HttpPost("/api/admin/bookings/checkin")]
     public async Task<IActionResult> CheckInVerifyApi([FromBody] JsonElement payload)
     {
         string tokenOrCode = payload.TryGetProperty("tokenOrCode", out var tEl)
-            ? (tEl.GetString() ?? "")
-            : (payload.TryGetProperty("code", out var cEl) ? (cEl.GetString() ?? "") : "");
+            ? (tEl.GetString() ?? string.Empty)
+            : (payload.TryGetProperty("code", out var cEl) ? (cEl.GetString() ?? string.Empty) : string.Empty);
 
-        bool allowManual = !payload.TryGetProperty("requireSignedQr", out var reqEl) || reqEl.ValueKind != JsonValueKind.True;
+        var res = await _bookingService.CheckInBookingAsync(
+            _context,
+            tokenOrCode,
+            Function._AccountId,
+            Function._Username,
+            ClientIp);
 
-        var res = await _bookingService.CheckInBookingAsync(tokenOrCode, Function._Username, allowManual);
-        if (!res.Success)
+        if (!res.Success || res.Booking == null)
         {
             return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+        }
+
+        if (res.Booking.Court == null)
+        {
+            res.Booking.Court = await _context.TbCourts.AsNoTracking().FirstOrDefaultAsync(c => c.CourtId == res.Booking.CourtId);
         }
 
         return Ok(new
         {
             ok = true,
-            booking = MapBookingDto(res.Data!, includePiiAndQr: true)
+            booking = MapOwnerOrStaffBookingDto(res.Booking)
+        });
+    }
+
+    /// <summary>
+    /// P1-01 & P1-07: Real independent server-side QR decoder (ZXing.Net + ImageSharp) for uploaded ticket images or camera frames.
+    /// </summary>
+    [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("CheckInLimiter")]
+    [HttpPost("/api/checkin/decode-qr")]
+    public async Task<IActionResult> DecodeQrImageApi([FromForm] IFormFile? file, [FromForm] bool autoVerify = true)
+    {
+        byte[]? imageBytes = null;
+
+        if (file != null && file.Length > 0)
+        {
+            if (file.Length > 8 * 1024 * 1024)
+            {
+                return BadRequest(new { ok = false, error = "Tệp ảnh tải lên vượt quá 8MB." });
+            }
+
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+            imageBytes = ms.ToArray();
+        }
+        else if (Request.ContentType != null && Request.ContentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
+        {
+            using var doc = await JsonDocument.ParseAsync(Request.Body);
+            if (doc.RootElement.TryGetProperty("autoVerify", out var avEl) &&
+                (avEl.ValueKind == JsonValueKind.True || avEl.ValueKind == JsonValueKind.False))
+            {
+                autoVerify = avEl.GetBoolean();
+            }
+
+            if (doc.RootElement.TryGetProperty("imageBase64", out var b64El))
+            {
+                string rawB64 = b64El.GetString() ?? string.Empty;
+                int commaIdx = rawB64.IndexOf(',');
+                if (commaIdx >= 0)
+                {
+                    rawB64 = rawB64[(commaIdx + 1)..];
+                }
+                try
+                {
+                    imageBytes = Convert.FromBase64String(rawB64);
+                }
+                catch
+                {
+                    return BadRequest(new { ok = false, error = "Dữ liệu ảnh Base64 không hợp lệ." });
+                }
+            }
+        }
+
+        if (imageBytes == null || imageBytes.Length == 0)
+        {
+            return BadRequest(new { ok = false, error = "Vui lòng chọn tệp ảnh mã QR (PNG, JPG, WebP) hoặc chụp khung hình từ Camera." });
+        }
+
+        if (!QrTokenService.TryDecodeQrImage(imageBytes, out string decodedText, out string decodeErr))
+        {
+            return UnprocessableEntity(new { ok = false, error = decodeErr });
+        }
+
+        if (!autoVerify)
+        {
+            return Ok(new { ok = true, decodedText });
+        }
+
+        var res = await _bookingService.CheckInBookingAsync(
+            _context,
+            decodedText,
+            Function._AccountId,
+            Function._Username,
+            ClientIp);
+
+        if (!res.Success || res.Booking == null)
+        {
+            return StatusCode(res.StatusCode, new
+            {
+                ok = false,
+                decodedText,
+                error = res.ErrorMessage
+            });
+        }
+
+        if (res.Booking.Court == null)
+        {
+            res.Booking.Court = await _context.TbCourts.AsNoTracking().FirstOrDefaultAsync(c => c.CourtId == res.Booking.CourtId);
+        }
+
+        return Ok(new
+        {
+            ok = true,
+            decodedText,
+            booking = MapOwnerOrStaffBookingDto(res.Booking)
         });
     }
 
     [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
     [HttpPost("/api/admin/bookings/{code}/extend")]
     public async Task<IActionResult> ExtendBookingApi(string code, [FromBody] JsonElement payload)
     {
         int addMinutes = payload.TryGetProperty("addMinutes", out var mEl) && mEl.TryGetInt32(out int m) ? m : 30;
-        var res = await _bookingService.ExtendBookingAsync(code.Trim().ToUpperInvariant(), addMinutes, Function._Username);
-        if (!res.Success)
+        var res = await _bookingService.ExtendBookingDurationAsync(
+            _context,
+            code.Trim().ToUpperInvariant(),
+            addMinutes,
+            Function._AccountId,
+            Function._Username);
+
+        if (!res.Success || res.Booking == null)
         {
             return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
         }
-        return Ok(new { ok = true, booking = MapBookingDto(res.Data!, includePiiAndQr: true) });
+
+        return Ok(new { ok = true, booking = MapOwnerOrStaffBookingDto(res.Booking) });
     }
 
     [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
+    [HttpPost("/api/admin/bookings/{code}/move-court")]
+    public async Task<IActionResult> MoveBookingCourtApi(string code, [FromBody] JsonElement payload)
+    {
+        int targetCourtId = payload.TryGetProperty("targetCourtId", out var cEl) && cEl.TryGetInt32(out int cid) ? cid : 0;
+        var res = await _bookingService.MoveBookingCourtAsync(
+            _context,
+            code.Trim().ToUpperInvariant(),
+            targetCourtId,
+            Function._AccountId,
+            Function._Username);
+
+        if (!res.Success || res.Booking == null)
+        {
+            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+        }
+
+        return Ok(new { ok = true, booking = MapOwnerOrStaffBookingDto(res.Booking) });
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
     [HttpPost("/api/admin/bookings/{code}/pos-item")]
     public async Task<IActionResult> UpdatePosItemApi(string code, [FromBody] JsonElement payload)
     {
         int productId = payload.TryGetProperty("productId", out var pEl) && pEl.TryGetInt32(out int pid) ? pid : 0;
         int deltaQty = payload.TryGetProperty("deltaQty", out var qEl) && qEl.TryGetInt32(out int dq) ? dq : 1;
 
-        var res = await _bookingService.AddPosItemToBookingAsync(code.Trim().ToUpperInvariant(), productId, deltaQty, Function._Username);
-        if (!res.Success)
+        var res = await _bookingService.AddPosItemToBookingAsync(
+            _context,
+            code.Trim().ToUpperInvariant(),
+            productId,
+            deltaQty,
+            Function._AccountId,
+            Function._Username);
+
+        if (!res.Success || res.Booking == null)
         {
             return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
         }
-        return Ok(new { ok = true, booking = MapBookingDto(res.Data!, includePiiAndQr: true) });
+
+        return Ok(new { ok = true, booking = MapOwnerOrStaffBookingDto(res.Booking) });
     }
 
+    /// <summary>
+    /// P1-04 & P1-05: Finishes a playing court session ONLY. PaidAmount & ledger remain completely untouched!
+    /// </summary>
     [Authorize(Roles = "Admin,Staff")]
-    [HttpPost("/api/admin/bookings/{code}/checkout")]
-    public async Task<IActionResult> CheckoutBookingApi(string code, [FromBody] JsonElement payload)
+    [ValidateAntiForgeryToken]
+    [HttpPost("/api/admin/bookings/{code}/finish")]
+    public async Task<IActionResult> FinishBookingSessionApi(string code)
     {
-        int amount = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("amount", out var aEl) && aEl.TryGetInt32(out int a) ? a : 0;
-        string method = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("paymentMethod", out var mEl)
-            ? (mEl.GetString() ?? "cash")
-            : "cash";
-        bool markCompleted = !payload.TryGetProperty("markCompleted", out var mcEl) || mcEl.ValueKind != JsonValueKind.False;
-        string? note = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("note", out var nEl)
-            ? nEl.GetString()
-            : null;
+        var res = await _bookingService.FinishBookingSessionAsync(
+            _context,
+            code.Trim().ToUpperInvariant(),
+            Function._AccountId,
+            Function._Username,
+            ClientIp);
+
+        if (!res.Success || res.Booking == null)
+        {
+            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+        }
+
+        return Ok(new { ok = true, booking = MapOwnerOrStaffBookingDto(res.Booking) });
+    }
+
+    /// <summary>
+    /// P1-04 & P1-05: Records an explicit, idempotent cash/transfer payment in TbPaymentTransaction.
+    /// </summary>
+    [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
+    [HttpPost("/api/admin/bookings/{code}/payments")]
+    public async Task<IActionResult> RecordBookingPaymentApi(string code, [FromBody] JsonElement payload)
+    {
+        int amount = payload.TryGetProperty("amount", out var aEl) && aEl.TryGetInt32(out int a) ? a : 0;
+        string method = payload.TryGetProperty("paymentMethod", out var mEl) ? (mEl.GetString() ?? "cash") : "cash";
+        string? referenceCode = payload.TryGetProperty("referenceCode", out var refEl) ? refEl.GetString() : null;
+        string? note = payload.TryGetProperty("note", out var nEl) ? nEl.GetString() : null;
+        string? idempotencyKey = payload.TryGetProperty("idempotencyKey", out var ikEl) ? ikEl.GetString() : null;
 
         var res = await _bookingService.RecordBookingPaymentAsync(
+            _context,
             code.Trim().ToUpperInvariant(),
             amount,
             method,
-            markCompleted,
+            referenceCode,
             note,
-            Function._Username);
+            idempotencyKey,
+            Function._AccountId,
+            Function._Username,
+            ClientIp);
 
-        if (!res.Success)
+        if (!res.Success || res.Booking == null)
         {
             return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
         }
-        return Ok(new { ok = true, booking = MapBookingDto(res.Data!, includePiiAndQr: true) });
+
+        // Optional convenience flag: ONLY AFTER payment succeeds, staff may also close an active playing session
+        if (payload.TryGetProperty("finishSessionAfterPayment", out var fsEl) &&
+            fsEl.ValueKind == JsonValueKind.True &&
+            res.Booking.Status == "playing")
+        {
+            await _bookingService.FinishBookingSessionAsync(
+                _context,
+                res.Booking.BookingCode,
+                Function._AccountId,
+                Function._Username,
+                ClientIp);
+        }
+
+        return Ok(new
+        {
+            ok = true,
+            deduplicated = res.IsIdempotentReplay,
+            transactionId = res.Transaction?.TransactionId,
+            referenceCode = res.Transaction?.ReferenceCode,
+            booking = MapOwnerOrStaffBookingDto(res.Booking)
+        });
+    }
+
+    /// <summary>
+    /// P1-04 & P1-05: Creates an immutable counter-entry refund transaction in TbPaymentTransaction.
+    /// </summary>
+    [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
+    [HttpPost("/api/admin/bookings/{code}/refunds")]
+    public async Task<IActionResult> RefundBookingPaymentApi(string code, [FromBody] JsonElement payload)
+    {
+        int amount = payload.TryGetProperty("amount", out var aEl) && aEl.TryGetInt32(out int a) ? a : 0;
+        string method = payload.TryGetProperty("paymentMethod", out var mEl) ? (mEl.GetString() ?? "cash") : "cash";
+        string? referenceCode = payload.TryGetProperty("referenceCode", out var refEl) ? refEl.GetString() : null;
+        string? reason = payload.TryGetProperty("reason", out var rEl) ? rEl.GetString() : null;
+        string? idempotencyKey = payload.TryGetProperty("idempotencyKey", out var ikEl) ? ikEl.GetString() : null;
+
+        var res = await _bookingService.RefundBookingPaymentAsync(
+            _context,
+            code.Trim().ToUpperInvariant(),
+            amount,
+            method,
+            referenceCode,
+            reason,
+            idempotencyKey,
+            Function._AccountId,
+            Function._Username,
+            ClientIp);
+
+        if (!res.Success || res.Booking == null)
+        {
+            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+        }
+
+        return Ok(new
+        {
+            ok = true,
+            deduplicated = res.IsIdempotentReplay,
+            transactionId = res.Transaction?.TransactionId,
+            booking = MapOwnerOrStaffBookingDto(res.Booking)
+        });
     }
 
     [Authorize(Roles = "Admin,Staff")]
+    [HttpGet("/api/admin/bookings/{code}/transactions")]
+    public async Task<IActionResult> GetBookingTransactionsApi(string code)
+    {
+        var booking = await BookingService.FindBookingAsync(_context, code);
+        if (booking == null)
+        {
+            return NotFound(new { ok = false, error = "Không tìm thấy đơn đặt sân." });
+        }
+
+        var rows = await _context.TbPaymentTransactions
+            .AsNoTracking()
+            .Where(t => t.BookingId == booking.BookingId)
+            .OrderByDescending(t => t.CreatedAt)
+            .Select(t => new
+            {
+                transactionId = t.TransactionId,
+                type = t.TransactionType,
+                amount = t.Amount,
+                method = t.PaymentMethod,
+                status = t.Status,
+                referenceCode = t.ReferenceCode,
+                note = t.Note,
+                recordedBy = t.RecordedBy,
+                createdAt = t.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")
+            })
+            .ToListAsync();
+
+        return Ok(new { ok = true, transactions = rows });
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
     [HttpPost("/api/admin/court-locks")]
     public async Task<IActionResult> CreateCourtLockApi([FromBody] JsonElement payload)
     {
         int courtId = payload.TryGetProperty("courtId", out var cEl) && cEl.TryGetInt32(out int cid) ? cid : 1;
-        string date = payload.TryGetProperty("date", out var dEl) ? (dEl.GetString() ?? "").Trim() : "";
+        string date = payload.TryGetProperty("date", out var dEl) ? (dEl.GetString() ?? string.Empty).Trim() : string.Empty;
         string startTime = payload.TryGetProperty("startTime", out var stEl) ? (stEl.GetString() ?? "08:00").Trim() : "08:00";
         int duration = payload.TryGetProperty("duration", out var durEl) && durEl.TryGetInt32(out int dur) && dur > 0 ? dur : 60;
-        string reason = payload.TryGetProperty("reason", out var rEl) ? (rEl.GetString() ?? "Bảo trì định kỳ").Trim() : "Bảo trì định kỳ";
+        string? reason = payload.TryGetProperty("reason", out var rEl) ? rEl.GetString() : "Bảo trì định kỳ";
 
-        if (string.IsNullOrEmpty(date))
+        var res = await _bookingService.CreateCourtLockAsync(
+            _context,
+            courtId,
+            date,
+            startTime,
+            duration,
+            reason,
+            Function._AccountId,
+            Function._Username,
+            ClientIp);
+
+        if (!res.Success || res.Lock == null)
         {
-            return BadRequest(new { ok = false, error = "Vui lòng chọn ngày khóa sân." });
+            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
         }
-
-        // P1-11: Verify no active booking conflicts with the requested maintenance lock
-        var conflict = await _bookingService.CheckSlotConflictAsync(courtId, date, startTime, duration);
-        if (conflict.HasConflict)
-        {
-            return Conflict(new { ok = false, error = $"Không thể khóa sân: {conflict.Message}" });
-        }
-
-        string lockCode = "LK-" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
-        var lockEntry = new TbCourtLock
-        {
-            LockCode = lockCode,
-            CourtId = courtId,
-            LockDate = date,
-            StartTime = startTime,
-            Duration = duration,
-            Reason = reason,
-            CreatedDate = BookingService.GetVietnamNow()
-        };
-
-        _context.TbCourtLocks.Add(lockEntry);
-        await _context.SaveChangesAsync();
 
         return Ok(new
         {
             ok = true,
             courtLock = new
             {
-                id = lockEntry.LockCode,
-                courtId = lockEntry.CourtId,
-                date = lockEntry.LockDate,
-                startTime = lockEntry.StartTime,
-                duration = lockEntry.Duration,
-                reason = lockEntry.Reason
+                id = res.Lock.LockCode,
+                courtId = res.Lock.CourtId,
+                date = res.Lock.LockDate,
+                startTime = res.Lock.StartTime,
+                duration = res.Lock.Duration,
+                reason = res.Lock.Reason
             }
         });
     }
 
     [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
     [HttpDelete("/api/admin/court-locks/{lockCode}")]
     public async Task<IActionResult> DeleteCourtLockApi(string lockCode)
     {
@@ -742,20 +1439,31 @@ public class ApiDbController : ControllerBase
         }
 
         _context.TbCourtLocks.Remove(lockEntry);
+        _context.TbAuditLogs.Add(new TbAuditLog
+        {
+            Action = "COURT_LOCK_DELETED",
+            EntityType = "CourtLock",
+            EntityId = lockCode,
+            ActorAccountId = Function._AccountId,
+            ActorUsername = Function._Username,
+            IpAddress = ClientIp,
+            CreatedAt = BookingService.GetVietnamNow()
+        });
         await _context.SaveChangesAsync();
         return Ok(new { ok = true });
     }
 
     // ================================================================
-    // AUTHENTICATION JSON ENDPOINTS (P0-01, P0-02, P0-09)
+    // AUTHENTICATION JSON ENDPOINTS (P0-01, P0-02, P0-09, P1-17)
     // ================================================================
 
+    [ValidateAntiForgeryToken]
     [HttpPost("/api/auth/login")]
     [EnableRateLimiting("AuthAndLookup")]
     public async Task<IActionResult> LoginApi([FromBody] JsonElement payload)
     {
-        string identifier = payload.TryGetProperty("identifier", out var idProp) ? (idProp.GetString() ?? "").Trim() : "";
-        string password = payload.TryGetProperty("password", out var pwProp) ? (pwProp.GetString() ?? "") : "";
+        string identifier = payload.TryGetProperty("identifier", out var idProp) ? (idProp.GetString() ?? string.Empty).Trim() : string.Empty;
+        string password = payload.TryGetProperty("password", out var pwProp) ? (pwProp.GetString() ?? string.Empty) : string.Empty;
 
         if (string.IsNullOrEmpty(identifier) || string.IsNullOrEmpty(password))
         {
@@ -763,13 +1471,14 @@ public class ApiDbController : ControllerBase
         }
 
         string lowerId = identifier.ToLowerInvariant();
+        string normPhone = BookingService.NormalizePhone(identifier);
+
         var account = await _context.TbAccounts
             .Include(a => a.Role)
             .FirstOrDefaultAsync(a =>
-                a.IsActive &&
-                ((a.Email != null && a.Email.ToLower() == lowerId) ||
-                 (a.Phone != null && a.Phone == identifier) ||
-                 (a.Username != null && a.Username.ToLower() == lowerId)));
+                (a.Email != null && a.Email.ToLower() == lowerId) ||
+                (a.Phone != null && (a.Phone == identifier || a.Phone == normPhone)) ||
+                (a.Username != null && a.Username.ToLower() == lowerId));
 
         if (account == null)
         {
@@ -782,50 +1491,60 @@ public class ApiDbController : ControllerBase
             return Unauthorized(new { ok = false, error = "Tài khoản hoặc mật khẩu không chính xác." });
         }
 
+        if (!account.IsActive)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { ok = false, error = "Tài khoản của bạn hiện đang bị tạm khóa." });
+        }
+
         if (verifyResult == PasswordVerificationResult.SuccessRehashNeeded && !string.IsNullOrEmpty(upgradedHash))
         {
             account.Password = upgradedHash;
+        }
+
+        if (string.IsNullOrEmpty(account.SecurityStamp))
+        {
+            account.SecurityStamp = Function.GenerateSecurityStamp();
         }
 
         account.LastLogin = BookingService.GetVietnamNow().ToString("yyyy-MM-dd");
         await _context.SaveChangesAsync();
 
         await Function.SignInAccountAsync(HttpContext, account);
+        var csrfTokens = _antiforgery.GetAndStoreTokens(HttpContext);
 
         bool isAdmin = account.RoleId == 1;
-        string defaultAvatar = isAdmin
-            ? "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=120&q=80"
-            : "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80";
-
         return Ok(new
         {
             ok = true,
+            csrfToken = csrfTokens.RequestToken,
+            mustChangePassword = account.MustChangePassword,
             user = new
             {
                 id = account.AccountId,
                 name = account.FullName ?? account.Username ?? "Hội viên",
-                email = account.Email ?? "",
-                phone = account.Phone ?? "",
-                skillLevel = account.SkillLevel ?? "",
+                email = account.Email ?? string.Empty,
+                phone = account.Phone ?? string.Empty,
+                skillLevel = account.SkillLevel ?? string.Empty,
                 role = isAdmin ? "admin" : account.RoleId == 3 ? "staff" : "user",
                 roleLabel = isAdmin ? "Ban Quản Trị CLB" : account.RoleId == 3 ? "Nhân viên CLB" : "Hội viên CLB",
-                avatar = !string.IsNullOrEmpty(account.Avatar) ? account.Avatar : defaultAvatar
+                avatar = account.Avatar ?? string.Empty
             }
         });
     }
 
+    [ValidateAntiForgeryToken]
     [HttpPost("/api/auth/register")]
     [EnableRateLimiting("AuthAndLookup")]
     public async Task<IActionResult> RegisterApi([FromBody] JsonElement payload)
     {
-        string name = payload.TryGetProperty("name", out var nProp) ? (nProp.GetString() ?? "").Trim() : "";
-        string phone = payload.TryGetProperty("phone", out var pProp) ? (pProp.GetString() ?? "").Trim() : "";
-        string email = payload.TryGetProperty("email", out var eProp) ? (eProp.GetString() ?? "").Trim().ToLowerInvariant() : "";
-        string password = payload.TryGetProperty("password", out var pwProp) ? (pwProp.GetString() ?? "") : "";
+        string name = payload.TryGetProperty("name", out var nProp) ? (nProp.GetString() ?? string.Empty).Trim() : string.Empty;
+        string phone = payload.TryGetProperty("phone", out var pProp) ? (pProp.GetString() ?? string.Empty).Trim() : string.Empty;
+        string email = payload.TryGetProperty("email", out var eProp) ? (eProp.GetString() ?? string.Empty).Trim().ToLowerInvariant() : string.Empty;
+        string password = payload.TryGetProperty("password", out var pwProp) ? (pwProp.GetString() ?? string.Empty) : string.Empty;
 
-        if (string.IsNullOrEmpty(name) || name.Length < 2)
+        if (string.IsNullOrEmpty(name) || name.Length < 2 || name.Length > 100)
         {
-            return BadRequest(new { ok = false, error = "Họ và tên phải có ít nhất 2 ký tự." });
+            return BadRequest(new { ok = false, error = "Họ và tên phải từ 2 đến 100 ký tự." });
         }
 
         if (!BookingService.IsValidPhone(phone))
@@ -839,6 +1558,7 @@ public class ApiDbController : ControllerBase
         }
 
         string normalizedPhone = BookingService.NormalizePhone(phone);
+        string desiredUsername = !string.IsNullOrEmpty(email) ? email.Split('@')[0] : normalizedPhone;
 
         bool exists = await _context.TbAccounts.AnyAsync(a =>
             (a.Phone != null && a.Phone == normalizedPhone) ||
@@ -849,17 +1569,24 @@ public class ApiDbController : ControllerBase
             return Conflict(new { ok = false, error = "Số điện thoại hoặc Email này đã được đăng ký." });
         }
 
+        if (await _context.TbAccounts.AnyAsync(a => a.Username == desiredUsername))
+        {
+            desiredUsername = $"{desiredUsername}_{RandomNumberGenerator.GetInt32(100, 999)}";
+        }
+
         var newAccount = new TbAccount
         {
-            Username = !string.IsNullOrEmpty(email) ? email.Split('@')[0] : normalizedPhone,
+            Username = desiredUsername,
             FullName = name,
             Phone = normalizedPhone,
             Email = string.IsNullOrEmpty(email) ? null : email,
             SkillLevel = "Giao lưu (DUPR 3.0)",
             MemberTier = "Hội viên Tiêu chuẩn",
             DominantHand = "Tay phải",
-            RoleId = 2, // Always Customer (P0-03)
+            RoleId = 2, // Strictly Customer (P0-03)
             IsActive = true,
+            MustChangePassword = false,
+            SecurityStamp = Function.GenerateSecurityStamp(),
             LastLogin = BookingService.GetVietnamNow().ToString("yyyy-MM-dd")
         };
 
@@ -869,302 +1596,427 @@ public class ApiDbController : ControllerBase
         await _context.SaveChangesAsync();
 
         await Function.SignInAccountAsync(HttpContext, newAccount);
+        var csrfTokens = _antiforgery.GetAndStoreTokens(HttpContext);
 
         return Ok(new
         {
             ok = true,
+            csrfToken = csrfTokens.RequestToken,
             user = new
             {
                 id = newAccount.AccountId,
                 name = newAccount.FullName,
-                email = newAccount.Email ?? "",
+                email = newAccount.Email ?? string.Empty,
                 phone = newAccount.Phone,
                 role = "user",
                 roleLabel = "Hội viên CLB",
-                avatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80"
+                avatar = string.Empty
             }
         });
     }
 
     // ================================================================
-    // SERVER-AUTHORITATIVE ORDERS & STOCK MANAGEMENT (P0-10, P1-14, P1-15)
+    // PRO SHOP ORDERS, ATOMIC STOCK & STANDALONE SETTLEMENT (P0-10, P1-14, P1-15)
     // ================================================================
 
+    [ValidateAntiForgeryToken]
     [HttpPost("/api/orders/create")]
     public async Task<IActionResult> CreateOrderApi([FromBody] JsonElement payload)
     {
-        string customerName = payload.TryGetProperty("customerName", out var nProp) ? (nProp.GetString() ?? "").Trim() : "";
-        string phone = payload.TryGetProperty("phone", out var pProp) ? (pProp.GetString() ?? "").Trim() : "";
-        string address = payload.TryGetProperty("address", out var aProp) ? (aProp.GetString() ?? "").Trim() : "Nhận tại quầy Pro Shop";
-        string bookingCode = payload.TryGetProperty("bookingCode", out var bProp) ? (bProp.GetString() ?? "").Trim().ToUpperInvariant() : "";
-        string idempotencyKey = payload.TryGetProperty("idempotencyKey", out var ikProp) ? (ikProp.GetString() ?? "").Trim() : "";
-        string paymentMethod = payload.TryGetProperty("paymentMethod", out var pmProp) ? (pmProp.GetString() ?? "cash").Trim() : "cash";
+        string customerName = payload.TryGetProperty("customerName", out var nProp) ? (nProp.GetString() ?? string.Empty) : string.Empty;
+        string phone = payload.TryGetProperty("phone", out var pProp) ? (pProp.GetString() ?? string.Empty) : string.Empty;
+        string? address = payload.TryGetProperty("address", out var aProp) ? aProp.GetString() : null;
+        string? bookingCode = payload.TryGetProperty("bookingCode", out var bProp) ? bProp.GetString() : null;
+        string? bookingAccessToken = payload.TryGetProperty("bookingAccessToken", out var batProp)
+            ? batProp.GetString()
+            : Request.Headers["X-Booking-Access-Token"].FirstOrDefault();
+        string? idempotencyKey = payload.TryGetProperty("idempotencyKey", out var ikProp) ? ikProp.GetString() : null;
 
-        if (string.IsNullOrEmpty(customerName) || customerName.Length < 2)
+        var items = new List<OrderItemInput>();
+        if (payload.TryGetProperty("items", out var itemsEl) && itemsEl.ValueKind == JsonValueKind.Array)
         {
-            return BadRequest(new { ok = false, error = "Vui lòng nhập Họ tên người nhận hợp lệ." });
-        }
-
-        if (!BookingService.IsValidPhone(phone))
-        {
-            return BadRequest(new { ok = false, error = "Vui lòng nhập Số điện thoại hợp lệ (10 chữ số)." });
-        }
-
-        string normalizedPhone = BookingService.NormalizePhone(phone);
-
-        if (!payload.TryGetProperty("items", out var itemsEl) || itemsEl.ValueKind != JsonValueKind.Array || itemsEl.GetArrayLength() == 0)
-        {
-            return BadRequest(new { ok = false, error = "Giỏ hàng đang trống." });
-        }
-
-        // Idempotency check
-        if (!string.IsNullOrEmpty(idempotencyKey))
-        {
-            var duplicateOrder = await _context.TbOrders.FirstOrDefaultAsync(o => o.IdempotencyKey == idempotencyKey);
-            if (duplicateOrder != null)
+            foreach (var el in itemsEl.EnumerateArray())
             {
-                return Ok(new
-                {
-                    ok = true,
-                    orderCode = duplicateOrder.Code,
-                    totalAmount = duplicateOrder.TotalAmount ?? 0,
-                    bookingCode = duplicateOrder.BookingCode ?? "",
-                    deduplicated = true
-                });
+                int prodId = el.TryGetProperty("productId", out var p1) && p1.TryGetInt32(out int v1) ? v1
+                           : (el.TryGetProperty("id", out var p2) && p2.TryGetInt32(out int v2) ? v2 : 0);
+                int qty = el.TryGetProperty("qty", out var qEl) && qEl.TryGetInt32(out int q) ? q : 0;
+                items.Add(new OrderItemInput { ProductId = prodId, Qty = qty });
             }
         }
 
-        // Parse & validate requested items (reject qty <= 0 or missing product ID)
-        var requestedItems = new List<(int ProductId, int Qty)>();
-        foreach (var item in itemsEl.EnumerateArray())
+        var res = await _orderService.CreateOrderAsync(_context, new CreateShopOrderInput
         {
-            int prodId = item.TryGetProperty("id", out var idEl) && idEl.TryGetInt32(out int pid) ? pid : 0;
-            int qty = item.TryGetProperty("qty", out var qEl) && qEl.TryGetInt32(out int q) ? q : 0;
-
-            if (prodId <= 0)
-            {
-                return BadRequest(new { ok = false, error = "Mã sản phẩm không hợp lệ." });
-            }
-            if (qty <= 0 || qty > 100)
-            {
-                return BadRequest(new { ok = false, error = "Số lượng đặt mua phải lớn hơn 0 và không vượt quá 100." });
-            }
-
-            requestedItems.Add((prodId, qty));
-        }
-
-        // Group by ProductId in case duplicate lines were submitted
-        var groupedItems = requestedItems
-            .GroupBy(x => x.ProductId)
-            .Select(g => (ProductId: g.Key, Qty: g.Sum(x => x.Qty)))
-            .ToList();
-
-        var prodIds = groupedItems.Select(x => x.ProductId).ToList();
-        var dbProducts = await _context.TbProducts
-            .Where(p => prodIds.Contains(p.ProductId) && p.IsActive)
-            .ToDictionaryAsync(p => p.ProductId);
-
-        if (dbProducts.Count != groupedItems.Count)
-        {
-            return BadRequest(new { ok = false, error = "Một hoặc nhiều sản phẩm trong giỏ hàng không tồn tại hoặc đã ngừng kinh doanh." });
-        }
-
-        // Check stock availability & compute authoritative server total (P0-10, P1-14)
-        int totalQty = 0;
-        int totalAmount = 0;
-        var verifiedDetails = new List<(TbProduct Product, int UnitPrice, int Qty)>();
-
-        foreach (var reqItem in groupedItems)
-        {
-            var prod = dbProducts[reqItem.ProductId];
-            int availableStock = prod.UnitInStock ?? prod.Quantity ?? 0;
-            if (availableStock < reqItem.Qty)
-            {
-                return BadRequest(new
-                {
-                    ok = false,
-                    error = $"Sản phẩm '{prod.Title}' hiện chỉ còn {availableStock} món trong kho (bạn đang chọn {reqItem.Qty})."
-                });
-            }
-
-            int unitPrice = (prod.PriceSale is > 0 && prod.PriceSale < prod.Price)
-                ? prod.PriceSale.Value
-                : (prod.Price ?? 0);
-
-            if (unitPrice <= 0)
-            {
-                return BadRequest(new { ok = false, error = $"Sản phẩm '{prod.Title}' có cấu hình giá không hợp lệ." });
-            }
-
-            totalQty += reqItem.Qty;
-            totalAmount += unitPrice * reqItem.Qty;
-            verifiedDetails.Add((prod, unitPrice, reqItem.Qty));
-        }
-
-        // P1-15: If attaching to a court booking, verify booking exists, is active today, and caller owns it (or is Staff/Admin)
-        TbBooking? targetBooking = null;
-        if (!string.IsNullOrEmpty(bookingCode))
-        {
-            targetBooking = await _context.TbBookings.FirstOrDefaultAsync(b => b.BookingCode == bookingCode);
-            if (targetBooking == null)
-            {
-                return BadRequest(new { ok = false, error = $"Không tìm thấy mã đặt sân '{bookingCode}'." });
-            }
-
-            if (targetBooking.Status != "approved" && targetBooking.Status != "playing")
-            {
-                return BadRequest(new { ok = false, error = $"Chỉ có thể gộp hóa đơn F&B vào ca đặt sân đang hoạt động (Đã duyệt / Đang thi đấu)." });
-            }
-
-            bool isStaffOrAdmin = Function.IsStaffOrAdmin();
-            bool ownsByAccount = Function.IsLogin() && targetBooking.AccountId == Function._AccountId;
-            bool ownsByPhone = BookingService.NormalizePhone(targetBooking.Phone) == normalizedPhone;
-
-            if (!isStaffOrAdmin && !ownsByAccount && !ownsByPhone)
-            {
-                return StatusCode(403, new
-                {
-                    ok = false,
-                    error = "Số điện thoại người nhận không khớp với số điện thoại của chủ ca đặt sân này."
-                });
-            }
-        }
-
-        // Decrement stock & persist order
-        foreach (var (prod, _, qty) in verifiedDetails)
-        {
-            int currentStock = prod.UnitInStock ?? prod.Quantity ?? 0;
-            prod.UnitInStock = Math.Max(0, currentStock - qty);
-            prod.Quantity = prod.UnitInStock;
-        }
-
-        string orderCode = "ORD-" + BookingService.GetVietnamNow().ToString("MMdd") + "-" + Guid.NewGuid().ToString("N")[..4].ToUpperInvariant();
-        var newOrder = new TbOrder
-        {
-            Code = orderCode,
-            BookingId = targetBooking?.BookingId,
-            BookingCode = targetBooking?.BookingCode,
             CustomerName = customerName,
-            Phone = normalizedPhone,
-            Address = targetBooking != null ? $"Giao tận sân (Đơn {targetBooking.BookingCode}) - {address}" : address,
-            TotalAmount = totalAmount,
-            PaidAmount = 0,
-            PaymentStatus = "unpaid",
-            PaymentMethod = BookingService.NormalizePaymentMethod(paymentMethod),
-            IdempotencyKey = string.IsNullOrEmpty(idempotencyKey) ? null : idempotencyKey,
-            Quanlity = totalQty,
-            OrderStatusId = 2,
-            CreatedDate = BookingService.GetVietnamNow(),
-            CreatedBy = customerName
-        };
+            Phone = phone,
+            NoteOrAddress = address,
+            BookingCode = bookingCode,
+            BookingAccessToken = bookingAccessToken,
+            IdempotencyKey = idempotencyKey,
+            ActorAccountId = Function.IsLogin() ? Function._AccountId : null,
+            ActorRoleId = Function.IsLogin() ? Function._RoleId : null,
+            ActorUsername = Function.IsLogin() ? Function._Username : null,
+            IpAddress = ClientIp,
+            Items = items
+        });
 
-        _context.TbOrders.Add(newOrder);
-        await _context.SaveChangesAsync();
-
-        foreach (var (prod, unitPrice, qty) in verifiedDetails)
+        if (!res.Success || res.Order == null)
         {
-            _context.TbOrderDetails.Add(new TbOrderDetail
-            {
-                OrderId = newOrder.OrderId,
-                ProductId = prod.ProductId,
-                Price = unitPrice,
-                Quantity = qty
-            });
+            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
         }
-
-        if (targetBooking != null)
-        {
-            var currentPos = BookingService.ParsePosItems(targetBooking.PosItemsJson);
-            foreach (var (prod, unitPrice, qty) in verifiedDetails)
-            {
-                var existingItem = currentPos.FirstOrDefault(x => x.Id == prod.ProductId);
-                if (existingItem != null)
-                {
-                    existingItem.Qty += qty;
-                    existingItem.Price = unitPrice;
-                }
-                else
-                {
-                    currentPos.Add(new PosItemEntry
-                    {
-                        Id = prod.ProductId,
-                        Name = prod.Title ?? "Sản phẩm POS",
-                        Price = unitPrice,
-                        Qty = qty
-                    });
-                }
-            }
-
-            targetBooking.PosItemsJson = JsonSerializer.Serialize(currentPos.Select(i => new
-            {
-                id = i.Id,
-                name = i.Name,
-                price = i.Price,
-                qty = i.Qty
-            }));
-
-            BookingService.RecalculateBookingTotals(targetBooking);
-        }
-
-        await _context.SaveChangesAsync();
 
         return Ok(new
         {
             ok = true,
-            orderCode,
-            totalAmount,
-            bookingCode = targetBooking?.BookingCode ?? ""
+            deduplicated = res.IsIdempotentReplay,
+            orderCode = res.Order.Code,
+            totalAmount = res.Order.TotalAmount ?? 0,
+            bookingCode = res.Order.BookingCode ?? string.Empty,
+            order = MapOrderDto(res.Order)
+        });
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [HttpGet("/api/admin/orders")]
+    public async Task<IActionResult> GetAdminOrdersApi([FromQuery] bool standaloneOnly = false)
+    {
+        var query = _context.TbOrders
+            .AsNoTracking()
+            .Include(o => o.TbOrderDetails)
+            .AsQueryable();
+
+        if (standaloneOnly)
+        {
+            query = query.Where(o => o.BookingId == null);
+        }
+
+        var orders = await query
+            .OrderByDescending(o => o.CreatedDate)
+            .Take(200)
+            .ToListAsync();
+
+        return Ok(new
+        {
+            ok = true,
+            orders = orders.Select(MapOrderDto).ToList()
+        });
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
+    [HttpPost("/api/admin/orders/{code}/payments")]
+    public async Task<IActionResult> RecordStandaloneOrderPaymentApi(string code, [FromBody] JsonElement payload)
+    {
+        int amount = payload.TryGetProperty("amount", out var aEl) && aEl.TryGetInt32(out int a) ? a : 0;
+        string method = payload.TryGetProperty("paymentMethod", out var mEl) ? (mEl.GetString() ?? "cash") : "cash";
+        string? referenceCode = payload.TryGetProperty("referenceCode", out var refEl) ? refEl.GetString() : null;
+        string? note = payload.TryGetProperty("note", out var nEl) ? nEl.GetString() : null;
+        string? idempotencyKey = payload.TryGetProperty("idempotencyKey", out var ikEl) ? ikEl.GetString() : null;
+
+        var res = await _orderService.RecordStandaloneOrderPaymentAsync(
+            _context,
+            code,
+            amount,
+            method,
+            referenceCode,
+            note,
+            idempotencyKey,
+            Function._AccountId,
+            Function._Username,
+            ClientIp);
+
+        if (!res.Success || res.Order == null)
+        {
+            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+        }
+
+        return Ok(new
+        {
+            ok = true,
+            deduplicated = res.IsIdempotentReplay,
+            transactionId = res.Transaction?.TransactionId,
+            order = MapOrderDto(res.Order)
+        });
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
+    [HttpPost("/api/admin/orders/{code}/refunds")]
+    public async Task<IActionResult> RefundStandaloneOrderApi(string code, [FromBody] JsonElement payload)
+    {
+        int amount = payload.TryGetProperty("amount", out var aEl) && aEl.TryGetInt32(out int a) ? a : 0;
+        string method = payload.TryGetProperty("paymentMethod", out var mEl) ? (mEl.GetString() ?? "cash") : "cash";
+        string? referenceCode = payload.TryGetProperty("referenceCode", out var refEl) ? refEl.GetString() : null;
+        string? reason = payload.TryGetProperty("reason", out var rEl) ? rEl.GetString() : null;
+        string? idempotencyKey = payload.TryGetProperty("idempotencyKey", out var ikEl) ? ikEl.GetString() : null;
+
+        var res = await _orderService.RefundStandaloneOrderAsync(
+            _context,
+            code,
+            amount,
+            method,
+            referenceCode,
+            reason,
+            idempotencyKey,
+            Function._AccountId,
+            Function._Username,
+            ClientIp);
+
+        if (!res.Success || res.Order == null)
+        {
+            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+        }
+
+        return Ok(new
+        {
+            ok = true,
+            deduplicated = res.IsIdempotentReplay,
+            transactionId = res.Transaction?.TransactionId,
+            order = MapOrderDto(res.Order)
+        });
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
+    [HttpPost("/api/admin/orders/{code}/cancel")]
+    public async Task<IActionResult> CancelStandaloneOrderApi(string code, [FromBody] JsonElement payload)
+    {
+        string? reason = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("reason", out var rEl)
+            ? rEl.GetString()
+            : null;
+
+        var res = await _orderService.CancelOrderAndRestockAsync(
+            _context,
+            code,
+            reason,
+            Function._AccountId,
+            Function._Username,
+            ClientIp);
+
+        if (!res.Success || res.Order == null)
+        {
+            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+        }
+
+        return Ok(new
+        {
+            ok = true,
+            order = MapOrderDto(res.Order)
         });
     }
 
     // ================================================================
-    // REAL REVENUE & FINANCIAL REPORTS API (P1-06)
+    // LEDGER-DRIVEN REVENUE & FINANCIAL REPORTS API (P1-06)
     // ================================================================
 
     [Authorize(Roles = "Admin,Staff")]
     [HttpGet("/api/admin/reports/summary")]
     public async Task<IActionResult> GetFinancialReportSummary([FromQuery] string? dateFrom, [FromQuery] string? dateTo)
     {
-        await _bookingService.ReconcileBookingStatusesAsync();
+        var vnNow = BookingService.GetVietnamNow();
+        DateOnly startDay = DateOnly.FromDateTime(vnNow.AddDays(-30));
+        DateOnly endDay = DateOnly.FromDateTime(vnNow);
 
-        var bookingsQuery = _context.TbBookings
+        if (!string.IsNullOrWhiteSpace(dateFrom) &&
+            DateOnly.TryParseExact(dateFrom.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedFrom))
+        {
+            startDay = parsedFrom;
+        }
+
+        if (!string.IsNullOrWhiteSpace(dateTo) &&
+            DateOnly.TryParseExact(dateTo.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedTo))
+        {
+            endDay = parsedTo;
+        }
+
+        if (endDay < startDay)
+        {
+            (startDay, endDay) = (endDay, startDay);
+        }
+
+        DateTime fromDt = startDay.ToDateTime(TimeOnly.MinValue);
+        DateTime toExclusiveDt = endDay.AddDays(1).ToDateTime(TimeOnly.MinValue);
+        string fromIso = startDay.ToString("yyyy-MM-dd");
+        string toIso = endDay.ToString("yyyy-MM-dd");
+
+        // P1-06: Filter revenue strictly by actual payment transaction timestamp (CreatedAt) in Vietnam time!
+        var ledgerRows = await _context.TbPaymentTransactions
+            .AsNoTracking()
+            .Include(t => t.Booking)
+                .ThenInclude(b => b!.Court)
+            .Include(t => t.Order)
+            .Where(t => t.Status == "completed" && t.CreatedAt >= fromDt && t.CreatedAt < toExclusiveDt)
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
+
+        int bookingPaymentsGross = ledgerRows
+            .Where(t => t.BookingId != null && !string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase))
+            .Sum(t => Math.Max(0, t.Amount));
+
+        int bookingRefunds = ledgerRows
+            .Where(t => t.BookingId != null && string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase))
+            .Sum(t => Math.Abs(t.Amount));
+
+        int standalonePaymentsGross = ledgerRows
+            .Where(t => t.OrderId != null && t.BookingId == null && !string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase))
+            .Sum(t => Math.Max(0, t.Amount));
+
+        int standaloneRefunds = ledgerRows
+            .Where(t => t.OrderId != null && t.BookingId == null && string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase))
+            .Sum(t => Math.Abs(t.Amount));
+
+        int collectedBookingRevenue = bookingPaymentsGross - bookingRefunds;
+        int standaloneRetailRevenue = standalonePaymentsGross - standaloneRefunds;
+        int totalRefunds = bookingRefunds + standaloneRefunds;
+        int totalCollectedRevenue = collectedBookingRevenue + standaloneRetailRevenue;
+
+        int cashNet = ledgerRows
+            .Where(t => t.PaymentMethod == "cash")
+            .Sum(t => string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase) ? -Math.Abs(t.Amount) : Math.Max(0, t.Amount));
+
+        int transferNet = ledgerRows
+            .Where(t => t.PaymentMethod == "transfer")
+            .Sum(t => string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase) ? -Math.Abs(t.Amount) : Math.Max(0, t.Amount));
+
+        // Operational bookings within [dateFrom..dateTo] for occupancy & receivables visibility
+        var bookingsInRange = await _context.TbBookings
+            .AsNoTracking()
             .Include(b => b.Court)
-            .AsQueryable();
+            .Where(b => string.Compare(b.BookingDate, fromIso) >= 0 && string.Compare(b.BookingDate, toIso) <= 0)
+            .ToListAsync();
 
-        if (!string.IsNullOrWhiteSpace(dateFrom))
+        var billableStatuses = new[] { "approved", "confirmed", "playing", "completed" };
+        int unpaidBookingReceivables = bookingsInRange
+            .Where(b => billableStatuses.Contains(b.Status))
+            .Sum(b => Math.Max(0, (b.AmountDue > 0 ? b.AmountDue : (b.CourtFee + b.PosTotal - b.DiscountAmount)) - b.PaidAmount));
+
+        int unpaidShopReceivables = await _context.TbOrders
+            .AsNoTracking()
+            .Where(o => o.BookingId == null && o.Status != "cancelled" &&
+                        o.CreatedDate >= fromDt && o.CreatedDate < toExclusiveDt &&
+                        (o.TotalAmount ?? 0) > o.PaidAmount)
+            .SumAsync(o => (int?)((o.TotalAmount ?? 0) - o.PaidAmount)) ?? 0;
+
+        int unpaidReceivables = unpaidBookingReceivables + unpaidShopReceivables;
+
+        // Daily ledger breakdown by actual payment date
+        var dailyBreakdown = ledgerRows
+            .GroupBy(t => t.CreatedAt.ToString("yyyy-MM-dd"))
+            .OrderBy(g => g.Key)
+            .Select(g => new
+            {
+                date = g.Key,
+                bookingNet = g.Where(t => t.BookingId != null)
+                              .Sum(t => string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase) ? -Math.Abs(t.Amount) : t.Amount),
+                shopNet = g.Where(t => t.OrderId != null && t.BookingId == null)
+                           .Sum(t => string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase) ? -Math.Abs(t.Amount) : t.Amount),
+                refunds = g.Where(t => string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase))
+                           .Sum(t => Math.Abs(t.Amount)),
+                netTotal = g.Sum(t => string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase) ? -Math.Abs(t.Amount) : t.Amount),
+                txCount = g.Count()
+            })
+            .ToList();
+
+        // Court performance: net collected from ledger + hours booked
+        var allCourts = await _context.TbCourts.AsNoTracking().Where(c => c.IsActive).OrderBy(c => c.CourtId).ToListAsync();
+        var courtBreakdown = allCourts.Select(c =>
         {
-            bookingsQuery = bookingsQuery.Where(b => string.Compare(b.BookingDate, dateFrom) >= 0);
-        }
-        if (!string.IsNullOrWhiteSpace(dateTo))
+            var cBookings = bookingsInRange.Where(b => b.CourtId == c.CourtId && billableStatuses.Contains(b.Status)).ToList();
+            int cCollected = ledgerRows
+                .Where(t => t.Booking != null && t.Booking.CourtId == c.CourtId)
+                .Sum(t => string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase) ? -Math.Abs(t.Amount) : t.Amount);
+            int cReceivable = cBookings.Sum(b => Math.Max(0, (b.AmountDue > 0 ? b.AmountDue : b.CourtFee) - b.PaidAmount));
+            double hours = Math.Round(cBookings.Sum(b => (b.Duration > 0 ? b.Duration : 60) / 60.0), 1);
+
+            return new
+            {
+                courtId = c.CourtId,
+                courtName = c.CourtName,
+                type = c.CourtType,
+                sessionsCount = cBookings.Count,
+                hoursBooked = hours,
+                collectedRevenue = cCollected,
+                unpaidReceivable = cReceivable
+            };
+        }).ToList();
+
+        // Top verified member accounts by net collected ledger spend in range
+        var memberSpendDict = new Dictionary<int, int>();
+        foreach (var tx in ledgerRows)
         {
-            bookingsQuery = bookingsQuery.Where(b => string.Compare(b.BookingDate, dateTo) <= 0);
+            int? ownerAccId = tx.Booking?.AccountId ?? tx.Order?.AccountId;
+            if (!ownerAccId.HasValue || ownerAccId.Value <= 0) continue;
+            int delta = string.Equals(tx.TransactionType, "refund", StringComparison.OrdinalIgnoreCase)
+                ? -Math.Abs(tx.Amount)
+                : Math.Max(0, tx.Amount);
+            memberSpendDict[ownerAccId.Value] = memberSpendDict.GetValueOrDefault(ownerAccId.Value) + delta;
         }
 
-        var bookings = await bookingsQuery.OrderByDescending(b => b.BookingDate).ToListAsync();
-        var validBookings = bookings.Where(b => b.Status != "cancelled" && b.Status != "rejected" && b.Status != "expired").ToList();
+        var topAccIds = memberSpendDict.Where(kv => kv.Value > 0).OrderByDescending(kv => kv.Value).Take(8).Select(kv => kv.Key).ToList();
+        var topAccounts = await _context.TbAccounts.AsNoTracking()
+            .Where(a => topAccIds.Contains(a.AccountId))
+            .ToDictionaryAsync(a => a.AccountId);
 
-        int collectedRevenue = validBookings.Sum(b => b.PaidAmount);
-        int totalAmountDue = validBookings.Sum(b => b.AmountDue > 0 ? b.AmountDue : (b.CourtFee + b.PosTotal));
-        int unpaidReceivables = Math.Max(0, totalAmountDue - collectedRevenue);
+        var topMembers = topAccIds
+            .Where(id => topAccounts.ContainsKey(id))
+            .Select(id =>
+            {
+                var a = topAccounts[id];
+                int spend = memberSpendDict[id];
+                var (tier, _) = PricingService.ResolveMemberTier(spend, a.MemberTier);
+                return new
+                {
+                    accountId = a.AccountId,
+                    name = a.FullName ?? a.Username ?? "Hội viên",
+                    phone = a.Phone ?? string.Empty,
+                    memberTier = tier,
+                    netPaidInRange = spend
+                };
+            })
+            .ToList();
 
-        int standaloneOrdersPaid = await _context.TbOrders
-            .Where(o => o.BookingId == null && o.PaidAmount > 0)
-            .SumAsync(o => (int?)o.PaidAmount) ?? 0;
+        var recentTransactions = ledgerRows.Take(50).Select(t => new
+        {
+            transactionId = t.TransactionId,
+            type = t.TransactionType,
+            source = t.BookingId != null ? "booking" : "shop_order",
+            targetCode = t.Booking?.BookingCode ?? t.Order?.Code ?? t.BookingCode ?? "-",
+            customerName = t.Booking?.CustomerName ?? t.Order?.CustomerName ?? "-",
+            amount = t.Amount,
+            method = t.PaymentMethod,
+            referenceCode = t.ReferenceCode ?? string.Empty,
+            note = t.Note ?? string.Empty,
+            recordedBy = t.RecordedBy ?? "System",
+            createdAt = t.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")
+        }).ToList();
 
         return Ok(new
         {
             ok = true,
-            collectedBookingRevenue = collectedRevenue,
-            standaloneRetailRevenue = standaloneOrdersPaid,
-            totalCollectedRevenue = collectedRevenue + standaloneOrdersPaid,
+            dateFrom = fromIso,
+            dateTo = toIso,
+            bookingPaymentsGross,
+            bookingRefunds,
+            collectedBookingRevenue,
+            standalonePaymentsGross,
+            standaloneRefunds,
+            standaloneRetailRevenue,
+            totalRefunds,
+            totalCollectedRevenue,
+            cashNetCollected = cashNet,
+            transferNetCollected = transferNet,
+            unpaidBookingReceivables,
+            unpaidShopReceivables,
             unpaidReceivables,
-            totalEstimatedContractValue = totalAmountDue + standaloneOrdersPaid,
-            totalBookings = bookings.Count,
-            completedBookings = bookings.Count(b => b.Status == "completed"),
-            playingBookings = bookings.Count(b => b.Status == "playing"),
-            approvedBookings = bookings.Count(b => b.Status == "approved"),
-            pendingBookings = bookings.Count(b => b.Status == "pending"),
-            cancelledBookings = bookings.Count(b => b.Status == "cancelled" || b.Status == "rejected" || b.Status == "expired")
+            totalBookings = bookingsInRange.Count,
+            completedBookings = bookingsInRange.Count(b => b.Status == "completed"),
+            playingBookings = bookingsInRange.Count(b => b.Status == "playing"),
+            approvedBookings = bookingsInRange.Count(b => b.Status == "approved"),
+            pendingBookings = bookingsInRange.Count(b => b.Status == "pending"),
+            cancelledBookings = bookingsInRange.Count(b => b.Status is "cancelled" or "rejected" or "expired" or "no_show"),
+            dailyBreakdown,
+            courtBreakdown,
+            topMembers,
+            recentTransactions
         });
     }
 }

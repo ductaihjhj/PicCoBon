@@ -1,4 +1,4 @@
-﻿@charset "UTF-8";
+@charset "UTF-8";
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
 
 /* ==========================================================================
@@ -2031,31 +2031,7 @@ table tbody tr:hover {
   }
 }
 
-@media (max-width: 960px) {
-  .shop-layout {
-    grid-template-columns: 1fr;
-  }
-  .shop-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .shop-search-box {
-    max-width: 100%;
-    flex: 1 1 auto;
-  }
-  .shop-toolbar .filter-tabs {
-    width: 100%;
-    justify-content: flex-start;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
-@media (max-width: 768px) {
-  .match-grid, .court-options, .quick-book-bar, .auth-split-shell, .shop-admin-add-row {
-    grid-template-columns: 1fr;
-  }
+@media (max-width: 1140px) {
   .mobile-menu-btn {
     display: inline-flex;
   }
@@ -2080,6 +2056,37 @@ table tbody tr:hover {
   .site-nav-link {
     padding: 0.7rem 1rem;
     border-radius: var(--radius-xs);
+  }
+}
+
+.card, .stack, .col-main-aside > * {
+  min-width: 0;
+}
+
+@media (max-width: 960px) {
+  .shop-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .shop-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .shop-search-box {
+    max-width: 100%;
+    flex: 1 1 auto;
+  }
+  .shop-toolbar .filter-tabs {
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 768px) {
+  .match-grid, .court-options, .quick-book-bar, .auth-split-shell, .shop-admin-add-row {
+    grid-template-columns: minmax(0, 1fr);
   }
   .admin-subbar-inner {
     flex-direction: column;
@@ -2151,6 +2158,13 @@ table tbody tr:hover {
     padding: 0.25rem 0.5rem;
     gap: 0.35rem;
     font-size: 0.74rem;
+    max-width: 185px;
+  }
+  .user-pill a span {
+    max-width: 98px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .user-pill img {
     width: 24px;

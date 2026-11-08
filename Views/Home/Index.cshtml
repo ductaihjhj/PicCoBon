@@ -1,5 +1,5 @@
-﻿@{
-    ViewData["Title"] = "Spike Pickleball Club — Tổ Hợp Sân Pickleball Chuẩn Quốc Tế USAPA";
+@{
+    ViewData["Title"] = "Spike Pickleball Club — Tổ Hợp Sân Pickleball Chuyên Nghiệp";
 }
 
 <!-- HERO BANNER -->
@@ -9,13 +9,13 @@
             <div>
                 <div class="hero-kicker">
                     <span class="dot"></span>
-                    <span id="heroTagText">USAPA STANDARD ARENA</span>
+                    <span id="heroTagText">PRO PICKLEBALL ARENA</span>
                 </div>
                 <h1 class="web-hero-title" id="heroMainTitle">
                     Nâng Tầm Trải Nghiệm Pickleball Đỉnh Cao
                 </h1>
                 <p class="web-hero-desc" id="heroSubText">
-                    Tổ hợp 4 sân thi đấu tiêu chuẩn quốc tế USAPA với thảm Cushion 8 lớp giảm chấn, hệ thống đèn LED chống chói 1000 Lux và đặt lịch nhận mã vé QR tức thì.
+                    Tổ hợp 4 sân thi đấu chuyên nghiệp với mặt thảm Acrylic Cushion 8 lớp giảm chấn, hệ thống đèn LED chống chói 1000 Lux và đặt lịch nhận mã vé QR thật tức thì.
                 </p>
                 <div class="web-hero-actions">
                     <a href="/Booking" class="btn btn-primary btn-lg btn-pill">
@@ -33,7 +33,7 @@
             <div class="hero-live-panel">
                 <div class="hero-live-header">
                     <span class="live-pulse-tag">Trạng thái 4 sân trực tiếp</span>
-                    <span class="text-xs" style="color:#CBD5E1;">Mở cửa: <strong class="text-mono" id="heroOpenHours" style="color:#FFF;">06:00 – 22:00</strong></span>
+                    <span class="text-xs" style="color:#CBD5E1;">Mở cửa: <strong class="text-mono" id="heroOpenHours" data-cms="openHours" style="color:#FFF;">06:00 – 22:00</strong></span>
                 </div>
                 <div class="hero-mini-courts" id="heroMiniCourts"></div>
             </div>
@@ -92,7 +92,7 @@
     <div class="container">
         <div class="section-head">
             <div>
-                <span class="section-kicker">Cơ sở vật chất chuẩn quốc tế</span>
+                <span class="section-kicker">Cơ sở vật chất chuyên nghiệp</span>
                 <h2 class="section-heading">Hệ Thống Sân Thi Đấu &amp; Trạng Thái Trực Tiếp</h2>
                 <p class="section-sub">Theo dõi tình trạng hoạt động của từng sân theo thời gian thực và chọn sân bạn muốn đặt</p>
             </div>
@@ -114,7 +114,7 @@
                 <h2 class="section-heading">Bảng Khung Giờ Trống Tức Thì</h2>
                 <p class="section-sub">Bấm trực tiếp vào ô <strong style="color:#059669;">+ Đặt</strong> để chuyển tới bước giữ chỗ</p>
             </div>
-            <div style="display:flex;gap:1rem;align-items:center;font-size:0.8rem;color:var(--text-secondary);">
+            <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;font-size:0.8rem;color:var(--text-secondary);">
                 <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;border-radius:3px;background:#FFF;border:1.5px solid #059669;"></span> Trống</span>
                 <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;border-radius:3px;background:#DBEAFE;"></span> Đã đặt</span>
                 <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;border-radius:3px;background:#FEF3C7;"></span> Chờ duyệt</span>
@@ -137,30 +137,30 @@
             <div>
                 <span class="section-kicker">Chi phí minh bạch</span>
                 <h2 class="section-heading">Bảng Giá Thuê Sân &amp; Đặc Quyền Hội Viên</h2>
-                <p class="section-sub">Hỗ trợ tự động tính chia tiền đầu người (Split-Bill) khi đặt sân theo nhóm</p>
+                <p class="section-sub">Tự động tính giá bậc thang theo từng phân đoạn 30 phút và ước tính chia đều nhóm chơi</p>
             </div>
         </div>
 
         <div class="pricing-grid">
             <div class="pricing-card">
-                <span class="pricing-tag">Khung Giờ Tiêu Chuẩn (06:00 – 17:00)</span>
-                <div class="pricing-price" id="priceStandardCard">120.000đ <span>/ giờ</span></div>
+                <span class="pricing-tag" id="pricingStdTag">Khung Giờ Tiêu Chuẩn (06:00 – 17:00)</span>
+                <div class="pricing-price" id="priceStandardCard">120.000 đ <span>/ giờ</span></div>
                 <p class="text-sm text-muted">Phù hợp cho tập luyện buổi sáng, giao lưu nhẹ nhàng và huấn luyện kỹ thuật.</p>
                 <ul class="pricing-features">
                     <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Miễn phí trà đá &amp; wifi tốc độ cao</li>
-                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Mặt sân chuẩn USAPA chống trượt</li>
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Mặt sân Cushion 8 lớp chống trượt</li>
                     <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Phòng thay đồ &amp; tắm nóng lạnh</li>
                 </ul>
                 <a href="/Booking?time=08:00" class="btn btn-outline btn-block">Đặt ca ngày ngay</a>
             </div>
 
             <div class="pricing-card featured">
-                <span class="pricing-tag">Khung Giờ Vàng (17:00 – 21:00)</span>
-                <div class="pricing-price" id="pricePeakCard">150.000đ <span>/ giờ</span></div>
+                <span class="pricing-tag" id="pricingPeakTag">Khung Giờ Vàng (17:00 – 22:00)</span>
+                <div class="pricing-price" id="pricePeakCard">150.000 đ <span>/ giờ</span></div>
                 <p class="text-sm" style="color:#CBD5E1;">Trải nghiệm thi đấu sôi động dưới hệ thống đèn LED Stadium chống lóa 1000 Lux.</p>
                 <ul class="pricing-features">
                     <li><iconify-icon icon="lucide:check" style="color:var(--color-volt)"></iconify-icon> Bật 100% hệ thống đèn LED thi đấu</li>
-                    <li><iconify-icon icon="lucide:check" style="color:var(--color-volt)"></iconify-icon> Giữ chỗ tức thì qua mã vé QR</li>
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-volt)"></iconify-icon> Giữ chỗ tức thì qua mã vé QR định chuẩn</li>
                     <li><iconify-icon icon="lucide:check" style="color:var(--color-volt)"></iconify-icon> Phục vụ nước bù khoáng &amp; thuê vợt tận sân</li>
                 </ul>
                 <a href="/Booking?time=18:00" class="btn btn-primary btn-block">Đặt khung giờ vàng</a>
@@ -169,13 +169,13 @@
             <div class="pricing-card">
                 <span class="pricing-tag" id="promoTitleText">Đặc Quyền Hội Viên CLB</span>
                 <div class="pricing-price">-15% <span>/ mọi khung giờ</span></div>
-                <p class="text-sm text-muted" id="promoDescText">Trở thành hội viên chính thức để nhận ưu đãi giảm giá sân, miễn phí nước suối và ưu tiên đặt lịch cố định.</p>
+                <p class="text-sm text-muted" id="promoDescText">Đăng ký tài khoản hội viên chính thức để tích lũy chi tiêu thực thu và tự động nâng hạng thẻ Bạc (-5%), Vàng VIP (-15%).</p>
                 <ul class="pricing-features">
-                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Ưu tiên giữ sân khung giờ vàng</li>
-                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Tặng 02 chai nước khoáng mỗi ca chơi</li>
-                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Tham gia giải đấu nội bộ hàng tháng</li>
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Chiết khấu tự động khi đăng nhập đặt sân</li>
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Quản lý lịch sử vé QR &amp; hóa đơn cá nhân</li>
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Gộp đơn nước &amp; phụ kiện trực tiếp vào ca sân</li>
                 </ul>
-                <button type="button" class="btn btn-secondary btn-block" onclick="joinClub()">Đăng ký Hội viên VIP</button>
+                <button type="button" class="btn btn-secondary btn-block" onclick="joinClub()">Đăng ký Hội viên CLB</button>
             </div>
         </div>
     </div>

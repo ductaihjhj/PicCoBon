@@ -21,7 +21,7 @@ public class CourtsController : Controller
 
     public async Task<IActionResult> Index()
     {
-        return View(await _context.TbCourts.OrderBy(c => c.CourtId).ToListAsync());
+        return View(await _context.TbCourts.AsNoTracking().OrderBy(c => c.CourtId).ToListAsync());
     }
 
     public IActionResult Create()
@@ -29,8 +29,8 @@ public class CourtsController : Controller
         return View(new TbCourt
         {
             CourtType = "Indoor",
-            TypeLabel = "Trong nhà · Mái vòm & Đèn LED Pro",
-            Surface = "USAPA Cushion 8 lớp",
+            TypeLabel = "Trong nhà · Mái vòm & Đèn LED chống chói",
+            Surface = "Acrylic Cushion 8 lớp tiêu chuẩn thi đấu",
             Image = "/assets/court-vip-arena.png",
             BasePrice = 120000,
             Surcharge = 20000,
@@ -95,9 +95,20 @@ public class CourtsController : Controller
 
         if (ModelState.IsValid)
         {
-            tbCourt.CourtName = tbCourt.CourtName!.Trim();
-            tbCourt.Alias = Function.TitleSlugGenerationAlias(tbCourt.CourtName);
-            _context.Update(tbCourt);
+            var existing = await _context.TbCourts.FindAsync(id);
+            if (existing == null) return NotFound();
+
+            existing.CourtName = tbCourt.CourtName!.Trim();
+            existing.Alias = Function.TitleSlugGenerationAlias(existing.CourtName);
+            existing.CourtType = tbCourt.CourtType;
+            existing.TypeLabel = tbCourt.TypeLabel;
+            existing.Surface = tbCourt.Surface;
+            existing.Image = tbCourt.Image;
+            existing.BasePrice = tbCourt.BasePrice;
+            existing.Surcharge = tbCourt.Surcharge;
+            existing.Description = tbCourt.Description;
+            existing.IsActive = tbCourt.IsActive;
+
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }

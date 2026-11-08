@@ -1,14 +1,14 @@
 @{
     Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
-    ViewData["Title"] = "Điều Phối Sân & POS";
+    ViewData["Title"] = "Điều Phối Sân, POS & Sổ Cái Thu Ngân";
 }
 
   <section class="page-hero">
     <div class="container page-hero-inner">
       <div>
-        <span class="section-kicker" style="color:var(--color-volt);">Vận hành CLB</span>
-        <h1 class="page-hero-title">Trung Tâm Điều Phối Sân & Bán Hàng POS</h1>
-        <p class="page-hero-sub">Duyệt yêu cầu đặt lịch, kích hoạt khách nhận sân, gọi món POS và quản lý lịch bảo trì</p>
+        <span class="section-kicker" style="color:var(--color-volt);">Vận hành CLB &amp; Thu ngân</span>
+        <h1 class="page-hero-title">Trung Tâm Điều Phối Sân, POS &amp; Sổ Cái Thu Tiền</h1>
+        <p class="page-hero-sub">Tách bạch hoàn tất ca sân với ghi nhận thu tiền / hoàn tiền thực tế và quản lý đơn lẻ Pro Shop</p>
       </div>
       <div style="display:flex;gap:0.65rem;flex-wrap:wrap;">
         <a href="/Admin" class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#FFF;">
@@ -27,7 +27,7 @@
     <div class="container">
       <div class="col-main-aside">
         <div class="stack">
-          <!-- Đơn chờ duyệt -->
+          <!-- 1. Đơn chờ duyệt -->
           <div class="card">
             <div class="card-header" style="background:var(--color-warning-light);">
               <span class="card-header-title" style="color:#92400E">
@@ -44,21 +44,36 @@
             </div>
           </div>
 
-          <!-- Danh sách ca thi đấu -->
+          <!-- 2. Danh sách ca thi đấu & POS -->
           <div class="card">
-            <div class="card-header">
+            <div class="card-header" style="flex-wrap:wrap;gap:0.5rem;">
               <span class="card-header-title">
                 <iconify-icon icon="lucide:calendar-clock" width="18" style="color:var(--color-indigo)"></iconify-icon>
-                <span>Danh sách ca thi đấu & Hóa đơn POS</span>
+                <span>Ca thi đấu &amp; Công nợ sân</span>
               </span>
               <div class="filter-tabs" id="mgmtFilterTabs">
-                <button class="filter-tab active" onclick="setMgmtFilter('active')">Đang chơi & Đã duyệt</button>
-                <button class="filter-tab" onclick="setMgmtFilter('completed')">Đã thanh toán</button>
+                <button class="filter-tab active" onclick="setMgmtFilter('active')">Đang chơi &amp; Đã duyệt</button>
+                <button class="filter-tab" onclick="setMgmtFilter('unpaid')">Còn công nợ</button>
+                <button class="filter-tab" onclick="setMgmtFilter('completed')">Đã đóng ca</button>
                 <button class="filter-tab" onclick="setMgmtFilter('all')">Tất cả</button>
               </div>
             </div>
             <div class="card-body" style="padding:0">
               <div id="todayList"></div>
+            </div>
+          </div>
+
+          <!-- 3. Đơn hàng lẻ Pro Shop (P1-15) -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-header-title">
+                <iconify-icon icon="lucide:shopping-bag" width="18" style="color:var(--color-primary)"></iconify-icon>
+                <span>Đơn Hàng Lẻ Pro Shop (<span id="standaloneOrdersCount">0</span>)</span>
+              </span>
+              <span class="badge badge-neutral">Không gộp sân · Đối soát riêng</span>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div id="standaloneOrdersList"></div>
             </div>
           </div>
         </div>
@@ -121,7 +136,7 @@
     </div>
   </main>
 
-  <!-- MODAL DUYỆT ĐƠN -->
+  <!-- MODAL DUYỆT ĐƠN & QR THẬT -->
   <div class="modal-overlay" id="modalQR">
     <div class="modal modal-sm">
       <div class="modal-header">
@@ -145,25 +160,29 @@
     </div>
   </div>
 
-  <!-- MODAL POS -->
+  <!-- MODAL POS TẠI SÂN -->
   <div class="modal-overlay" id="modalPOS">
     <div class="modal modal-full">
       <div class="pos-container">
         <div class="pos-menu-side">
-          <div class="flex-between mb-md">
+          <div class="flex-between mb-md" style="flex-wrap:wrap;gap:0.5rem;">
             <div>
-              <h3 class="modal-title">Thực đơn POS tại sân</h3>
-              <p class="text-xs text-muted">Bấm vào mặt hàng để thêm vào hóa đơn</p>
+              <h3 class="modal-title">Thực đơn POS tại sân (Trừ kho tức thì)</h3>
+              <p class="text-xs text-muted">Bấm vào mặt hàng còn tồn kho để thêm vào ca sân</p>
             </div>
-            <button class="btn btn-outline btn-sm" onclick="closeModal('modalPOS')">Đóng</button>
+            <button class="btn btn-outline btn-sm" onclick="closeModal('modalPOS')">Đóng POS</button>
           </div>
           <div class="pos-menu-grid" id="posMenuGrid"></div>
         </div>
         <div class="pos-cart-side">
           <div class="pos-cart-header">
-            <span class="badge badge-success mb-sm">Hóa đơn trực tiếp</span>
+            <span class="badge badge-success mb-sm">Hóa đơn ca sân</span>
             <p class="font-bold text-lg" id="posCustomer"></p>
             <p class="text-xs text-muted text-mono" id="posCourtInfo"></p>
+            <div style="display:flex;gap:0.4rem;margin-top:0.5rem;align-items:center;">
+              <select id="posMoveCourtSelect" class="form-select" style="padding:0.25rem 0.5rem;font-size:0.76rem;height:32px;"></select>
+              <button type="button" class="btn btn-outline btn-xs" onclick="movePosBookingCourt()">Đổi sân</button>
+            </div>
           </div>
           <div class="pos-cart-items" id="posCartItems">
             <div class="pos-cart-item" style="background:var(--color-primary-50);border-color:var(--color-primary-light)">
@@ -172,9 +191,7 @@
                 <div class="pos-cart-item-price text-mono" id="posCourtDuration"></div>
               </div>
               <div class="pos-qty">
-                <button onclick="adjustCourtTime(-15)">−</button>
-                <span style="font-size:0.7rem;font-weight:700">±15p</span>
-                <button onclick="adjustCourtTime(15)">+</button>
+                <button type="button" onclick="adjustCourtTime(30)" title="Gia hạn thêm 30 phút">+30p</button>
               </div>
               <div class="pos-cart-item-total text-mono" id="posCourtFee"></div>
             </div>
@@ -182,12 +199,12 @@
           </div>
           <div class="pos-cart-footer">
             <div class="pos-total-row">
-              <span class="pos-total-label">Tổng thanh toán</span>
+              <span class="pos-total-label">Tổng phải thu ca sân</span>
               <span class="pos-total-value" id="posTotal">0 đ</span>
             </div>
-            <div style="display:flex;gap:0.5rem">
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
               <button class="btn btn-outline" style="flex:1" onclick="savePosDraft()">Lưu tạm</button>
-              <button class="btn btn-primary" style="flex:1.3" onclick="checkoutPos()">Thanh toán & Trả sân</button>
+              <button class="btn btn-primary" style="flex:1.4" onclick="openBookingSettlementFromPos()">Sổ Thu Tiền / Đóng Ca</button>
             </div>
           </div>
         </div>
@@ -195,20 +212,99 @@
     </div>
   </div>
 
-  <!-- MODAL THANH TOÁN HOÀN TẤT -->
-  <div class="modal-overlay" id="modalPayment">
-    <div class="modal modal-sm">
-      <div class="modal-body" style="text-align:center;padding:2rem">
-        <div style="margin-bottom:0.75rem">
-          <iconify-icon icon="lucide:badge-check" width="56" style="color:var(--color-success)"></iconify-icon>
+  <!-- MODAL SỔ CÁI THU TIỀN & HOÀN TIỀN (P1-04, P1-05, P1-15) -->
+  <div class="modal-overlay" id="modalLedgerSettlement">
+    <div class="modal" style="max-width:560px;width:95%;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="ledgerModalTitle">Sổ Cái Thu Tiền &amp; Đối Soát</h3>
+          <p class="text-xs text-muted text-mono" id="ledgerModalSubtitle"></p>
         </div>
-        <h3 class="modal-title" style="margin-bottom:1.25rem">Thanh toán hoàn tất!</h3>
-        <div class="payment-summary" id="paymentSummary" style="text-align:left"></div>
-        <button class="btn btn-primary btn-block mt-md" onclick="closeModal('modalPayment')">Hoàn tất</button>
+        <button class="modal-close" onclick="closeModal('modalLedgerSettlement')">✕</button>
+      </div>
+      <div class="modal-body stack-sm">
+        <div class="payment-summary" id="ledgerSummaryBox"></div>
+
+        <!-- Ghi nhận thu tiền -->
+        <div id="ledgerCollectSection" style="padding:0.85rem;background:#F8FAFC;border:1px solid var(--border-color);border-radius:var(--radius-sm);">
+          <div class="font-bold text-sm mb-sm" style="color:var(--color-primary);">Ghi nhận bút toán Thu tiền (Payment Ledger)</div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0.5rem;">
+              <label class="form-label text-xs" for="ledgerPayAmount">Số tiền thực thu (VNĐ) *</label>
+              <input type="number" id="ledgerPayAmount" class="form-input text-mono font-bold" step="1000" min="1000">
+            </div>
+            <div class="form-group" style="margin-bottom:0.5rem;">
+              <label class="form-label text-xs" for="ledgerPayMethod">Phương thức thu *</label>
+              <select id="ledgerPayMethod" class="form-select" onchange="toggleTransferRefRequirement()">
+                <option value="cash">Tiền mặt tại quầy (Cash)</option>
+                <option value="transfer">Chuyển khoản ngân hàng (Transfer)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0.5rem;">
+              <label class="form-label text-xs" for="ledgerPayRef" id="ledgerPayRefLabel">Mã tham chiếu / UNC</label>
+              <input type="text" id="ledgerPayRef" class="form-input text-mono" placeholder="Bắt buộc nếu chuyển khoản (VD: FT26313...)">
+            </div>
+            <div class="form-group" style="margin-bottom:0.5rem;">
+              <label class="form-label text-xs" for="ledgerPayNote">Ghi chú thu ngân</label>
+              <input type="text" id="ledgerPayNote" class="form-input" placeholder="VD: Thu cọc / Thu đủ tại quầy">
+            </div>
+          </div>
+          <label id="ledgerAlsoFinishWrap" style="display:flex;align-items:center;gap:0.45rem;font-size:0.8rem;margin:0.35rem 0 0.65rem;">
+            <input type="checkbox" id="ledgerAlsoFinishSession">
+            <span>Đồng thời kết thúc ca chơi trên sân (Chuyển sang Hoàn thành)</span>
+          </label>
+          <button type="button" class="btn btn-primary btn-block" id="btnSubmitLedgerPay" onclick="submitLedgerPayment()">
+            <iconify-icon icon="lucide:wallet" width="16"></iconify-icon>
+            <span>Xác nhận Ghi Sổ Thu Tiền</span>
+          </button>
+        </div>
+
+        <!-- Hoàn tiền (Refund) khi đã thu > 0 -->
+        <details id="ledgerRefundDetails" style="display:none;padding:0.75rem;background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--radius-sm);">
+          <summary style="cursor:pointer;font-weight:700;font-size:0.82rem;color:#B91C1C;">
+            Tạo bút toán Hoàn tiền (Refund) cho khách
+          </summary>
+          <div style="margin-top:0.65rem;" class="stack-sm">
+            <div class="form-row">
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label text-xs" for="ledgerRefundAmount">Số tiền hoàn trả (VNĐ) *</label>
+                <input type="number" id="ledgerRefundAmount" class="form-input text-mono" step="1000" min="1000">
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label text-xs" for="ledgerRefundMethod">Phương thức hoàn</label>
+                <select id="ledgerRefundMethod" class="form-select">
+                  <option value="cash">Tiền mặt</option>
+                  <option value="transfer">Chuyển khoản hoàn</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label text-xs" for="ledgerRefundRef">Mã giao dịch hoàn (nếu CK)</label>
+                <input type="text" id="ledgerRefundRef" class="form-input text-mono" placeholder="VD: RF-001">
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label text-xs" for="ledgerRefundReason">Lý do hoàn tiền *</label>
+                <input type="text" id="ledgerRefundReason" class="form-input" placeholder="VD: Mưa nghỉ sớm / Hủy món">
+              </div>
+            </div>
+            <button type="button" class="btn btn-danger btn-sm btn-block" onclick="submitLedgerRefund()">
+              <span>Xác nhận Ghi Sổ Hoàn Tiền</span>
+            </button>
+          </div>
+        </details>
+
+        <!-- Lịch sử bút toán -->
+        <div>
+          <div class="text-xs font-bold text-muted mb-xs" style="text-transform:uppercase;">Lịch sử giao dịch sổ cái của đơn này</div>
+          <div id="ledgerTxHistoryList" style="max-height:150px;overflow-y:auto;border:1px solid var(--border-color);border-radius:var(--radius-xs);background:#FFF;"></div>
+        </div>
       </div>
     </div>
   </div>
 
 @section Scripts {
-  <script src="~/js/management.js"></script>
+  <script src="~/js/management.js" asp-append-version="true"></script>
 }

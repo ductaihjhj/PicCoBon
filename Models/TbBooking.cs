@@ -61,6 +61,23 @@ public partial class TbBooking
 
     public string? CheckInToken { get; set; }
 
+    /// <summary>
+    /// SHA-256 hex hash of the opaque guest BookingAccessToken issued once at booking creation.
+    /// </summary>
+    public string? AccessTokenHash { get; set; }
+
+    public string? IdempotencyKey { get; set; }
+
+    public DateOnly? BookingDateValue { get; set; }
+
+    public TimeOnly? StartTimeValue { get; set; }
+
+    public decimal AmountDueDec { get; set; }
+
+    public decimal PaidAmountDec { get; set; }
+
+    public byte[]? RowVersion { get; set; }
+
     public DateTime? CheckedInAt { get; set; }
 
     public DateTime? CompletedAt { get; set; }
@@ -84,4 +101,6 @@ public partial class TbBooking
     public virtual ICollection<TbOrder> TbOrders { get; set; } = new List<TbOrder>();
 
     public virtual ICollection<TbPaymentTransaction> TbPaymentTransactions { get; set; } = new List<TbPaymentTransaction>();
+
+    public virtual ICollection<TbInventoryMovement> TbInventoryMovements { get; set; } = new List<TbInventoryMovement>();
 }

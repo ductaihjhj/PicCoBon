@@ -8,7 +8,7 @@
       <div>
         <span class="section-kicker" style="color:var(--color-volt);">Quầy lễ tân</span>
         <h1 class="page-hero-title">Trạm Soát Vé Vào Sân (Check-in QR)</h1>
-        <p class="page-hero-sub">Nhập mã đặt sân, tải ảnh QR hoặc bấm Check-in trực tiếp từ danh sách khách chờ nhận sân</p>
+        <p class="page-hero-sub">Quét QR trực tiếp bằng Camera, tải tệp ảnh QR để giải mã máy chủ (ZXing) hoặc nhập mã vé đã duyệt</p>
       </div>
       <a href="/Admin" class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#FFF;">
         <iconify-icon icon="lucide:layout-dashboard" width="14"></iconify-icon>
@@ -24,45 +24,74 @@
           <div class="card-header">
             <span class="card-header-title">
               <iconify-icon icon="lucide:scan-line" width="18" style="color:var(--color-primary)"></iconify-icon>
-              <span>Xác thực mã vé QR</span>
+              <span>Xác thực mã vé QR định chuẩn</span>
             </span>
           </div>
           <div class="card-body">
+            <!-- 1. Nhập mã vé hoặc chuỗi Token ký số -->
             <div class="form-group">
-              <label class="form-label" for="manualCodeInput">Nhập mã đặt sân hoặc Số điện thoại:</label>
+              <label class="form-label" for="manualCodeInput">1. Nhập Mã đặt sân (PB-...) hoặc Token ký số (SPK1...):</label>
               <div style="display:flex;gap:0.5rem">
-                <input class="form-input text-mono" type="text" id="manualCodeInput" placeholder="VD: PB-2601B2" onkeydown="if(event.key==='Enter')verifyManualCode()">
-                <button class="btn btn-primary" onclick="verifyManualCode()">Kiểm tra</button>
+                <input class="form-input text-mono" type="text" id="manualCodeInput" placeholder="VD: PB-2611A9 hoặc SPK1...." onkeydown="if(event.key==='Enter')verifyManualCode()">
+                <button class="btn btn-primary" type="button" onclick="verifyManualCode()">Kiểm tra</button>
               </div>
             </div>
 
+            <!-- 2. Quét Camera trực tiếp -->
+            <div style="margin-top:1rem;padding:0.85rem;background:#F8FAFC;border:1px solid var(--border-color);border-radius:var(--radius-sm);">
+              <div class="flex-between" style="gap:0.5rem;flex-wrap:wrap;">
+                <span class="text-xs font-bold" style="color:var(--text-primary);">2. Quét mã QR qua Camera thiết bị:</span>
+                <div style="display:flex;gap:0.4rem;">
+                  <button type="button" class="btn btn-outline btn-xs" id="btnStartCamera" onclick="startCameraScanner()">
+                    <iconify-icon icon="lucide:camera" width="14"></iconify-icon>
+                    <span>Bật Camera</span>
+                  </button>
+                  <button type="button" class="btn btn-danger-outline btn-xs" id="btnStopCamera" style="display:none;" onclick="stopCameraScanner()">
+                    <span>Tắt Camera</span>
+                  </button>
+                </div>
+              </div>
+              <div id="cameraStatusBanner" class="text-xs text-muted" style="margin-top:0.45rem;">
+                Hỗ trợ trình duyệt có quyền truy cập Webcam / Camera sau điện thoại.
+              </div>
+              <div id="cameraViewportWrap" style="display:none;margin-top:0.65rem;text-align:center;">
+                <video id="qrCameraVideo" autoplay playsinline muted style="width:100%;max-height:220px;border-radius:8px;background:#0F172A;object-fit:cover;"></video>
+                <canvas id="qrCameraCanvas" style="display:none;"></canvas>
+                <button type="button" class="btn btn-primary btn-sm btn-block mt-sm" onclick="captureCameraFrameAndDecode()">
+                  <iconify-icon icon="lucide:scan" width="14"></iconify-icon>
+                  <span>Chụp khung hình &amp; Giải mã QR ngay</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 3. Tải tệp ảnh QR tĩnh (.PNG / .JPG / .WEBP) -->
             <div id="checkinUpload" style="margin-top:1rem">
-              <label class="upload-area" id="qrUploadLabel">
+              <label class="upload-area" id="qrUploadLabel" for="qrFileInput">
                 <div class="upload-area-icon">
-                  <iconify-icon icon="lucide:qr-code" width="44"></iconify-icon>
+                  <iconify-icon icon="lucide:qr-code" width="42"></iconify-icon>
                 </div>
                 <div class="upload-area-text">
-                  <strong style="color:var(--text-primary)">Bấm để tải ảnh mã QR</strong><br>
-                  <span class="text-xs text-muted">hoặc chọn vé trực tiếp ở danh sách bên phải</span>
+                  <strong style="color:var(--text-primary)">3. Tải tệp ảnh vé QR (.PNG, .JPG, .WEBP)</strong><br>
+                  <span class="text-xs text-muted">Giải mã trực tiếp bằng bộ đọc ảnh ZXing trên máy chủ</span>
                 </div>
-                <input type="file" accept="image/*" id="qrFileInput" style="display:none" onchange="mockCheckIn()">
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" id="qrFileInput" style="display:none" onchange="handleQrFileSelect(event)">
               </label>
             </div>
 
             <div class="checkin-result" id="checkinResult">
-              <p class="text-caption mb-sm" style="text-align:center">Kết quả nhận diện vé</p>
+              <p class="text-caption mb-sm" style="text-align:center">Kết quả soát vé tại cổng</p>
               <p class="text-xl font-bold text-mono mb-sm" id="checkinRef" style="text-align:center;background:#F8FAFC;padding:0.75rem;border-radius:var(--radius-sm);color:var(--color-indigo);border:1px solid var(--border-color)"></p>
 
               <div id="checkinSuccess" class="checkin-success" style="display:none">
                 <div class="font-bold text-base" id="checkinSuccessText"></div>
-                <p class="text-xs mt-sm">Trạng thái sân đã tự động chuyển sang "Đang thi đấu".</p>
+                <p class="text-xs mt-sm">Trạng thái sân đã chuyển sang "Đang thi đấu" và ghi dấu thời gian Check-in thực tế.</p>
               </div>
 
               <div id="checkinError" class="checkin-error" style="display:none">
                 <div class="font-bold text-base" id="checkinErrorText">Vé không hợp lệ!</div>
               </div>
 
-              <button class="btn btn-outline btn-block mt-md" onclick="resetCheckIn()">Soát vé tiếp theo</button>
+              <button class="btn btn-outline btn-block mt-md" type="button" onclick="resetCheckIn()">Soát vé tiếp theo</button>
             </div>
           </div>
         </div>
@@ -71,7 +100,7 @@
           <div class="card-header">
             <span class="card-header-title">
               <iconify-icon icon="lucide:user-check" width="18" style="color:var(--color-indigo)"></iconify-icon>
-              <span>Danh sách vé sẵn sàng Check-in nhận sân</span>
+              <span>Danh sách vé trong ngày hôm nay</span>
             </span>
             <span class="badge badge-primary" id="readyCheckinCount">0 vé</span>
           </div>
@@ -82,5 +111,5 @@
   </main>
 
 @section Scripts {
-  <script src="~/js/checkin.js"></script>
+  <script src="~/js/checkin.js" asp-append-version="true"></script>
 }

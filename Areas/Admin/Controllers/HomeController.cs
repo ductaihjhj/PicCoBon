@@ -1,10 +1,10 @@
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PickleballClub.Models;
-using PickleballClub.Services;
 using PickleballClub.Utilities;
 
 namespace PickleballClub.Areas.Admin.Controllers;
@@ -14,40 +14,50 @@ namespace PickleballClub.Areas.Admin.Controllers;
 public class HomeController : Controller
 {
     private readonly PickleballContext _context;
-    private readonly BookingService _bookingService;
 
-    public HomeController(PickleballContext context, BookingService bookingService)
+    public HomeController(PickleballContext context)
     {
         _context = context;
-        _bookingService = bookingService;
     }
 
     public async Task<IActionResult> Index()
     {
-        await _bookingService.ReconcileBookingStatusesAsync();
-
         ViewBag.TotalCourts = await _context.TbCourts.CountAsync(c => c.IsActive);
         ViewBag.TotalBookings = await _context.TbBookings.CountAsync();
         ViewBag.PendingBookings = await _context.TbBookings.CountAsync(b => b.Status == "pending");
         ViewBag.TotalProducts = await _context.TbProducts.CountAsync(p => p.IsActive);
 
-        // P1-06: Only count ACTUAL collected revenue (PaidAmount + standalone paid retail orders)
-        int collectedBookingRev = await _context.TbBookings
-            .Where(b => b.Status != "cancelled" && b.Status != "rejected" && b.PaidAmount > 0)
-            .SumAsync(b => (int?)b.PaidAmount) ?? 0;
+        // P1-06: Net collected revenue strictly from completed payment ledger minus refunds
+        var ledgerRows = await _context.TbPaymentTransactions
+            .AsNoTracking()
+            .Where(t => t.Status == "completed")
+            .Select(t => new { t.TransactionType, t.Amount })
+            .ToListAsync();
 
-        int standaloneRetailRev = await _context.TbOrders
-            .Where(o => o.BookingId == null && o.PaidAmount > 0)
-            .SumAsync(o => (int?)o.PaidAmount) ?? 0;
+        int netCollected = 0;
+        foreach (var r in ledgerRows)
+        {
+            if (string.Equals(r.TransactionType, "refund", StringComparison.OrdinalIgnoreCase))
+                netCollected -= Math.Abs(r.Amount);
+            else
+                netCollected += Math.Max(0, r.Amount);
+        }
 
-        int estimatedReceivables = await _context.TbBookings
+        int unpaidBookingReceivables = await _context.TbBookings
+            .AsNoTracking()
             .Where(b => (b.Status == "approved" || b.Status == "playing" || b.Status == "completed") && b.AmountDue > b.PaidAmount)
             .SumAsync(b => (int?)(b.AmountDue - b.PaidAmount)) ?? 0;
 
-        ViewBag.TotalRevenue = collectedBookingRev + standaloneRetailRev;
-        ViewBag.EstimatedReceivables = estimatedReceivables;
+        int unpaidShopReceivables = await _context.TbOrders
+            .AsNoTracking()
+            .Where(o => o.BookingId == null && o.Status != "cancelled" && (o.TotalAmount ?? 0) > o.PaidAmount)
+            .SumAsync(o => (int?)((o.TotalAmount ?? 0) - o.PaidAmount)) ?? 0;
+
+        ViewBag.TotalRevenue = Math.Max(0, netCollected);
+        ViewBag.EstimatedReceivables = unpaidBookingReceivables + unpaidShopReceivables;
 
         var recentBookings = await _context.TbBookings
+            .AsNoTracking()
             .Include(b => b.Court)
             .OrderByDescending(b => b.CreatedDate)
             .Take(15)

@@ -1,21 +1,30 @@
 /* ==========================================================================
-   SPIKE PICKLEBALL CLUB — SECURE LOOKUP & E-TICKET QR CONTROLLER
-   Fixes IDOR (P0-07), renders signed QR SVG (P1-01), enforces cutoff policy (P1-12)
+   SPIKE PICKLEBALL CLUB — SECURE LOOKUP & E-TICKET QR CONTROLLER (V2 Hardened)
+   Strict ownership: AccountId OR BookingCode + AccessToken (NEVER phone number!)
    ========================================================================== */
 
 let currentLookupList = [];
+let activeLookupAccessToken = '';
+
+function resolveStoredGuestToken(code) {
+  if (!code) return '';
+  try {
+    return window.sessionStorage.getItem(`pb_guest_token_${code.toUpperCase()}`) || '';
+  } catch (_) {
+    return '';
+  }
+}
 
 async function initLookup() {
   const user = getCurrentUser();
-  const codeInput = document.getElementById('lookupCode');
-  const phoneInput = document.getElementById('lookupPhone');
   const showAllBtn = document.getElementById('lookupShowAllBtn');
+  const codeInput = document.getElementById('lookupCode');
+  const tokenInput = document.getElementById('lookupAccessToken');
 
   if (showAllBtn) {
-    // Only show "Xem lịch của tôi" for logged-in users or "Xem tất cả" for Admin/Staff (P0-07)
     if (isAdminUser()) {
       showAllBtn.style.display = '';
-      showAllBtn.querySelector('span').textContent = 'Xem tất cả đơn (Admin)';
+      showAllBtn.querySelector('span').textContent = 'Xem tất cả đơn (Quản lý)';
     } else if (user) {
       showAllBtn.style.display = '';
       showAllBtn.querySelector('span').textContent = 'Xem vé của tôi';
@@ -24,10 +33,23 @@ async function initLookup() {
     }
   }
 
-  if (user) {
-    if (phoneInput && !phoneInput.value && user.phone) {
-      phoneInput.value = user.phone;
+  const params = new URLSearchParams(window.location.search);
+  const urlCode = (params.get('code') || '').trim();
+  const urlToken = (params.get('accessToken') || '').trim();
+
+  if (urlCode && codeInput) {
+    codeInput.value = urlCode;
+    const savedTok = urlToken || resolveStoredGuestToken(urlCode);
+    if (savedTok && tokenInput) {
+      tokenInput.value = savedTok;
     }
+    if (savedTok || user) {
+      await searchLookup();
+      return;
+    }
+  }
+
+  if (user) {
     await showAllLookup();
   }
 }
@@ -35,23 +57,28 @@ async function initLookup() {
 async function showAllLookup() {
   const user = getCurrentUser();
   if (!user) {
-    showToast('Yêu cầu xác thực', 'Khách vãng lai vui lòng nhập đồng thời Mã đặt sân (PB-...) và Số điện thoại để tra cứu vé.', 'warning');
+    showToast('Yêu cầu xác thực', 'Khách vãng lai vui lòng nhập Mã đặt sân (PB-...) kèm Mã bảo mật vé (bk_...) để tra cứu.', 'warning');
     return;
   }
 
   try {
     const endpoint = isAdminUser() ? '/api/bookings/lookup' : '/api/bookings/me';
-    const res = await fetch(endpoint, { headers: { 'Accept': 'application/json' }, cache: 'no-store' });
-    const data = await res.json();
+    const res = await fetch(endpoint, {
+      headers: { 'Accept': 'application/json' },
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
       showToast('Không thể tải danh sách', data.error || 'Vui lòng thử lại.', 'error');
       return;
     }
 
+    activeLookupAccessToken = '';
     currentLookupList = data.bookings || [];
     const label = isAdminUser()
       ? `Tất cả đơn đặt sân trong hệ thống (${currentLookupList.length} lượt)`
-      : `Danh sách vé đặt sân của bạn (${currentLookupList.length} lượt)`;
+      : `Danh sách vé đặt sân tài khoản của bạn (${currentLookupList.length} lượt)`;
     renderLookupTable(currentLookupList, label);
   } catch (_) {
     showToast('Lỗi kết nối', 'Không thể tải dữ liệu vé đặt sân.', 'error');
@@ -59,54 +86,46 @@ async function showAllLookup() {
 }
 
 async function searchLookup() {
-  const rawInput = (document.getElementById('lookupPhone')?.value || '').trim();
-  const codeInputVal = (document.getElementById('lookupCode')?.value || '').trim();
+  const codeVal = (document.getElementById('lookupCode')?.value || '').trim();
+  let tokenVal = (document.getElementById('lookupAccessToken')?.value || '').trim();
   const card = document.getElementById('lookupResultCard');
   const empty = document.getElementById('lookupEmpty');
   if (!card || !empty) return;
 
-  let code = codeInputVal;
-  let phone = rawInput;
-
-  // Allow user to type "PB-XXXX 0901234567" in a single input or use separate inputs
-  if (!code && rawInput.includes(' ')) {
-    const parts = rawInput.split(/\s+/);
-    const codePart = parts.find(p => p.toUpperCase().startsWith('PB-') || p.toUpperCase().startsWith('SPK1.'));
-    const phonePart = parts.find(p => /^[0+][0-9]{8,11}$/.test(p));
-    if (codePart) code = codePart;
-    if (phonePart) phone = phonePart;
-  } else if (!code && (rawInput.toUpperCase().startsWith('PB-') || rawInput.toUpperCase().startsWith('SPK1.'))) {
-    code = rawInput;
-    phone = getCurrentUser()?.phone || '';
+  if (!tokenVal && codeVal) {
+    tokenVal = resolveStoredGuestToken(codeVal);
   }
 
-  if (!code && !phone) {
-    if (getCurrentUser()) {
+  const user = getCurrentUser();
+  if (!codeVal && !tokenVal) {
+    if (user) {
       await showAllLookup();
     } else {
-      showToast('Nhập thông tin tra cứu', 'Vui lòng nhập Mã đặt sân (PB-...) kèm Số điện thoại đặt sân.', 'warning');
+      showToast('Nhập thông tin tra cứu', 'Vui lòng nhập Mã đặt sân (PB-...) kèm Mã bảo mật vé (bk_...).', 'warning');
     }
     return;
   }
 
   try {
     const qs = new URLSearchParams();
-    if (code) qs.set('code', code);
-    if (phone) qs.set('phone', phone);
+    if (codeVal) qs.set('code', codeVal);
+    if (tokenVal) qs.set('accessToken', tokenVal);
 
     const res = await fetch(`/api/bookings/lookup?${qs.toString()}`, {
       headers: { 'Accept': 'application/json' },
+      credentials: 'same-origin',
       cache: 'no-store'
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
     if (!res.ok || !data.ok) {
       card.style.display = 'none';
       empty.style.display = 'flex';
-      showToast('Tra cứu bảo mật', data.error || 'Vui lòng nhập đúng Mã đặt sân và Số điện thoại.', 'warning');
+      showToast('Xác thực quyền sở hữu vé', data.error || 'Cần đúng Mã đặt sân và Mã bảo mật vé (bk_...) hoặc tài khoản đặt vé.', 'warning');
       return;
     }
 
+    activeLookupAccessToken = tokenVal;
     currentLookupList = data.bookings || [];
     if (currentLookupList.length === 0) {
       card.style.display = 'none';
@@ -141,10 +160,9 @@ function renderLookupTable(list, titleText) {
     const court = getCourtById(b.courtId);
     const endTime = getEndTime(b.time, b.duration);
     const total = Number(b.amountDue) || Number(b.courtFee) || 0;
+    const paid = Number(b.paidAmount) || 0;
     const canCancel = b.status === 'pending' || b.status === 'approved';
-    const paymentBadge = b.paymentStatus === 'paid'
-      ? '<span class="badge badge-success" style="font-size:0.68rem;">Đã thanh toán</span>'
-      : '<span class="badge badge-neutral" style="font-size:0.68rem;">Thu tại quầy</span>';
+    const showQr = !['rejected', 'cancelled', 'expired', 'no_show'].includes(b.status);
 
     return `
       <tr>
@@ -158,13 +176,13 @@ function renderLookupTable(list, titleText) {
         <td class="text-mono font-semibold">${escapeHtml(b.time)} → ${escapeHtml(endTime)} <span class="text-xs text-muted">(${Number(b.duration)}p)</span></td>
         <td>
           <div class="text-mono font-bold" style="color:var(--color-primary)">${formatMoney(total)}</div>
-          ${paymentBadge}
+          ${paymentBadgeHtml(paid, total, b.paymentStatus)}
         </td>
         <td><span class="badge ${statusBadgeClass(b.status)}">${escapeHtml(statusLabel(b.status, b))}</span></td>
         <td>
           <div style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap;">
-            ${b.status !== 'rejected' && b.status !== 'cancelled' ? `<button class="btn btn-outline btn-sm" onclick="viewTicketQR('${escapeAttr(b.id)}')"><iconify-icon icon="lucide:qr-code" width="14"></iconify-icon> Mã QR</button>` : ''}
-            ${canCancel ? `<button class="btn btn-danger-outline btn-sm" onclick="cancelMyBooking('${escapeAttr(b.id)}', '${escapeAttr(b.phone)}')">Hủy đơn</button>` : ''}
+            ${showQr ? `<button class="btn btn-outline btn-sm" onclick="viewTicketQR('${escapeAttr(b.id)}')"><iconify-icon icon="lucide:qr-code" width="14"></iconify-icon> Mã QR</button>` : ''}
+            ${canCancel ? `<button class="btn btn-danger-outline btn-sm" onclick="cancelMyBooking('${escapeAttr(b.id)}')">Hủy đơn</button>` : ''}
           </div>
         </td>
       </tr>
@@ -178,48 +196,62 @@ function viewTicketQR(id) {
   const court = getCourtById(b.courtId);
   const endTime = getEndTime(b.time, b.duration);
   const total = Number(b.amountDue) || Number(b.courtFee) || 0;
-  const qrToken = b.checkInToken || b.id;
+  const paid = Number(b.paidAmount) || 0;
+  const tok = activeLookupAccessToken || resolveStoredGuestToken(b.id);
 
   const qrBox = document.querySelector('#modalTicketQR .qr-placeholder');
   if (qrBox) {
     qrBox.innerHTML = `
-      ${renderQrCodeSvg(qrToken, 152)}
+      ${renderBookingQrHtml(b, 168, tok)}
       <div class="text-xs font-bold text-mono mt-sm" id="ticketQrCode" style="color:var(--color-indigo)">${escapeHtml(b.id)}</div>
-      <div style="font-size:0.68rem;color:var(--text-muted);font-family:var(--font-mono);margin-top:2px;">Token bảo mật: ${escapeHtml(String(qrToken).slice(0, 24))}...</div>
     `;
+  }
+
+  const dlBtn = document.getElementById('ticketQrDownloadPngBtn');
+  if (dlBtn) {
+    dlBtn.href = getBookingQrPngUrl(b.id, tok);
+    dlBtn.setAttribute('download', `Spike-QR-${b.id}.png`);
   }
 
   document.getElementById('ticketQrName').textContent = `${b.name} (${b.phone})`;
   document.getElementById('ticketQrDate').textContent = formatDateVN(b.date);
   document.getElementById('ticketQrCourt').textContent = court.name;
   document.getElementById('ticketQrTime').textContent = `${b.time} → ${endTime} (${b.duration} phút)`;
-  document.getElementById('ticketQrTotal').textContent = `${formatMoney(total)} (${b.paymentStatus === 'paid' ? 'Đã thanh toán' : 'Thanh toán tại quầy'})`;
+  document.getElementById('ticketQrTotal').textContent = `${formatMoney(total)} (${paid >= total && total > 0 ? 'Đã thu đủ' : `Đã thu ${formatMoney(paid)}`})`;
   openModal('modalTicketQR');
 }
 
-async function cancelMyBooking(id, phone) {
+async function cancelMyBooking(id) {
   if (!confirm(`Bạn có chắc chắn muốn hủy đơn đặt sân ${id}? (Lưu ý: Lịch đã duyệt chỉ có thể tự hủy trước giờ thi đấu tối thiểu 2 tiếng)`)) {
     return;
   }
 
+  const accessToken = activeLookupAccessToken
+    || (document.getElementById('lookupAccessToken')?.value || '').trim()
+    || resolveStoredGuestToken(id);
+
   try {
-    const res = await fetch(`/api/bookings/${encodeURIComponent(id)}/cancel`, {
+    const res = await apiFetch(`/api/bookings/${encodeURIComponent(id)}/cancel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        phone: phone || document.getElementById('lookupPhone')?.value || '',
+        accessToken,
         reason: 'Khách hàng yêu cầu hủy trên trang Tra cứu'
       })
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
-      showToast('Không thể hủy lịch', data.error || 'Đã quá thời hạn tự hủy lịch.', 'error');
+      showToast('Không thể hủy lịch', data.error || 'Đã quá thời hạn tự hủy lịch hoặc thiếu mã bảo mật vé.', 'error');
       return;
     }
 
     showToast('Đã hủy lịch đặt sân', `Đơn ${id} đã được hủy thành công.`, 'success');
-    await syncDatabaseFromServer();
-    await searchLookup();
+    await syncDatabaseFromServer(true);
+    if (getCurrentUser() && !activeLookupAccessToken) {
+      await showAllLookup();
+    } else {
+      await searchLookup();
+    }
   } catch (_) {
     showToast('Lỗi kết nối', 'Không thể gửi yêu cầu hủy đơn lúc này.', 'error');
   }
