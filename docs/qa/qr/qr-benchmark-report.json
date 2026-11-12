@@ -1,0 +1,13 @@
+{
+  "benchmarkTimestampUtc": "2026-11-10T05:27:17.9690674Z",
+  "totalSamplesTested": 105,
+  "totalSamplesDecoded": 105,
+  "passRatePercent": 100,
+  "breakdown": {
+    "standard_512_png": 35,
+    "logo_512_png": 30,
+    "mobile_220_downscaled": 15,
+    "jpeg_compressed_q80": 15,
+    "highres_1024_png": 10
+  }
+}

@@ -1,0 +1,821 @@
+{
+  "timestamp": "2026-11-10T04:24:11.240Z",
+  "baseUrl": "http://127.0.0.1:5099",
+  "consoleErrors": [],
+  "pageErrors": [],
+  "brokenImages": [],
+  "breakpointMatrix": [
+    {
+      "route": "/",
+      "width": 320,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/",
+      "width": 360,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/",
+      "width": 375,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/",
+      "width": 390,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/",
+      "width": 414,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/",
+      "width": 430,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/",
+      "width": 768,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/",
+      "width": 1024,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/",
+      "width": 1280,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/",
+      "width": 1440,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/",
+      "width": 1920,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Booking",
+      "width": 320,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Booking",
+      "width": 360,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Booking",
+      "width": 375,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Booking",
+      "width": 390,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Booking",
+      "width": 414,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Booking",
+      "width": 430,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Booking",
+      "width": 768,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Booking",
+      "width": 1024,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Booking",
+      "width": 1280,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Booking",
+      "width": 1440,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Booking",
+      "width": 1920,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Product",
+      "width": 320,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Product",
+      "width": 360,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Product",
+      "width": 375,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Product",
+      "width": 390,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Product",
+      "width": 414,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Product",
+      "width": 430,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Product",
+      "width": 768,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Product",
+      "width": 1024,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Product",
+      "width": 1280,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Product",
+      "width": 1440,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Product",
+      "width": 1920,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Lookup",
+      "width": 320,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Lookup",
+      "width": 360,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Lookup",
+      "width": 375,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Lookup",
+      "width": 390,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Lookup",
+      "width": 414,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Lookup",
+      "width": 430,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Lookup",
+      "width": 768,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Lookup",
+      "width": 1024,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Lookup",
+      "width": 1280,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Lookup",
+      "width": 1440,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Lookup",
+      "width": 1920,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Account/Login",
+      "width": 320,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Account/Login",
+      "width": 360,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Account/Login",
+      "width": 375,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Account/Login",
+      "width": 390,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Account/Login",
+      "width": 414,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Account/Login",
+      "width": 430,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Account/Login",
+      "width": 768,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Account/Login",
+      "width": 1024,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Account/Login",
+      "width": 1280,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Account/Login",
+      "width": 1440,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Account/Login",
+      "width": 1920,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Dashboard",
+      "width": 320,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Dashboard",
+      "width": 360,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Dashboard",
+      "width": 375,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Dashboard",
+      "width": 390,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Dashboard",
+      "width": 414,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Dashboard",
+      "width": 430,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Dashboard",
+      "width": 768,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Dashboard",
+      "width": 1024,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Dashboard",
+      "width": 1280,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Dashboard",
+      "width": 1440,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Dashboard",
+      "width": 1920,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Reports",
+      "width": 320,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Reports",
+      "width": 360,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Reports",
+      "width": 375,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Reports",
+      "width": 390,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Reports",
+      "width": 414,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Reports",
+      "width": 430,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Reports",
+      "width": 768,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Reports",
+      "width": 1024,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Reports",
+      "width": 1280,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Reports",
+      "width": 1440,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Reports",
+      "width": 1920,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Admin",
+      "width": 320,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Admin",
+      "width": 360,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Admin",
+      "width": 375,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Admin",
+      "width": 390,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Admin",
+      "width": 414,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Admin",
+      "width": 430,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Admin",
+      "width": 768,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Admin",
+      "width": 1024,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Admin",
+      "width": 1280,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Admin",
+      "width": 1440,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    },
+    {
+      "route": "/Admin",
+      "width": 1920,
+      "overflowPx": 0,
+      "offenders": [],
+      "brokenImagesCount": 0,
+      "pass": true
+    }
+  ],
+  "checks": {
+    "UI-B03_HomeAndFooterCmsBinding": {
+      "pass": true,
+      "hasAccurateTierCopy": true,
+      "tierCardText": "Đến -15% / hạng thẻ VIP",
+      "footerSyncCount": 10,
+      "statusText": "Trạng thái 4 sân trực tiếp"
+    },
+    "UI-B07_CourtImagesAllLoaded": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflowPx": 0,
+      "offenders": [],
+      "totalImages": 0,
+      "brokenImages": [],
+      "pass": true
+    },
+    "UI-A07_DatePickerAndDeepLinkSync": {
+      "pass": true,
+      "pickerVal": "2026-11-18",
+      "activePillText": "Thứ 4\n        18\n        Thg 11 ★"
+    },
+    "UI-A02_ServerQuoteValidationAndBadge": {
+      "pass": true,
+      "badge": "✓ Báo giá máy chủ",
+      "submitDisabled": false,
+      "courtRadios": 4
+    },
+    "UI-A06_InvalidCourtParamWarning": {
+      "pass": true,
+      "bannerText": "Sân #999 trong liên kết không tồn tại hoặc đã ngừng hoạt động. Hệ thống đã chọn Sân VIP 01 (Arena A)."
+    },
+    "UI-B01_DarkTicketButtonContrast": {
+      "pass": true,
+      "contrastRatio": 13.98,
+      "btnColor": "rgb(248, 250, 252)",
+      "footerBg": "rgb(30, 41, 59)"
+    },
+    "UI-B02_MobileTicket360NoClip": {
+      "pass": true,
+      "bookingCode": "PB-65E456",
+      "noHorizontalClip": true
+    },
+    "UI-B04_Ticket3FieldLedgerBreakdown": {
+      "pass": true,
+      "amountDue": "170.000 đ",
+      "paidAmt": "0 đ",
+      "remDue": "170.000 đ",
+      "payStatus": "Chưa thanh toán"
+    },
+    "UI-C01_SingleQrInBookingConfirmModal": {
+      "pass": true,
+      "qrCountInModal": 1
+    },
+    "UI-C01_SingleQrInLookupModal": {
+      "pass": true,
+      "qrCountInModal": 1
+    },
+    "UI-B05_MobileStickyShopCartBar": {
+      "pass": true,
+      "display": "block",
+      "position": "fixed",
+      "countTxt": "1 món đã chọn",
+      "totalTxt": "15.000 đ"
+    },
+    "UI-B06_CategoryTabsAriaAndTouchTarget": {
+      "pass": true,
+      "tabCount": 4,
+      "minHeight": 44
+    },
+    "UI-C03_FilteredEmptyResetButton": {
+      "pass": true,
+      "title": "Không tìm thấy sản phẩm nào khớp bộ lọc"
+    },
+    "UI-A03_DashboardLedgerKpiAndMatrixButtons": {
+      "pass": true,
+      "kpiLabel": true,
+      "kpiSub": "Phải thu hôm nay: 140.000 đ · Công nợ: 0 đ",
+      "matrixBtns": 39
+    },
+    "UI-A08_ZeroSlotsDisablesSubmitAndSuggestsAlternatives": {
+      "pass": true,
+      "submitDisabled": true,
+      "startSelectDisabled": true,
+      "altButtonsCount": 2
+    },
+    "UI-A05_ZeroRevenueBarHasZeroHeight": {
+      "pass": true,
+      "zeroBarCount": 3,
+      "heights": [
+        2,
+        2,
+        2
+      ]
+    },
+    "UI-A04_ReportsApiFailureShowsStaleBannerAndErrorToast": {
+      "pass": true,
+      "bannerText": "Dữ liệu cũ — Cập nhật thành công lần cuối lúc 11:24:30\n        Simulated SQL Server timeout for UI-A04 test Các chỉ số bên dưới là dữ liệu của lần tải thành công trước đó.\n        \n                         \n                         Thử tải lại báo cáo",
+      "hasFalseSuccessToast": false,
+      "hasErrorToast": true
+    },
+    "UI-B08_AdminStatCardsStyled": {
+      "pass": true,
+      "borderRadius": "16px",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "padding": "20px 21.6px"
+    }
+  }
+}

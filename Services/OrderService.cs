@@ -33,16 +33,18 @@ public class OrderOperationResult
 {
     public bool Success { get; set; }
     public int StatusCode { get; set; } = 200;
+    public string? ErrorCode { get; set; }
     public string? ErrorMessage { get; set; }
     public TbOrder? Order { get; set; }
     public TbBooking? LinkedBooking { get; set; }
     public TbPaymentTransaction? Transaction { get; set; }
     public bool IsIdempotentReplay { get; set; }
 
-    public static OrderOperationResult Fail(string msg, int code = 400) => new()
+    public static OrderOperationResult Fail(string msg, int code = 400, string? errorCode = null) => new()
     {
         Success = false,
         StatusCode = code,
+        ErrorCode = errorCode,
         ErrorMessage = msg
     };
 
@@ -97,17 +99,58 @@ public class OrderService
             return OrderOperationResult.Fail("Tổng số lượng mỗi sản phẩm không hợp lệ.", 400);
         }
 
-        string cleanIdem = string.IsNullOrWhiteSpace(input.IdempotencyKey)
-            ? string.Empty
-            : input.IdempotencyKey.Trim()[..Math.Min(input.IdempotencyKey.Trim().Length, 100)];
+        string cleanIdem = IdempotencyService.NormalizeKey(input.IdempotencyKey) ?? string.Empty;
+        string canonicalItems = string.Join(",", groupedItems.Select(g => $"{g.ProductId}:{g.TotalQty}"));
+        string requestedBookingCode = string.IsNullOrWhiteSpace(input.BookingCode)
+            ? "STANDALONE"
+            : input.BookingCode.Trim().ToUpperInvariant();
+        string idemScope = "order.create";
+        string idemActor = IdempotencyService.BuildActorKey(input.ActorAccountId, cleanPhone);
+        string idemTarget = $"ORDER_TARGET:{requestedBookingCode}";
+        string idemPayload = $"booking={requestedBookingCode}|phone={cleanPhone}|name={cleanName.ToLowerInvariant()}|items={canonicalItems}";
 
         if (!string.IsNullOrEmpty(cleanIdem))
         {
+            var idemCheck = await IdempotencyService.CheckAsync(context, cleanIdem, idemScope, idemActor, idemTarget, idemPayload);
+            if (idemCheck.Status == IdempotencyStatus.Conflict)
+            {
+                return OrderOperationResult.Fail(idemCheck.ConflictMessage!, 409, IdempotencyService.ConflictErrorCode);
+            }
+            if (idemCheck.Status == IdempotencyStatus.Replay && idemCheck.ExistingRecord?.ResultEntityId != null)
+            {
+                var replayed = await context.TbOrders.AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.OrderId == idemCheck.ExistingRecord.ResultEntityId.Value);
+                if (replayed != null)
+                {
+                    return OrderOperationResult.Ok(replayed, replay: true);
+                }
+            }
+
             var existingPre = await context.TbOrders
+                .Include(o => o.TbOrderDetails)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(o => o.IdempotencyKey == cleanIdem);
             if (existingPre != null)
             {
+                string existingItems = string.Join(",", existingPre.TbOrderDetails
+                    .Where(d => d.ProductId.HasValue && d.Quantity.HasValue)
+                    .GroupBy(d => d.ProductId!.Value)
+                    .OrderBy(g => g.Key)
+                    .Select(g => $"{g.Key}:{g.Sum(x => x.Quantity!.Value)}"));
+                bool matchesExisting =
+                    string.Equals(existingItems, canonicalItems, StringComparison.Ordinal) &&
+                    string.Equals(existingPre.BookingCode ?? "STANDALONE", requestedBookingCode, StringComparison.OrdinalIgnoreCase) &&
+                    existingPre.AccountId == input.ActorAccountId &&
+                    string.Equals(BookingService.NormalizePhone(existingPre.Phone), cleanPhone, StringComparison.Ordinal);
+
+                if (!matchesExisting)
+                {
+                    return OrderOperationResult.Fail(
+                        "Khóa IdempotencyKey đã được sử dụng cho một đơn hàng khác.",
+                        409,
+                        IdempotencyService.ConflictErrorCode);
+                }
+
                 return OrderOperationResult.Ok(existingPre, replay: true);
             }
         }
@@ -119,11 +162,20 @@ public class OrderService
         {
             if (!string.IsNullOrEmpty(cleanIdem))
             {
-                var existingInTx = await context.TbOrders.FirstOrDefaultAsync(o => o.IdempotencyKey == cleanIdem);
-                if (existingInTx != null)
+                var txIdem = await IdempotencyService.CheckAsync(context, cleanIdem, idemScope, idemActor, idemTarget, idemPayload);
+                if (txIdem.Status == IdempotencyStatus.Conflict)
                 {
-                    if (tx != null) await tx.CommitAsync();
-                    return OrderOperationResult.Ok(existingInTx, replay: true);
+                    if (tx != null) await tx.RollbackAsync();
+                    return OrderOperationResult.Fail(txIdem.ConflictMessage!, 409, IdempotencyService.ConflictErrorCode);
+                }
+                if (txIdem.Status == IdempotencyStatus.Replay && txIdem.ExistingRecord?.ResultEntityId != null)
+                {
+                    var existingInTx = await context.TbOrders.FirstOrDefaultAsync(o => o.OrderId == txIdem.ExistingRecord.ResultEntityId.Value);
+                    if (existingInTx != null)
+                    {
+                        if (tx != null) await tx.CommitAsync();
+                        return OrderOperationResult.Ok(existingInTx, replay: true);
+                    }
                 }
             }
 
@@ -272,6 +324,7 @@ WHERE ProductId = {0} AND IsActive = 1 AND COALESCE(UnitInStock, Quantity, 0) >=
                 PaidAmount = 0,
                 PaymentStatus = linkedBooking != null ? "merged_to_booking" : "unpaid",
                 Status = "confirmed",
+                FulfillmentStatus = "pending",
                 PaymentMethod = "cash",
                 IdempotencyKey = string.IsNullOrEmpty(cleanIdem) ? null : cleanIdem,
                 Quanlity = totalQty,
@@ -283,6 +336,13 @@ WHERE ProductId = {0} AND IsActive = 1 AND COALESCE(UnitInStock, Quantity, 0) >=
 
             context.TbOrders.Add(order);
             await context.SaveChangesAsync();
+
+            if (!string.IsNullOrEmpty(cleanIdem))
+            {
+                string reqHash = IdempotencyService.ComputeCanonicalHash(idemScope, idemActor, idemTarget, idemPayload);
+                context.TbIdempotencyRecords.Add(IdempotencyService.CreateRecord(
+                    cleanIdem, idemScope, idemActor, idemTarget, reqHash, order.Code, order.OrderId));
+            }
 
             foreach (var li in lineItems)
             {
@@ -312,22 +372,15 @@ WHERE ProductId = {0} AND IsActive = 1 AND COALESCE(UnitInStock, Quantity, 0) >=
                 var posList = BookingService.ParsePosItems(linkedBooking.PosItemsJson);
                 foreach (var li in lineItems)
                 {
-                    var ex = posList.FirstOrDefault(p => p.ProductId == li.Product.ProductId);
-                    if (ex != null)
+                    posList.Add(new PosCartItemDto
                     {
-                        ex.Qty += li.Qty;
-                        ex.Price = li.UnitPrice;
-                    }
-                    else
-                    {
-                        posList.Add(new PosCartItemDto
-                        {
-                            ProductId = li.Product.ProductId,
-                            Name = li.Product.Title ?? "Pro Shop",
-                            Price = li.UnitPrice,
-                            Qty = li.Qty
-                        });
-                    }
+                        ProductId = li.Product.ProductId,
+                        Name = li.Product.Title ?? "Pro Shop",
+                        Price = li.UnitPrice,
+                        Qty = li.Qty,
+                        OrderId = order.OrderId,
+                        OrderCode = order.Code
+                    });
                 }
 
                 linkedBooking.PosItemsJson = System.Text.Json.JsonSerializer.Serialize(posList);
@@ -356,6 +409,23 @@ WHERE ProductId = {0} AND IsActive = 1 AND COALESCE(UnitInStock, Quantity, 0) >=
         catch (DbUpdateException)
         {
             if (tx != null) await tx.RollbackAsync();
+
+            if (!string.IsNullOrEmpty(cleanIdem))
+            {
+                var afterConflict = await IdempotencyService.CheckAsync(context, cleanIdem, idemScope, idemActor, idemTarget, idemPayload);
+                if (afterConflict.Status == IdempotencyStatus.Conflict)
+                {
+                    return OrderOperationResult.Fail(afterConflict.ConflictMessage!, 409, IdempotencyService.ConflictErrorCode);
+                }
+                if (afterConflict.Status == IdempotencyStatus.Replay && afterConflict.ExistingRecord?.ResultEntityId != null)
+                {
+                    var replayed = await context.TbOrders.AsNoTracking()
+                        .FirstOrDefaultAsync(o => o.OrderId == afterConflict.ExistingRecord.ResultEntityId.Value);
+                    if (replayed != null)
+                        return OrderOperationResult.Ok(replayed, replay: true);
+                }
+            }
+
             return OrderOperationResult.Fail("Giao dịch tạo đơn bị xung đột dữ liệu hoặc trùng khóa. Vui lòng thử lại.", 409);
         }
     }
@@ -402,21 +472,46 @@ WHERE ProductId = {0} AND IsActive = 1 AND COALESCE(UnitInStock, Quantity, 0) >=
         bool isRelational = context.Database.IsRelational();
         await using var tx = isRelational ? await context.Database.BeginTransactionAsync(IsolationLevel.Serializable) : null;
 
-        var existingTx = await context.TbPaymentTransactions.FirstOrDefaultAsync(t => t.IdempotencyKey == cleanIdem);
-        if (existingTx != null)
-        {
-            var ord = await FindOrderAsync(context, orderCodeOrId);
-            if (tx != null) await tx.CommitAsync();
-            return ord != null
-                ? OrderOperationResult.Ok(ord, tx: existingTx, replay: true)
-                : OrderOperationResult.Fail("IdempotencyKey đã được sử dụng.", 409);
-        }
-
         var order = await FindOrderAsync(context, orderCodeOrId);
         if (order == null)
         {
             if (tx != null) await tx.RollbackAsync();
             return OrderOperationResult.Fail("Không tìm thấy đơn hàng Pro Shop.", 404);
+        }
+
+        string idemScope = "order.payment";
+        string idemActor = IdempotencyService.BuildActorKey(actorAccountId, actorUsername);
+        string idemTarget = $"ORDER:{order.Code ?? order.OrderId.ToString()}";
+        string idemPayload = $"order={order.OrderId}|amount={amount}|method={cleanMethod}|ref={(cleanRef ?? "").ToUpperInvariant()}";
+
+        var idemCheck = await IdempotencyService.CheckAsync(context, cleanIdem, idemScope, idemActor, idemTarget, idemPayload);
+        if (idemCheck.Status == IdempotencyStatus.Conflict)
+        {
+            if (tx != null) await tx.RollbackAsync();
+            return OrderOperationResult.Fail(idemCheck.ConflictMessage!, 409, IdempotencyService.ConflictErrorCode);
+        }
+
+        var existingTx = await context.TbPaymentTransactions.FirstOrDefaultAsync(t => t.IdempotencyKey == cleanIdem);
+        if (existingTx != null)
+        {
+            bool matchesTx =
+                existingTx.OrderId == order.OrderId &&
+                string.Equals(existingTx.TransactionType, "payment", StringComparison.OrdinalIgnoreCase) &&
+                existingTx.Amount == amount &&
+                string.Equals(existingTx.PaymentMethod, cleanMethod, StringComparison.OrdinalIgnoreCase) &&
+                (!actorAccountId.HasValue || !existingTx.ActorAccountId.HasValue || existingTx.ActorAccountId == actorAccountId);
+
+            if (!matchesTx)
+            {
+                if (tx != null) await tx.RollbackAsync();
+                return OrderOperationResult.Fail(
+                    "Khóa IdempotencyKey đã được sử dụng cho một giao dịch thu tiền khác (khác đơn hàng, số tiền hoặc phương thức).",
+                    409,
+                    IdempotencyService.ConflictErrorCode);
+            }
+
+            if (tx != null) await tx.CommitAsync();
+            return OrderOperationResult.Ok(order, tx: existingTx, replay: true);
         }
 
         if (order.BookingId.HasValue)
@@ -467,6 +562,10 @@ WHERE ProductId = {0} AND IsActive = 1 AND COALESCE(UnitInStock, Quantity, 0) >=
 
         context.TbPaymentTransactions.Add(paymentRow);
         await context.SaveChangesAsync();
+
+        string reqHash = IdempotencyService.ComputeCanonicalHash(idemScope, idemActor, idemTarget, idemPayload);
+        context.TbIdempotencyRecords.Add(IdempotencyService.CreateRecord(
+            cleanIdem, idemScope, idemActor, idemTarget, reqHash, order.Code, paymentRow.TransactionId));
 
         int newNetPaid = await ComputeOrderLedgerNetPaidAsync(context, order.OrderId);
         order.PaidAmount = newNetPaid;
@@ -522,24 +621,50 @@ WHERE ProductId = {0} AND IsActive = 1 AND COALESCE(UnitInStock, Quantity, 0) >=
             return OrderOperationResult.Fail("Thiếu IdempotencyKey.", 400);
         }
 
+        string cleanMethod = (paymentMethod ?? "cash").Trim().ToLowerInvariant() == "transfer" ? "transfer" : "cash";
+
         bool isRelational = context.Database.IsRelational();
         await using var tx = isRelational ? await context.Database.BeginTransactionAsync(IsolationLevel.Serializable) : null;
-
-        var existingTx = await context.TbPaymentTransactions.FirstOrDefaultAsync(t => t.IdempotencyKey == cleanIdem);
-        if (existingTx != null)
-        {
-            var ord = await FindOrderAsync(context, orderCodeOrId);
-            if (tx != null) await tx.CommitAsync();
-            return ord != null
-                ? OrderOperationResult.Ok(ord, tx: existingTx, replay: true)
-                : OrderOperationResult.Fail("IdempotencyKey đã sử dụng.", 409);
-        }
 
         var order = await FindOrderAsync(context, orderCodeOrId);
         if (order == null || order.BookingId.HasValue)
         {
             if (tx != null) await tx.RollbackAsync();
             return OrderOperationResult.Fail("Không tìm thấy đơn hàng lẻ Pro Shop hợp lệ.", 404);
+        }
+
+        string idemScope = "order.refund";
+        string idemActor = IdempotencyService.BuildActorKey(actorAccountId, actorUsername);
+        string idemTarget = $"ORDER:{order.Code ?? order.OrderId.ToString()}";
+        string idemPayload = $"order={order.OrderId}|refund={refundAmount}|method={cleanMethod}";
+
+        var idemCheck = await IdempotencyService.CheckAsync(context, cleanIdem, idemScope, idemActor, idemTarget, idemPayload);
+        if (idemCheck.Status == IdempotencyStatus.Conflict)
+        {
+            if (tx != null) await tx.RollbackAsync();
+            return OrderOperationResult.Fail(idemCheck.ConflictMessage!, 409, IdempotencyService.ConflictErrorCode);
+        }
+
+        var existingTx = await context.TbPaymentTransactions.FirstOrDefaultAsync(t => t.IdempotencyKey == cleanIdem);
+        if (existingTx != null)
+        {
+            bool matchesRefund =
+                existingTx.OrderId == order.OrderId &&
+                string.Equals(existingTx.TransactionType, "refund", StringComparison.OrdinalIgnoreCase) &&
+                existingTx.Amount == refundAmount &&
+                string.Equals(existingTx.PaymentMethod, cleanMethod, StringComparison.OrdinalIgnoreCase);
+
+            if (!matchesRefund)
+            {
+                if (tx != null) await tx.RollbackAsync();
+                return OrderOperationResult.Fail(
+                    "Khóa IdempotencyKey đã được sử dụng cho một giao dịch hoàn tiền khác.",
+                    409,
+                    IdempotencyService.ConflictErrorCode);
+            }
+
+            if (tx != null) await tx.CommitAsync();
+            return OrderOperationResult.Ok(order, tx: existingTx, replay: true);
         }
 
         int currentNetPaid = await ComputeOrderLedgerNetPaidAsync(context, order.OrderId);
@@ -549,7 +674,6 @@ WHERE ProductId = {0} AND IsActive = 1 AND COALESCE(UnitInStock, Quantity, 0) >=
             return OrderOperationResult.Fail($"Số tiền hoàn ({refundAmount:N0} đ) vượt quá số tiền đã thu ({currentNetPaid:N0} đ).", 422);
         }
 
-        string cleanMethod = (paymentMethod ?? "cash").Trim().ToLowerInvariant() == "transfer" ? "transfer" : "cash";
         var vnNow = BookingService.GetVietnamNow();
         var refundRow = new TbPaymentTransaction
         {
@@ -569,6 +693,10 @@ WHERE ProductId = {0} AND IsActive = 1 AND COALESCE(UnitInStock, Quantity, 0) >=
 
         context.TbPaymentTransactions.Add(refundRow);
         await context.SaveChangesAsync();
+
+        string refundHash = IdempotencyService.ComputeCanonicalHash(idemScope, idemActor, idemTarget, idemPayload);
+        context.TbIdempotencyRecords.Add(IdempotencyService.CreateRecord(
+            cleanIdem, idemScope, idemActor, idemTarget, refundHash, order.Code, refundRow.TransactionId));
 
         int newNetPaid = await ComputeOrderLedgerNetPaidAsync(context, order.OrderId);
         order.PaidAmount = newNetPaid;
@@ -593,13 +721,58 @@ WHERE ProductId = {0} AND IsActive = 1 AND COALESCE(UnitInStock, Quantity, 0) >=
         return OrderOperationResult.Ok(order, tx: refundRow);
     }
 
+    public async Task<OrderOperationResult> FulfillOrderAsync(
+        PickleballContext context,
+        string orderCodeOrId,
+        int? actorAccountId,
+        string? actorUsername,
+        string? ipAddress = null)
+    {
+        var order = await FindOrderAsync(context, orderCodeOrId);
+        if (order == null)
+        {
+            return OrderOperationResult.Fail("Không tìm thấy đơn hàng Pro Shop.", 404);
+        }
+
+        if (order.Status is "cancelled" or "rejected")
+        {
+            return OrderOperationResult.Fail("Không thể đánh dấu giao hàng cho đơn đã hủy.", 409);
+        }
+
+        if (string.Equals(order.FulfillmentStatus, "delivered", StringComparison.OrdinalIgnoreCase))
+        {
+            return OrderOperationResult.Ok(order, replay: true);
+        }
+
+        var vnNow = BookingService.GetVietnamNow();
+        order.FulfillmentStatus = "delivered";
+        order.ModifiedDate = vnNow;
+        order.ModifiedBy = actorUsername;
+
+        context.TbAuditLogs.Add(new TbAuditLog
+        {
+            Action = "SHOP_ORDER_FULFILLED",
+            EntityType = "Order",
+            EntityId = order.Code ?? order.OrderId.ToString(),
+            ActorAccountId = actorAccountId,
+            ActorUsername = actorUsername,
+            Details = "FulfillmentStatus=delivered",
+            IpAddress = ipAddress,
+            CreatedAt = vnNow
+        });
+
+        await context.SaveChangesAsync();
+        return OrderOperationResult.Ok(order);
+    }
+
     public async Task<OrderOperationResult> CancelOrderAndRestockAsync(
         PickleballContext context,
         string orderCodeOrId,
         string? reason,
         int? actorAccountId,
         string? actorUsername,
-        string? ipAddress = null)
+        string? ipAddress = null,
+        string? idempotencyKey = null)
     {
         bool isRelational = context.Database.IsRelational();
         await using var tx = isRelational ? await context.Database.BeginTransactionAsync(IsolationLevel.Serializable) : null;
@@ -615,27 +788,54 @@ WHERE ProductId = {0} AND IsActive = 1 AND COALESCE(UnitInStock, Quantity, 0) >=
             return OrderOperationResult.Fail("Không tìm thấy đơn hàng Pro Shop.", 404);
         }
 
+        string cleanIdem = IdempotencyService.NormalizeKey(idempotencyKey) ?? string.Empty;
+        string idemScope = "order.cancel";
+        string idemActor = IdempotencyService.BuildActorKey(actorAccountId, actorUsername);
+        string idemTarget = $"ORDER:{order.Code ?? order.OrderId.ToString()}";
+        string idemPayload = $"order={order.OrderId}|reason={(reason ?? "").Trim().ToLowerInvariant()}";
+
+        if (!string.IsNullOrEmpty(cleanIdem))
+        {
+            var idemCheck = await IdempotencyService.CheckAsync(context, cleanIdem, idemScope, idemActor, idemTarget, idemPayload);
+            if (idemCheck.Status == IdempotencyStatus.Conflict)
+            {
+                if (tx != null) await tx.RollbackAsync();
+                return OrderOperationResult.Fail(idemCheck.ConflictMessage!, 409, IdempotencyService.ConflictErrorCode);
+            }
+            if (idemCheck.Status == IdempotencyStatus.Replay)
+            {
+                if (tx != null) await tx.CommitAsync();
+                return OrderOperationResult.Ok(order, replay: true);
+            }
+        }
+
         if (order.Status == "cancelled")
         {
             if (tx != null) await tx.CommitAsync();
             return OrderOperationResult.Ok(order, replay: true);
         }
 
+        if (string.Equals(order.FulfillmentStatus, "delivered", StringComparison.OrdinalIgnoreCase))
+        {
+            if (tx != null) await tx.RollbackAsync();
+            return OrderOperationResult.Fail("Đơn hàng đã giao thực tế cho khách, không thể tự động hủy hoàn kho.", 409, "ORDER_ALREADY_DELIVERED");
+        }
+
         if (order.BookingId.HasValue)
         {
             if (tx != null) await tx.RollbackAsync();
-            return OrderOperationResult.Fail("Đơn đã gộp vào hóa đơn sân, vui lòng điều chỉnh món trên màn hình POS của sân.", 409);
+            return OrderOperationResult.Fail("Đơn đã gộp vào hóa đơn sân, vui lòng điều chỉnh món trên màn hình POS của sân hoặc hủy trực tiếp ca đặt sân.", 409);
         }
 
         int netPaid = await ComputeOrderLedgerNetPaidAsync(context, order.OrderId);
         if (netPaid > 0)
         {
             if (tx != null) await tx.RollbackAsync();
-            return OrderOperationResult.Fail("Đơn hàng đã thu tiền. Vui lòng thực hiện giao dịch Hoàn tiền (Refund) trước khi hủy và hoàn kho.", 409);
+            return OrderOperationResult.Fail("Đơn hàng đã thu tiền. Vui lòng thực hiện giao dịch Hoàn tiền (Refund) trước khi hủy và hoàn kho.", 409, "ORDER_HAS_PAYMENT");
         }
 
         var vnNow = BookingService.GetVietnamNow();
-        foreach (var detail in order.TbOrderDetails)
+        foreach (var detail in order.TbOrderDetails.OrderBy(d => d.ProductId))
         {
             if (!detail.ProductId.HasValue || (detail.Quantity ?? 0) <= 0) continue;
             int qty = detail.Quantity!.Value;
@@ -677,9 +877,17 @@ WHERE ProductId = {0}",
         }
 
         order.Status = "cancelled";
+        order.FulfillmentStatus = "cancelled";
         order.OrderStatusId = 5;
         order.ModifiedDate = vnNow;
         order.ModifiedBy = actorUsername;
+
+        if (!string.IsNullOrEmpty(cleanIdem))
+        {
+            string reqHash = IdempotencyService.ComputeCanonicalHash(idemScope, idemActor, idemTarget, idemPayload);
+            context.TbIdempotencyRecords.Add(IdempotencyService.CreateRecord(
+                cleanIdem, idemScope, idemActor, idemTarget, reqHash, order.Code, order.OrderId));
+        }
 
         context.TbAuditLogs.Add(new TbAuditLog
         {

@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PickleballClub.Controllers;
 using PickleballClub.Models;
 using PickleballClub.Utilities;
 
@@ -59,6 +60,7 @@ public class CourtsController : Controller
         {
             tbCourt.CourtName = tbCourt.CourtName!.Trim();
             tbCourt.Alias = Function.TitleSlugGenerationAlias(tbCourt.CourtName);
+            tbCourt.Image = ApiDbController.NormalizeCourtImageUrl(tbCourt.Image, tbCourt.CourtType);
             _context.Add(tbCourt);
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
@@ -103,7 +105,7 @@ public class CourtsController : Controller
             existing.CourtType = tbCourt.CourtType;
             existing.TypeLabel = tbCourt.TypeLabel;
             existing.Surface = tbCourt.Surface;
-            existing.Image = tbCourt.Image;
+            existing.Image = ApiDbController.NormalizeCourtImageUrl(tbCourt.Image, tbCourt.CourtType);
             existing.BasePrice = tbCourt.BasePrice;
             existing.Surcharge = tbCourt.Surcharge;
             existing.Description = tbCourt.Description;

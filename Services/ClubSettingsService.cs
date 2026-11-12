@@ -22,6 +22,7 @@ public sealed class ClubSettingsSnapshot
     public int CheckInEarlyMinutes { get; init; } = 30;
     public int CheckInLateGraceMinutes { get; init; } = 60;
     public int PendingHoldMinutes { get; init; } = 30;
+    public int MaxActivePendingPerActor { get; init; } = 3;
     public int CancelCutoffMinutes { get; init; } = 120;
     public string Hotline { get; init; } = "0901 234 567";
     public Dictionary<string, string> RawCms { get; init; } = new(StringComparer.OrdinalIgnoreCase);
@@ -46,7 +47,9 @@ public class ClubSettingsService
         ["clubTitle"] = "Tiêu đề khối Hội viên",
         ["clubDesc"] = "Mô tả quyền lợi Hội viên",
         ["checkInEarlyMinutes"] = "Số phút cho phép Check-in sớm trước ca",
-        ["cancelCutoffMinutes"] = "Số phút tối thiểu để khách tự hủy vé đã duyệt"
+        ["cancelCutoffMinutes"] = "Số phút tối thiểu để khách tự hủy vé đã duyệt",
+        ["pendingHoldMinutes"] = "Thời gian giữ chỗ tạm cho đơn chờ duyệt (phút)",
+        ["maxActivePendingPerActor"] = "Số đơn chờ duyệt tối đa đồng thời trên mỗi khách/tài khoản"
     };
 
     public async Task<ClubSettingsSnapshot> GetSettingsAsync(PickleballContext context)
@@ -82,9 +85,11 @@ public class ClubSettingsService
         int peakSurcharge = ParseIntInRange(GetVal(dict, "peakSurcharge"), 30_000, 0, 2_000_000);
         int checkInEarly = ParseIntInRange(GetVal(dict, "checkInEarlyMinutes"), 30, 5, 180);
         int cancelCutoff = ParseIntInRange(GetVal(dict, "cancelCutoffMinutes"), 120, 0, 1440);
+        int pendingHold = ParseIntInRange(GetVal(dict, "pendingHoldMinutes"), 30, 1, 180);
+        int maxActivePending = ParseIntInRange(GetVal(dict, "maxActivePendingPerActor"), 3, 1, 20);
         string hotline = string.IsNullOrWhiteSpace(GetVal(dict, "hotline")) ? "0901 234 567" : GetVal(dict, "hotline")!.Trim();
 
-        string versionSeed = $"{openTime}|{closeTime}|{peakStart}|{basePrice}|{peakSurcharge}";
+        string versionSeed = $"{openTime}|{closeTime}|{peakStart}|{basePrice}|{peakSurcharge}|{pendingHold}|{maxActivePending}";
         string versionHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(versionSeed)))[..12].ToLowerInvariant();
 
         return new ClubSettingsSnapshot
@@ -99,7 +104,8 @@ public class ClubSettingsService
             PeakSurchargePerHour = peakSurcharge,
             CheckInEarlyMinutes = checkInEarly,
             CheckInLateGraceMinutes = 60,
-            PendingHoldMinutes = 30,
+            PendingHoldMinutes = pendingHold,
+            MaxActivePendingPerActor = maxActivePending,
             CancelCutoffMinutes = cancelCutoff,
             Hotline = hotline,
             RawCms = dict,

@@ -81,34 +81,28 @@
     </div>
 </main>
 
-<!-- MODAL XEM VÉ ĐIỆN TỬ QR -->
+<!-- MODAL XEM VÉ ĐIỆN TỬ QR — PREMIUM DIGITAL TICKET (V4-QR) -->
 <div class="modal-overlay" id="modalTicketQR">
-    <div class="modal modal-sm">
-        <div class="modal-header">
-            <h3 class="modal-title" style="color:var(--color-primary)">Vé Sân Điện Tử (E-Ticket)</h3>
+    <div class="modal" style="max-width:520px;width:94vw;">
+        <div class="modal-header no-print">
+            <h3 class="modal-title" style="color:var(--color-primary)">Vé Sân Điện Tử (Premium Digital Pass)</h3>
             <button class="modal-close" onclick="closeModal('modalTicketQR')">✕</button>
         </div>
-        <div class="modal-body" style="text-align:center">
-            <div class="qr-placeholder">
-                <iconify-icon icon="lucide:qr-code" width="76"></iconify-icon>
-                <div class="text-xs font-bold text-mono" id="ticketQrCode"></div>
-            </div>
-            <div style="margin-top:0.65rem;display:flex;justify-content:center;gap:0.5rem;">
-                <a id="ticketQrDownloadPngBtn" href="#" download class="btn btn-outline btn-xs">
-                    <iconify-icon icon="lucide:download" width="13"></iconify-icon>
-                    <span>Tải ảnh QR (.PNG)</span>
-                </a>
-            </div>
-            <p class="text-xs text-muted mt-sm">Xuất trình mã QR thật này tại quầy lễ tân khi vé đã ở trạng thái Đã duyệt</p>
-            <div class="payment-summary mt-md" style="text-align:left">
-                <div class="payment-line"><span class="text-muted">Khách hàng</span><span class="font-bold" id="ticketQrName"></span></div>
-                <div class="payment-line"><span class="text-muted">Ngày thi đấu</span><span class="font-semibold" id="ticketQrDate"></span></div>
-                <div class="payment-line"><span class="text-muted">Sân đấu</span><span class="font-semibold" id="ticketQrCourt"></span></div>
-                <div class="payment-line"><span class="text-muted">Khung giờ</span><span class="font-semibold text-mono" id="ticketQrTime"></span></div>
-                <div class="payment-line total"><span>Tổng phải thanh toán</span><span class="font-bold text-mono" id="ticketQrTotal"></span></div>
+        <div class="modal-body" style="padding:1rem;">
+            <div id="lookupDigitalTicketHost"></div>
+
+            <!-- Giữ tương thích ngược cho các selector kiểm thử (chỉ text, không render ảnh QR trùng) -->
+            <div style="display:none;" aria-hidden="true">
+                <span id="ticketQrCode"></span>
+                <a id="ticketQrDownloadPngBtn" href="#"></a>
+                <span id="ticketQrName"></span>
+                <span id="ticketQrDate"></span>
+                <span id="ticketQrCourt"></span>
+                <span id="ticketQrTime"></span>
+                <span id="ticketQrTotal"></span>
             </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer no-print">
             <button class="btn btn-primary btn-block" onclick="closeModal('modalTicketQR')">Đóng</button>
         </div>
     </div>

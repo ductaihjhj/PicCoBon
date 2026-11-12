@@ -1,16 +1,27 @@
-﻿@model PickleballClub.Models.TbProduct
+@model PickleballClub.Models.ProductFormViewModel
+@using PickleballClub.Services
 
 @{
-    ViewData["Title"] = "Sửa sản phẩm";
+    ViewData["Title"] = "Cập nhật sản phẩm Pro Shop";
     Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var categoryAlias = ViewData["CategoryAlias"] as string ?? "other";
+    var placeholderUrl = ProductImageService.GetCategoryPlaceholderUrl(categoryAlias);
+    var resolvedCurrentImg = ProductImageService.NormalizeProductImageUrl(Model.ExistingImage, categoryAlias);
+    var hasCustomImage = ProductImageService.HasCustomProductImage(Model.ExistingImage);
 }
 
 <div class="content-wrapper">
     <section class="content-header">
         <div class="container-fluid">
-            <div class="row mb-2">
+            <div class="row mb-2 align-items-center">
                 <div class="col-sm-6">
-                    <h1>Sửa sản phẩm / dịch vụ POS</h1>
+                    <h1 class="m-0 font-weight-bold">Cập nhật sản phẩm #@Model.ProductId</h1>
+                    <small class="text-muted">Chỉnh sửa thông tin, tồn kho và hình ảnh sản phẩm Pro Shop / POS.</small>
+                </div>
+                <div class="col-sm-6 text-sm-right mt-2 mt-sm-0">
+                    <a asp-action="Index" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left mr-1"></i> Quay lại danh sách
+                    </a>
                 </div>
             </div>
         </div>
@@ -18,50 +29,288 @@
 
     <section class="content">
         <div class="container-fluid">
-            <div class="card card-primary">
-                <div class="card-header">
-                    <h3 class="card-title">Cập nhật sản phẩm</h3>
-                </div>
-                <form asp-action="Edit">
-                    <input type="hidden" asp-for="ProductId" />
-                    <div class="card-body">
-                        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-                        <div class="form-group">
-                            <label asp-for="Title" class="control-label">Tên sản phẩm</label>
-                            <input asp-for="Title" class="form-control" required />
-                        </div>
-                        <div class="form-group">
-                            <label asp-for="CategoryProductId" class="control-label">Danh mục</label>
-                            <select asp-for="CategoryProductId" class="form-control" asp-items="ViewBag.CategoryProductId"></select>
-                        </div>
-                        <div class="form-group">
-                            <label asp-for="Price" class="control-label">Đơn giá (VNĐ)</label>
-                            <input asp-for="Price" class="form-control" type="number" />
-                        </div>
-                        <div class="form-group">
-                            <label asp-for="Description" class="control-label">Mô tả sản phẩm</label>
-                            <input asp-for="Description" class="form-control" />
-                        </div>
-                        <div class="form-group">
-                            <label asp-for="Icon" class="control-label">Icon (Lucide)</label>
-                            <input asp-for="Icon" class="form-control" />
-                        </div>
-                        <div class="form-group">
-                            <label asp-for="Quantity" class="control-label">Số lượng</label>
-                            <input asp-for="Quantity" class="form-control" type="number" />
-                        </div>
-                        <div class="form-group form-check">
-                            <label class="form-check-label">
-                                <input class="form-check-input" asp-for="IsActive" /> Hiển thị
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <input type="submit" value="Lưu thay đổi" class="btn btn-primary" />
-                            <a asp-action="Index" class="btn btn-secondary">Quay lại</a>
+            <form asp-action="Edit" asp-route-id="@Model.ProductId" method="post" enctype="multipart/form-data" id="adminProductEditForm" novalidate>
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                <input type="hidden" asp-for="ProductId" />
+                <input type="hidden" asp-for="Alias" />
+                <input type="hidden" asp-for="ExistingImage" />
+
+                <div class="row">
+                    <!-- Left Column: Product Details -->
+                    <div class="col-lg-7">
+                        <div class="card card-info card-outline shadow-sm">
+                            <div class="card-header">
+                                <h3 class="card-title font-weight-bold">Thông tin sản phẩm</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label asp-for="Title" class="font-weight-bold">Tên sản phẩm <span class="text-danger">*</span></label>
+                                    <input asp-for="Title" class="form-control" required data-testid="admin-product-title-input" />
+                                    <span asp-validation-for="Title" class="text-danger small d-block mt-1"></span>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        <label asp-for="CategoryProductId" class="font-weight-bold">Danh mục <span class="text-danger">*</span></label>
+                                        <select asp-for="CategoryProductId" class="form-control" asp-items="ViewBag.CategoryProductId"></select>
+                                        <span asp-validation-for="CategoryProductId" class="text-danger small d-block mt-1"></span>
+                                    </div>
+                                    <div class="form-group col-md-6">
+                                        <label asp-for="Price" class="font-weight-bold">Giá bán (VNĐ) <span class="text-danger">*</span></label>
+                                        <input asp-for="Price" type="number" min="1000" step="1000" class="form-control" required data-testid="admin-product-price-input" />
+                                        <span asp-validation-for="Price" class="text-danger small d-block mt-1"></span>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        <label asp-for="UnitInStock" class="font-weight-bold">Số lượng tồn kho <span class="text-danger">*</span></label>
+                                        <input asp-for="UnitInStock" type="number" min="0" step="1" class="form-control" required data-testid="admin-product-stock-input" />
+                                        <span asp-validation-for="UnitInStock" class="text-danger small d-block mt-1"></span>
+                                    </div>
+                                    <div class="form-group col-md-6">
+                                        <label asp-for="Icon" class="font-weight-bold">Icon phụ trợ (Badge / Fallback)</label>
+                                        <input asp-for="Icon" class="form-control" placeholder="VD: mdi:cup-water" />
+                                        <small class="form-text text-muted">Dùng cho nhãn phụ; card Pro Shop sử dụng ảnh sản phẩm bên phải.</small>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label asp-for="Description" class="font-weight-bold">Mô tả ngắn</label>
+                                    <textarea asp-for="Description" class="form-control" rows="2" placeholder="VD: Bù nước & điện giải tức thì trên sân"></textarea>
+                                    <span asp-validation-for="Description" class="text-danger small d-block mt-1"></span>
+                                </div>
+
+                                <div class="form-group mb-0">
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox" class="custom-control-input" asp-for="IsActive" id="switchIsActive" />
+                                        <label class="custom-control-label font-weight-bold" for="switchIsActive">Hiển thị mở bán trên Pro Shop &amp; POS</label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </form>
-            </div>
+
+                    <!-- Right Column: Product Image Upload, Replace & Remove -->
+                    <div class="col-lg-5">
+                        <div class="card card-primary card-outline shadow-sm">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h3 class="card-title font-weight-bold mb-0">Hình ảnh sản phẩm (1:1 Studio Stage)</h3>
+                                <span id="imageStatusBadge" class="badge @(hasCustomImage ? "badge-info" : "badge-secondary")">
+                                    @(hasCustomImage ? "Đang dùng ảnh sản phẩm" : "Ảnh minh họa mặc định")
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <div class="text-center mb-3">
+                                    <div id="productPreviewStage"
+                                         style="width:220px;height:220px;margin:0 auto;border-radius:16px;background:radial-gradient(circle at 50% 35%, #FFFFFF 0%, #F1F5F9 100%);border:2px solid #E2E8F0;padding:16px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;">
+                                        <img id="productImagePreviewImg"
+                                             src="@resolvedCurrentImg"
+                                             alt="@Model.Title"
+                                             data-original-src="@resolvedCurrentImg"
+                                             data-placeholder-src="@placeholderUrl"
+                                             data-has-custom="@(hasCustomImage ? "true" : "false")"
+                                             data-testid="admin-product-preview-img"
+                                             style="width:100%;height:100%;object-fit:contain;transition:transform 0.2s ease;"
+                                             onerror="this.onerror=null;this.src='/assets/products/placeholder-default.svg';" />
+                                    </div>
+                                    <div id="productImageMeta" class="small text-muted mt-2" data-testid="admin-product-image-meta">
+                                        @if (hasCustomImage)
+                                        {
+                                            <span>Đường dẫn hiện tại: <code>@Model.ExistingImage</code></span>
+                                        }
+                                        else
+                                        {
+                                            <span>Chưa có ảnh tải lên riêng — đang hiển thị ảnh chuẩn theo danh mục.</span>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div id="productImageDropzone"
+                                     tabindex="0"
+                                     role="button"
+                                     aria-label="Kéo thả ảnh sản phẩm mới vào đây hoặc bấm để chọn file"
+                                     data-testid="admin-product-dropzone"
+                                     style="border:2px dashed #94A3B8;border-radius:12px;padding:18px 14px;text-align:center;background:#F8FAFC;cursor:pointer;transition:all 0.2s ease;">
+                                    <i class="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i>
+                                    <div class="font-weight-bold text-dark">Kéo &amp; thả ảnh mới vào đây hoặc <span class="text-primary" style="text-decoration:underline;">bấm chọn file</span></div>
+                                    <div class="small text-muted mt-1">
+                                        Hỗ trợ <strong>PNG, JPG/JPEG, WebP</strong> · Tối đa <strong>5 MB</strong> · Tự động chuẩn hóa WebP
+                                    </div>
+                                    <input asp-for="ImageFile"
+                                           type="file"
+                                           id="productImageInput"
+                                           accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                                           class="d-none"
+                                           data-testid="admin-product-image-input" />
+                                </div>
+
+                                <span asp-validation-for="ImageFile" id="productImageClientError" class="text-danger small font-weight-bold d-block mt-2" data-testid="admin-product-image-error"></span>
+
+                                <div class="mt-3 p-2 rounded bg-light border d-flex flex-wrap justify-content-between align-items-center" style="gap: 8px;">
+                                    <div class="d-flex flex-wrap" style="gap: 6px;">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" id="btnChooseImageFile" data-testid="admin-btn-choose-image">
+                                            <i class="fas fa-upload mr-1"></i> @(hasCustomImage ? "Thay ảnh mới" : "Tải ảnh lên")
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="btnRestoreOriginalImage" data-testid="admin-btn-restore-image">
+                                            <i class="fas fa-undo mr-1"></i> Khôi phục ảnh gốc
+                                        </button>
+                                    </div>
+
+                                    <div class="custom-control custom-checkbox">
+                                        <input type="checkbox" class="custom-control-input" asp-for="RemoveImage" id="chkRemoveImage" data-testid="admin-chk-remove-image" />
+                                        <label class="custom-control-label text-danger small font-weight-bold" for="chkRemoveImage">
+                                            Gỡ ảnh hiện tại
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-white d-flex justify-content-end" style="gap: 8px;">
+                                <a asp-action="Index" class="btn btn-secondary">Quay lại</a>
+                                <button type="submit" class="btn btn-info font-weight-bold" data-testid="admin-product-submit">
+                                    <i class="fas fa-save mr-1"></i> Lưu cập nhật
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
     </section>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const dropzone = document.getElementById('productImageDropzone');
+            const fileInput = document.getElementById('productImageInput');
+            const previewImg = document.getElementById('productImagePreviewImg');
+            const metaEl = document.getElementById('productImageMeta');
+            const errEl = document.getElementById('productImageClientError');
+            const badgeEl = document.getElementById('imageStatusBadge');
+            const btnChoose = document.getElementById('btnChooseImageFile');
+            const btnRestore = document.getElementById('btnRestoreOriginalImage');
+            const chkRemove = document.getElementById('chkRemoveImage');
+
+            const originalSrc = previewImg.getAttribute('data-original-src');
+            const placeholderSrc = previewImg.getAttribute('data-placeholder-src');
+            const hasCustomOriginal = previewImg.getAttribute('data-has-custom') === 'true';
+            const originalMetaHtml = metaEl.innerHTML;
+
+            const maxBytes = 5 * 1024 * 1024;
+            const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+            const allowedExts = ['.png', '.jpg', '.jpeg', '.webp'];
+            let objectUrl = null;
+
+            function cleanupUrl() {
+                if (objectUrl) {
+                    URL.revokeObjectURL(objectUrl);
+                    objectUrl = null;
+                }
+            }
+
+            function validateAndPreview(file) {
+                errEl.textContent = '';
+                if (!file) return;
+
+                const lowerName = (file.name || '').toLowerCase();
+                const hasValidExt = allowedExts.some(ext => lowerName.endsWith(ext));
+                const hasValidMime = allowedTypes.includes((file.type || '').toLowerCase());
+
+                if (!hasValidExt || !hasValidMime) {
+                    errEl.textContent = 'Định dạng không hợp lệ. Chỉ chấp nhận ảnh PNG, JPG/JPEG hoặc WebP.';
+                    fileInput.value = '';
+                    return;
+                }
+
+                if (file.size > maxBytes) {
+                    errEl.textContent = 'Dung lượng ảnh vượt quá 5 MB (' + (file.size / (1024 * 1024)).toFixed(2) + ' MB).';
+                    fileInput.value = '';
+                    return;
+                }
+
+                cleanupUrl();
+                chkRemove.checked = false;
+                objectUrl = URL.createObjectURL(file);
+                previewImg.src = objectUrl;
+                const kb = (file.size / 1024).toFixed(1);
+                metaEl.textContent = 'Ảnh mới sẵn sàng lưu: ' + file.name + ' (' + kb + ' KB)';
+                badgeEl.className = 'badge badge-success';
+                badgeEl.textContent = 'Ảnh mới (Chưa lưu)';
+                btnRestore.classList.remove('d-none');
+            }
+
+            dropzone.addEventListener('click', () => fileInput.click());
+            dropzone.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fileInput.click();
+                }
+            });
+            btnChoose.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files && fileInput.files[0]) {
+                    validateAndPreview(fileInput.files[0]);
+                }
+            });
+
+            chkRemove.addEventListener('change', () => {
+                errEl.textContent = '';
+                if (chkRemove.checked) {
+                    cleanupUrl();
+                    fileInput.value = '';
+                    previewImg.src = placeholderSrc;
+                    metaEl.textContent = 'Ảnh riêng sẽ được gỡ khi bấm "Lưu cập nhật".';
+                    badgeEl.className = 'badge badge-warning';
+                    badgeEl.textContent = 'Sẽ gỡ ảnh';
+                    btnRestore.classList.remove('d-none');
+                } else {
+                    previewImg.src = originalSrc;
+                    metaEl.innerHTML = originalMetaHtml;
+                    badgeEl.className = hasCustomOriginal ? 'badge badge-info' : 'badge badge-secondary';
+                    badgeEl.textContent = hasCustomOriginal ? 'Đang dùng ảnh sản phẩm' : 'Ảnh minh họa mặc định';
+                    btnRestore.classList.add('d-none');
+                }
+            });
+
+            btnRestore.addEventListener('click', () => {
+                cleanupUrl();
+                fileInput.value = '';
+                chkRemove.checked = false;
+                errEl.textContent = '';
+                previewImg.src = originalSrc;
+                metaEl.innerHTML = originalMetaHtml;
+                badgeEl.className = hasCustomOriginal ? 'badge badge-info' : 'badge badge-secondary';
+                badgeEl.textContent = hasCustomOriginal ? 'Đang dùng ảnh sản phẩm' : 'Ảnh minh họa mặc định';
+                btnRestore.classList.add('d-none');
+            });
+
+            ['dragenter', 'dragover'].forEach(evt => {
+                dropzone.addEventListener(evt, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.style.borderColor = '#007BFF';
+                    dropzone.style.background = '#EFF6FF';
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(evt => {
+                dropzone.addEventListener(evt, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.style.borderColor = '#94A3B8';
+                    dropzone.style.background = '#F8FAFC';
+                });
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                if (dt && dt.files && dt.files.length > 0) {
+                    fileInput.files = dt.files;
+                    validateAndPreview(dt.files[0]);
+                }
+            });
+        })();
+    </script>
+}

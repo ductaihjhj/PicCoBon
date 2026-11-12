@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Configuration;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using QRCoder;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using ZXing;
 using ZXing.Common;
 
@@ -171,28 +173,230 @@ public class QrTokenService
 
     /// <summary>
     /// Generates a real ISO/IEC 18004 QR Code SVG using QRCoder.
+    /// Supports optional center Spike emblem (ECC Level H, <= 5% QR area with pure white quiet pad and ZXing self-verification fallback).
+    /// Always embeds an explicit viewBox="0 0 W H" and preserveAspectRatio="xMidYMid meet" so inline <svg> and <img> scale and center identically.
     /// </summary>
-    public string GenerateQrSvg(string content, int pixelsPerModule = 6)
+    public string GenerateQrSvg(string content, int pixelsPerModule = 6, bool includeLogo = false)
     {
+        string safeContent = content ?? string.Empty;
+        int ppm = Math.Clamp(pixelsPerModule, 4, 24);
+        var ecc = includeLogo ? QRCodeGenerator.ECCLevel.H : QRCodeGenerator.ECCLevel.M;
+
         using var qrGenerator = new QRCodeGenerator();
-        using var qrData = qrGenerator.CreateQrCode(content ?? string.Empty, QRCodeGenerator.ECCLevel.M, forceUtf8: true);
+        using var qrData = qrGenerator.CreateQrCode(safeContent, ecc, forceUtf8: true);
+        int moduleCount = qrData.ModuleMatrix.Count;
+        int defaultTotalSize = moduleCount * ppm;
+
         var svgQr = new SvgQRCode(qrData);
-        return svgQr.GetGraphic(Math.Clamp(pixelsPerModule, 3, 20), "#0F172A", "#FFFFFF", drawQuietZones: true);
+        string baseSvg = EnsureSvgViewBox(
+            svgQr.GetGraphic(ppm, "#0F172A", "#FFFFFF", drawQuietZones: true),
+            defaultTotalSize,
+            out int actualSvgSize);
+
+        if (!includeLogo)
+        {
+            return baseSvg;
+        }
+
+        // Verify that the corresponding PNG with center logo decodes 100% cleanly via ZXing.Net; if not, fall back to clean no-logo SVG
+        byte[] verifyPng = GenerateQrPngBytes(safeContent, Math.Max(ppm, 8), includeLogo: true);
+        if (!TryDecodeQrImage(verifyPng, out string decoded, out _) ||
+            !string.Equals(decoded, safeContent.Trim(), StringComparison.Ordinal))
+        {
+            using var fallbackData = qrGenerator.CreateQrCode(safeContent, QRCodeGenerator.ECCLevel.M, forceUtf8: true);
+            int fallbackTotal = fallbackData.ModuleMatrix.Count * ppm;
+            return EnsureSvgViewBox(
+                new SvgQRCode(fallbackData).GetGraphic(ppm, "#0F172A", "#FFFFFF", drawQuietZones: true),
+                fallbackTotal,
+                out _);
+        }
+
+        double totalSize = actualSvgSize > 0 ? actualSvgSize : defaultTotalSize;
+        // Center emblem occupies 20% of width (4.0% of total QR area, well below the <= 10% limit)
+        double boxSize = Math.Round(totalSize * 0.20, 2);
+        double boxPos = Math.Round((totalSize - boxSize) / 2.0, 2);
+        double innerSize = Math.Round(boxSize * 0.76, 2);
+        double innerPos = Math.Round((totalSize - innerSize) / 2.0, 2);
+        double rOuter = Math.Round(boxSize * 0.22, 2);
+        double rInner = Math.Round(innerSize * 0.20, 2);
+        double cx = Math.Round(totalSize / 2.0, 2);
+        double cy = Math.Round(totalSize / 2.0 + innerSize * 0.13, 2);
+        double fontSize = Math.Round(innerSize * 0.38, 2);
+
+        string logoOverlay =
+            $"<g class=\"spk-qr-emblem\" aria-hidden=\"true\">" +
+            $"<rect x=\"{boxPos.ToString(System.Globalization.CultureInfo.InvariantCulture)}\" y=\"{boxPos.ToString(System.Globalization.CultureInfo.InvariantCulture)}\" width=\"{boxSize.ToString(System.Globalization.CultureInfo.InvariantCulture)}\" height=\"{boxSize.ToString(System.Globalization.CultureInfo.InvariantCulture)}\" rx=\"{rOuter.ToString(System.Globalization.CultureInfo.InvariantCulture)}\" fill=\"#FFFFFF\"/>" +
+            $"<rect x=\"{innerPos.ToString(System.Globalization.CultureInfo.InvariantCulture)}\" y=\"{innerPos.ToString(System.Globalization.CultureInfo.InvariantCulture)}\" width=\"{innerSize.ToString(System.Globalization.CultureInfo.InvariantCulture)}\" height=\"{innerSize.ToString(System.Globalization.CultureInfo.InvariantCulture)}\" rx=\"{rInner.ToString(System.Globalization.CultureInfo.InvariantCulture)}\" fill=\"#0F172A\" stroke=\"#F97316\" stroke-width=\"1.8\"/>" +
+            $"<text x=\"{cx.ToString(System.Globalization.CultureInfo.InvariantCulture)}\" y=\"{cy.ToString(System.Globalization.CultureInfo.InvariantCulture)}\" text-anchor=\"middle\" fill=\"#F97316\" font-family=\"system-ui,-apple-system,sans-serif\" font-weight=\"900\" font-size=\"{fontSize.ToString(System.Globalization.CultureInfo.InvariantCulture)}\">SPK</text>" +
+            $"</g></svg>";
+
+        int closeIdx = baseSvg.LastIndexOf("</svg>", StringComparison.OrdinalIgnoreCase);
+        if (closeIdx > 0)
+        {
+            return baseSvg[..closeIdx] + logoOverlay;
+        }
+
+        return baseSvg;
+    }
+
+    private static string EnsureSvgViewBox(string svg, int fallbackSize, out int resolvedSize)
+    {
+        resolvedSize = fallbackSize;
+        if (string.IsNullOrWhiteSpace(svg))
+        {
+            return svg;
+        }
+
+        var widthMatch = System.Text.RegularExpressions.Regex.Match(
+            svg,
+            @"\bwidth=""(\d+)""",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (widthMatch.Success && int.TryParse(widthMatch.Groups[1].Value, out int parsedWidth) && parsedWidth > 0)
+        {
+            resolvedSize = parsedWidth;
+        }
+
+        if (svg.Contains("viewBox=", StringComparison.OrdinalIgnoreCase))
+        {
+            return svg;
+        }
+
+        int svgOpenIdx = svg.IndexOf("<svg ", StringComparison.OrdinalIgnoreCase);
+        if (svgOpenIdx >= 0)
+        {
+            return svg.Insert(
+                svgOpenIdx + 5,
+                $"viewBox=\"0 0 {resolvedSize} {resolvedSize}\" preserveAspectRatio=\"xMidYMid meet\" ");
+        }
+
+        return svg;
     }
 
     /// <summary>
     /// Generates a real ISO/IEC 18004 QR Code PNG byte array using QRCoder.
+    /// Supports optional center Spike emblem (ECC Level H, <= 5% QR area with pure white quiet pad) and target pixel sizing,
+    /// with automatic ZXing self-verification fallback to no-logo if decoding fails.
     /// </summary>
-    public byte[] GenerateQrPngBytes(string content, int pixelsPerModule = 8)
+    public byte[] GenerateQrPngBytes(string content, int pixelsPerModule = 8, bool includeLogo = false, int targetSizePx = 0)
     {
+        string safeContent = content ?? string.Empty;
+        int ppm = Math.Clamp(pixelsPerModule, 4, 24);
+        var ecc = includeLogo ? QRCodeGenerator.ECCLevel.H : QRCodeGenerator.ECCLevel.M;
+
         using var qrGenerator = new QRCodeGenerator();
-        using var qrData = qrGenerator.CreateQrCode(content ?? string.Empty, QRCodeGenerator.ECCLevel.M, forceUtf8: true);
+        using var qrData = qrGenerator.CreateQrCode(safeContent, ecc, forceUtf8: true);
         var pngQr = new PngByteQRCode(qrData);
-        return pngQr.GetGraphic(Math.Clamp(pixelsPerModule, 4, 20));
+        byte[] baseBytes = pngQr.GetGraphic(ppm, new byte[] { 15, 23, 42 }, new byte[] { 255, 255, 255 }, drawQuietZones: true);
+
+        if (!includeLogo && targetSizePx <= 0)
+        {
+            return baseBytes;
+        }
+
+        using Image<Rgba32> img = Image.Load<Rgba32>(baseBytes);
+        if (targetSizePx >= 180)
+        {
+            int clampedTarget = Math.Clamp(targetSizePx, 180, 1400);
+            if (img.Width != clampedTarget)
+            {
+                img.Mutate(ctx => ctx.Resize(new ResizeOptions
+                {
+                    Size = new Size(clampedTarget, clampedTarget),
+                    Sampler = KnownResamplers.NearestNeighbor
+                }));
+            }
+        }
+
+        byte[] cleanResizedBytes;
+        using (var msClean = new MemoryStream())
+        {
+            img.SaveAsPng(msClean);
+            cleanResizedBytes = msClean.ToArray();
+        }
+
+        if (!includeLogo)
+        {
+            return cleanResizedBytes;
+        }
+
+        // Draw centered emblem covering 18% of width (~3.24% of total QR area, well below <= 10% limit)
+        int w = img.Width;
+        int h = img.Height;
+        int padBox = Math.Max(18, (int)Math.Round(w * 0.18));
+        if (padBox % 2 != w % 2) padBox++;
+        int startX = (w - padBox) / 2;
+        int startY = (h - padBox) / 2;
+        int innerMargin = Math.Max(3, (int)Math.Round(padBox * 0.16));
+        int borderThickness = Math.Max(2, (int)Math.Round(padBox * 0.08));
+        int dotRadius = Math.Max(2, (int)Math.Round(padBox * 0.14));
+        int centerX = w / 2;
+        int centerY = h / 2;
+
+        var white = new Rgba32(255, 255, 255, 255);
+        var navy = new Rgba32(15, 23, 42, 255);
+        var orange = new Rgba32(249, 115, 22, 255);
+
+        img.ProcessPixelRows(accessor =>
+        {
+            for (int y = startY; y < startY + padBox && y < h; y++)
+            {
+                if (y < 0) continue;
+                var row = accessor.GetRowSpan(y);
+                for (int x = startX; x < startX + padBox && x < w; x++)
+                {
+                    if (x < 0) continue;
+                    int relX = x - startX;
+                    int relY = y - startY;
+
+                    bool inInner = relX >= innerMargin && relX < padBox - innerMargin &&
+                                   relY >= innerMargin && relY < padBox - innerMargin;
+                    if (!inInner)
+                    {
+                        row[x] = white;
+                        continue;
+                    }
+
+                    bool isBorder = relX < innerMargin + borderThickness ||
+                                    relX >= padBox - innerMargin - borderThickness ||
+                                    relY < innerMargin + borderThickness ||
+                                    relY >= padBox - innerMargin - borderThickness;
+                    if (isBorder)
+                    {
+                        row[x] = orange;
+                        continue;
+                    }
+
+                    int dx = x - centerX;
+                    int dy = y - centerY;
+                    if (dx * dx + dy * dy <= dotRadius * dotRadius)
+                    {
+                        row[x] = orange;
+                    }
+                    else
+                    {
+                        row[x] = navy;
+                    }
+                }
+            }
+        });
+
+        using var msLogo = new MemoryStream();
+        img.SaveAsPng(msLogo);
+        byte[] logoBytes = msLogo.ToArray();
+
+        // Mandatory V4-QR safety rule: verify logo QR with ZXing; if decode fails, fall back to clean no-logo QR
+        if (TryDecodeQrImage(logoBytes, out string decodedText, out _) &&
+            string.Equals(decodedText, safeContent.Trim(), StringComparison.Ordinal))
+        {
+            return logoBytes;
+        }
+
+        return cleanResizedBytes;
     }
 
     /// <summary>
     /// Decodes a QR Code from PNG/JPEG/WebP image bytes using ZXing.Net + ImageSharp (completely independent from QRCoder).
+    /// Supports both standalone QR images and full Digital Ticket screenshots.
     /// </summary>
     public static bool TryDecodeQrImage(byte[] imageBytes, out string decodedText, out string error)
     {
@@ -214,38 +418,80 @@ public class QrTokenService
         try
         {
             using Image<Rgba32> image = Image.Load<Rgba32>(imageBytes);
-            int width = image.Width;
-            int height = image.Height;
-            byte[] rgbRaw = new byte[width * height * 4];
-            image.CopyPixelDataTo(rgbRaw);
-
-            var luminance = new RGBLuminanceSource(rgbRaw, width, height, RGBLuminanceSource.BitmapFormat.RGBA32);
-            var reader = new BarcodeReaderGeneric
+            if (TryDecodeFromImageInstance(image, out decodedText))
             {
-                AutoRotate = true,
-                Options = new DecodingOptions
-                {
-                    TryHarder = true,
-                    TryInverted = true,
-                    PossibleFormats = new[] { BarcodeFormat.QR_CODE }
-                }
-            };
-
-            var result = reader.Decode(luminance);
-            if (result == null || string.IsNullOrWhiteSpace(result.Text))
-            {
-                error = "Không tìm thấy mã QR hợp lệ trong ảnh tải lên. Vui lòng chụp rõ nét toàn bộ vùng mã QR.";
-                return false;
+                return true;
             }
 
-            decodedText = result.Text.Trim();
-            return true;
+            // If full-frame decode didn't match (e.g., high-resolution full ticket screenshot or rotated photo),
+            // try upscaled/downscaled passes and sub-regions where the QR well resides on a ticket card.
+            double[] scales = { 1.5, 0.75, 0.5 };
+            foreach (double scale in scales)
+            {
+                int sw = Math.Max(64, (int)Math.Round(image.Width * scale));
+                int sh = Math.Max(64, (int)Math.Round(image.Height * scale));
+                if (sw > 2400 || sh > 2400) continue;
+
+                using var scaled = image.Clone(ctx => ctx.Resize(sw, sh, KnownResamplers.Bicubic));
+                if (TryDecodeFromImageInstance(scaled, out decodedText))
+                {
+                    return true;
+                }
+            }
+
+            error = "Không tìm thấy mã QR hợp lệ trong ảnh tải lên. Vui lòng chụp rõ nét toàn bộ vùng mã QR.";
+            return false;
         }
         catch
         {
             error = "Tệp tải lên không phải định dạng ảnh hợp lệ (PNG, JPG, WebP).";
             return false;
         }
+    }
+
+    private static bool TryDecodeFromImageInstance(Image<Rgba32> image, out string decodedText)
+    {
+        decodedText = string.Empty;
+        int width = image.Width;
+        int height = image.Height;
+        byte[] rgbRaw = new byte[width * height * 4];
+        image.CopyPixelDataTo(rgbRaw);
+
+        var luminance = new RGBLuminanceSource(rgbRaw, width, height, RGBLuminanceSource.BitmapFormat.RGBA32);
+        var options = new DecodingOptions
+        {
+            TryHarder = true,
+            TryInverted = true,
+            PossibleFormats = new[] { BarcodeFormat.QR_CODE }
+        };
+
+        var readerHybrid = new BarcodeReaderGeneric
+        {
+            AutoRotate = true,
+            Options = options
+        };
+
+        var result = readerHybrid.Decode(luminance);
+        if (result != null && !string.IsNullOrWhiteSpace(result.Text))
+        {
+            decodedText = result.Text.Trim();
+            return true;
+        }
+
+        var readerGlobal = new BarcodeReaderGeneric(null, src => new GlobalHistogramBinarizer(src), null)
+        {
+            AutoRotate = true,
+            Options = options
+        };
+
+        result = readerGlobal.Decode(luminance);
+        if (result != null && !string.IsNullOrWhiteSpace(result.Text))
+        {
+            decodedText = result.Text.Trim();
+            return true;
+        }
+
+        return false;
     }
 
     private string ComputeSignature(string payloadB64)

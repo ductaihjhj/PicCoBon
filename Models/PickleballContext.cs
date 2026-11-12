@@ -54,6 +54,8 @@ public partial class PickleballContext : DbContext
 
     public virtual DbSet<TbInventoryMovement> TbInventoryMovements { get; set; }
 
+    public virtual DbSet<TbIdempotencyRecord> TbIdempotencyRecords { get; set; }
+
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         SyncTypedColumns();
@@ -176,6 +178,8 @@ public partial class PickleballContext : DbContext
             entity.Property(e => e.AccessTokenHash).HasMaxLength(128);
             entity.Property(e => e.IdempotencyKey).HasMaxLength(100);
             entity.Property(e => e.CancelReason).HasMaxLength(300);
+            entity.Property(e => e.HoldExpiresAtUtc).HasColumnType("datetime2");
+            entity.Property(e => e.ClientIpHash).HasMaxLength(64);
             entity.Property(e => e.RowVersion).IsRowVersion().IsRequired(false);
 
             entity.HasOne(d => d.Account).WithMany(p => p.TbBookings)
@@ -275,6 +279,7 @@ public partial class PickleballContext : DbContext
             entity.Property(e => e.BookingCode).HasMaxLength(30);
             entity.Property(e => e.PaymentStatus).HasMaxLength(20).HasDefaultValue("unpaid");
             entity.Property(e => e.Status).HasMaxLength(30).HasDefaultValue("confirmed");
+            entity.Property(e => e.FulfillmentStatus).HasMaxLength(20).HasDefaultValue("pending");
             entity.Property(e => e.PaymentMethod).HasMaxLength(20).HasDefaultValue("cash");
             entity.Property(e => e.IdempotencyKey).HasMaxLength(100);
             entity.Property(e => e.TotalAmountDec).HasColumnType("decimal(18, 2)").HasDefaultValue(0m);
@@ -437,6 +442,22 @@ public partial class PickleballContext : DbContext
             entity.HasOne(d => d.Booking).WithMany(p => p.TbInventoryMovements)
                 .HasForeignKey(d => d.BookingId)
                 .HasConstraintName("FK_tb_InventoryMovement_tb_Booking");
+        });
+
+        modelBuilder.Entity<TbIdempotencyRecord>(entity =>
+        {
+            entity.HasKey(e => e.IdempotencyId);
+            entity.ToTable("tb_IdempotencyRecord");
+            entity.HasIndex(e => e.IdempotencyKey).IsUnique();
+            entity.HasIndex(e => e.ExpiresAtUtc);
+            entity.Property(e => e.IdempotencyKey).HasMaxLength(100);
+            entity.Property(e => e.Scope).HasMaxLength(50);
+            entity.Property(e => e.ActorKey).HasMaxLength(100);
+            entity.Property(e => e.TargetEntity).HasMaxLength(100);
+            entity.Property(e => e.RequestHash).HasMaxLength(64);
+            entity.Property(e => e.ResultEntityCode).HasMaxLength(60);
+            entity.Property(e => e.CreatedAtUtc).HasColumnType("datetime2");
+            entity.Property(e => e.ExpiresAtUtc).HasColumnType("datetime2");
         });
 
         OnModelCreatingPartial(modelBuilder);

@@ -157,7 +157,9 @@ function renderLookupTable(list, titleText) {
   if (titleEl) titleEl.textContent = titleText;
 
   tbody.innerHTML = list.map(b => {
-    const court = getCourtById(b.courtId);
+    const courtName = typeof getCourtDisplayName === 'function'
+      ? getCourtDisplayName(b.courtId, b.courtName)
+      : (getCourtById(b.courtId)?.name || `Sân #${b.courtId}`);
     const endTime = getEndTime(b.time, b.duration);
     const total = Number(b.amountDue) || Number(b.courtFee) || 0;
     const paid = Number(b.paidAmount) || 0;
@@ -172,17 +174,20 @@ function renderLookupTable(list, titleText) {
           <div class="text-xs text-muted text-mono">${escapeHtml(b.phone)}</div>
         </td>
         <td><span class="font-semibold text-xs">${formatDateVN(b.date)}</span></td>
-        <td><span class="badge badge-neutral">${escapeHtml(court.name)}</span></td>
+        <td><span class="badge badge-neutral">${escapeHtml(courtName)}</span></td>
         <td class="text-mono font-semibold">${escapeHtml(b.time)} → ${escapeHtml(endTime)} <span class="text-xs text-muted">(${Number(b.duration)}p)</span></td>
         <td>
           <div class="text-mono font-bold" style="color:var(--color-primary)">${formatMoney(total)}</div>
           ${paymentBadgeHtml(paid, total, b.paymentStatus)}
         </td>
-        <td><span class="badge ${statusBadgeClass(b.status)}">${escapeHtml(statusLabel(b.status, b))}</span></td>
+        <td>
+          <span class="badge ${statusBadgeClass(b.status, b)}">${escapeHtml(statusLabel(b.status, b))}</span>
+          ${b.status === 'pending' && b.holdExpiresAtUtc ? `<div class="text-xs text-muted" style="margin-top:3px;">${escapeHtml(getPendingHoldRemainingLabel(b))}</div>` : ''}
+        </td>
         <td>
           <div style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap;">
-            ${showQr ? `<button class="btn btn-outline btn-sm" onclick="viewTicketQR('${escapeAttr(b.id)}')"><iconify-icon icon="lucide:qr-code" width="14"></iconify-icon> Mã QR</button>` : ''}
-            ${canCancel ? `<button class="btn btn-danger-outline btn-sm" onclick="cancelMyBooking('${escapeAttr(b.id)}')">Hủy đơn</button>` : ''}
+            ${showQr ? `<button type="button" class="btn btn-outline btn-sm" onclick="viewTicketQR('${escapeAttr(b.id)}')"><iconify-icon icon="lucide:qr-code" width="14"></iconify-icon> Vé QR</button>` : ''}
+            ${canCancel ? `<button type="button" class="btn btn-danger-outline btn-sm" onclick="cancelMyBooking('${escapeAttr(b.id)}')">Hủy đơn</button>` : ''}
           </div>
         </td>
       </tr>
@@ -193,18 +198,24 @@ function renderLookupTable(list, titleText) {
 function viewTicketQR(id) {
   const b = currentLookupList.find(x => x.id === id) || MY_BOOKINGS.find(x => x.id === id) || BOOKINGS.find(x => x.id === id);
   if (!b) return;
-  const court = getCourtById(b.courtId);
+  const courtName = typeof getCourtDisplayName === 'function'
+    ? getCourtDisplayName(b.courtId, b.courtName)
+    : (getCourtById(b.courtId)?.name || `Sân #${b.courtId}`);
   const endTime = getEndTime(b.time, b.duration);
   const total = Number(b.amountDue) || Number(b.courtFee) || 0;
   const paid = Number(b.paidAmount) || 0;
   const tok = activeLookupAccessToken || resolveStoredGuestToken(b.id);
 
-  const qrBox = document.querySelector('#modalTicketQR .qr-placeholder');
-  if (qrBox) {
-    qrBox.innerHTML = `
-      ${renderBookingQrHtml(b, 168, tok)}
-      <div class="text-xs font-bold text-mono mt-sm" id="ticketQrCode" style="color:var(--color-indigo)">${escapeHtml(b.id)}</div>
-    `;
+  if (window.SpikeTicket && document.getElementById('lookupDigitalTicketHost')) {
+    SpikeTicket.mountTicket('lookupDigitalTicketHost', b, {
+      accessToken: tok,
+      theme: 'light'
+    });
+  }
+
+  const qrCodeEl = document.getElementById('ticketQrCode');
+  if (qrCodeEl) {
+    qrCodeEl.textContent = b.id;
   }
 
   const dlBtn = document.getElementById('ticketQrDownloadPngBtn');
@@ -215,7 +226,7 @@ function viewTicketQR(id) {
 
   document.getElementById('ticketQrName').textContent = `${b.name} (${b.phone})`;
   document.getElementById('ticketQrDate').textContent = formatDateVN(b.date);
-  document.getElementById('ticketQrCourt').textContent = court.name;
+  document.getElementById('ticketQrCourt').textContent = courtName;
   document.getElementById('ticketQrTime').textContent = `${b.time} → ${endTime} (${b.duration} phút)`;
   document.getElementById('ticketQrTotal').textContent = `${formatMoney(total)} (${paid >= total && total > 0 ? 'Đã thu đủ' : `Đã thu ${formatMoney(paid)}`})`;
   openModal('modalTicketQR');

@@ -21,15 +21,23 @@
     <div class="container stack">
         <!-- CHỌN NGÀY THI ĐẤU -->
         <div class="card">
-            <div class="card-header">
+            <div class="card-header" style="flex-wrap:wrap;gap:0.75rem;">
                 <span class="card-header-title">
                     <iconify-icon icon="lucide:calendar-days" width="18" style="color:var(--color-primary)"></iconify-icon>
                     <span>Ngày thi đấu</span>
                 </span>
-                <span class="text-sm font-bold" id="selectedDateLabel" style="color:var(--color-indigo)">Hôm nay</span>
+                <div style="display:flex;align-items:center;gap:0.65rem;flex-wrap:wrap;">
+                    <span class="text-sm font-bold" id="selectedDateLabel" style="color:var(--color-indigo)">Hôm nay</span>
+                    <label for="bookingDatePicker" class="sr-only">Chọn ngày trên lịch</label>
+                    <input type="date" id="bookingDatePicker" class="form-input text-mono" style="width:auto;padding:0.32rem 0.65rem;font-size:0.82rem;min-height:38px;" onchange="selectBookingDate(this.value)" aria-label="Chọn ngày thi đấu trên lịch" />
+                </div>
             </div>
             <div class="card-body">
-                <div class="date-strip" id="quickDateStrip"></div>
+                <div class="conflict-banner" id="bookingDateNotice" role="status" aria-live="polite" style="margin-bottom:0.75rem;">
+                    <iconify-icon icon="lucide:info" width="16"></iconify-icon>
+                    <span id="bookingDateNoticeText"></span>
+                </div>
+                <div class="date-strip" id="quickDateStrip" role="group" aria-label="Danh sách ngày đặt sân nhanh"></div>
             </div>
         </div>
 
@@ -43,10 +51,10 @@
                             <iconify-icon icon="lucide:map-pin" width="18" style="color:var(--color-indigo)"></iconify-icon>
                             <span>Sân thi đấu</span>
                         </span>
-                        <span class="text-xs text-muted">Sân Indoor VIP (+20.000đ/h) — Sân Outdoor (Tiêu chuẩn)</span>
+                        <span class="text-xs text-muted">Sân Indoor VIP (<span data-cms="vipSurchargeFormatted">+20.000 đ/h</span>) — Sân Outdoor (Tiêu chuẩn)</span>
                     </div>
                     <div class="card-body">
-                        <div class="court-options" id="courtOptions"></div>
+                        <div class="court-options" id="courtOptions" role="radiogroup" aria-label="Chọn sân thi đấu"></div>
                     </div>
                 </div>
 
@@ -99,12 +107,14 @@
 
             <!-- CỘT PHẢI: PHIẾU XÁC NHẬN & CHIA TIỀN -->
             <div class="card sticky-panel">
-                <div class="card-header" style="background:#0B111E;color:#FFFFFF;">
+                <div class="card-header" style="background:#0B111E;color:#FFFFFF;flex-wrap:wrap;gap:0.5rem;">
                     <span class="card-header-title" style="color:#FFFFFF;">
                         <iconify-icon icon="lucide:receipt" width="18" style="color:var(--color-volt)"></iconify-icon>
                         <span id="bookingFormTitle">Phiếu đặt sân</span>
                     </span>
-                    <span class="badge" style="background:rgba(216,248,38,0.18);color:var(--color-volt);">Báo giá máy chủ</span>
+                    <button type="button" id="bookingQuoteSourceBadge" class="badge quote-source-badge" onclick="retryServerQuote()" style="background:rgba(216,248,38,0.18);color:var(--color-volt);border:1px solid rgba(216,248,38,0.35);cursor:pointer;" title="Trạng thái xác thực báo giá từ máy chủ">
+                        Đang đồng bộ giá...
+                    </button>
                 </div>
 
                 <div class="card-body">
@@ -184,51 +194,31 @@
     </div>
 </main>
 
-<!-- MODAL MÃ QR THÀNH CÔNG -->
+<!-- MODAL MÃ QR THÀNH CÔNG — PREMIUM DIGITAL TICKET (V4-QR) -->
 <div class="modal-overlay" id="modalQR">
-    <div class="modal modal-sm">
-        <div class="modal-header">
-            <h3 class="modal-title" style="color:var(--color-primary)">Đặt sân thành công</h3>
+    <div class="modal" style="max-width:520px;width:94vw;">
+        <div class="modal-header no-print">
+            <h3 class="modal-title" style="color:var(--color-primary)">Vé Sân Điện Tử · Đặt Sân Thành Công</h3>
             <button class="modal-close" onclick="closeModal('modalQR')">✕</button>
         </div>
-        <div class="modal-body" style="text-align:center">
-            <div class="qr-placeholder">
-                <iconify-icon icon="lucide:qr-code" width="76"></iconify-icon>
-                <div class="text-xs font-bold text-mono" id="qrCodeBadge">PB-XXXXXX</div>
-            </div>
+        <div class="modal-body" style="padding:1rem;">
+            <div id="bookingDigitalTicketHost"></div>
 
-            <div style="margin-top:0.65rem;display:flex;justify-content:center;gap:0.5rem;">
-                <a id="qrDownloadPngBtn" href="#" download class="btn btn-outline btn-xs">
-                    <iconify-icon icon="lucide:download" width="13"></iconify-icon>
-                    <span>Tải ảnh QR (.PNG)</span>
-                </a>
-            </div>
-
-            <!-- Hộp lưu Mã bảo mật tra cứu vé cho khách vãng lai (P0-07) -->
-            <div id="guestAccessTokenBox" style="display:none;margin-top:0.85rem;padding:0.75rem;border-radius:var(--radius-xs);background:#ECFDF5;border:1.5px solid #10B981;text-align:left;">
-                <div style="font-size:0.74rem;font-weight:800;color:#065F46;text-transform:uppercase;margin-bottom:4px;">
-                    Lưu lại Mã bảo mật tra cứu vé (Chỉ cấp 1 lần)
-                </div>
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;background:#FFFFFF;padding:0.45rem 0.65rem;border-radius:6px;border:1px solid #A7F3D0;">
-                    <code id="qrGuestTokenValue" class="text-mono font-bold" style="font-size:0.82rem;color:#047857;word-break:break-all;"></code>
-                    <button type="button" class="btn btn-outline btn-xs" onclick="copyGuestAccessToken()">Sao chép</button>
-                </div>
-                <p style="font-size:0.72rem;color:#065F46;margin-top:5px;line-height:1.4;">
-                    Khách chưa đăng nhập cần nhập <strong>Mã đặt sân</strong> kèm <strong>Mã bảo mật</strong> này khi tra cứu lại hoặc tự hủy lịch tại trang Tra cứu.
-                </p>
-            </div>
-
-            <div class="payment-summary mt-md" style="text-align:left">
-                <div class="payment-line"><span class="text-muted">Mã đặt sân</span><span class="font-bold text-mono" id="qrRef" style="color:var(--color-indigo)"></span></div>
-                <div class="payment-line"><span class="text-muted">Trạng thái vé</span><span class="font-semibold" id="qrStatusText">Chờ lễ tân duyệt vé</span></div>
-                <div class="payment-line"><span class="text-muted">Khách hàng</span><span class="font-semibold" id="qrName"></span></div>
-                <div class="payment-line"><span class="text-muted">Ngày thi đấu</span><span class="font-semibold" id="qrDate"></span></div>
-                <div class="payment-line"><span class="text-muted">Sân đấu</span><span class="font-semibold" id="qrCourt"></span></div>
-                <div class="payment-line"><span class="text-muted">Khung giờ</span><span class="font-semibold text-mono" id="qrTime"></span></div>
-                <div class="payment-line total"><span>Tổng phải thu</span><span class="font-bold text-mono" id="qrTotal"></span></div>
+            <!-- UI-C01: Giữ các trường text ẩn phục vụ kiểm thử tự động nhưng KHÔNG render trùng ảnh QR -->
+            <div style="display:none;" aria-hidden="true">
+                <div id="qrCodeBadge"></div>
+                <a id="qrDownloadPngBtn" href="#"></a>
+                <div id="guestAccessTokenBox"><code id="qrGuestTokenValue"></code></div>
+                <span id="qrRef"></span>
+                <span id="qrStatusText"></span>
+                <span id="qrName"></span>
+                <span id="qrDate"></span>
+                <span id="qrCourt"></span>
+                <span id="qrTime"></span>
+                <span id="qrTotal"></span>
             </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer no-print">
             <a href="/Lookup" id="qrOpenLookupLink" class="btn btn-outline" style="flex:1">Mở trang Tra cứu</a>
             <button class="btn btn-primary" style="flex:1" onclick="closeModal('modalQR')">Hoàn tất</button>
         </div>

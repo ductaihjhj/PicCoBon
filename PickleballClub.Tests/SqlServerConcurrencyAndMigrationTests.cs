@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using PickleballClub.Controllers;
 using PickleballClub.Models;
 using PickleballClub.Services;
 using Xunit;
@@ -358,7 +359,7 @@ VALUES (N'PB-LEG001', 1, 1, N'Hội viên Cũ', N'0909111222', N'2026-11-18', N'
                 {
                     gateA.Wait();
                     await using var ctx = CreateSqlContext(dbName);
-                    var r = await bookingService.CreateCourtLockAsync(ctx, courtId, "2026-11-21", "19:30", 60, "Bảo trì lưới", 1, "admin");
+                    var r = await bookingService.CreateCourtLockAsync(ctx, courtId, "2026-11-21", "19:30", 60, "Bảo trì lưới", 1, "admin", referenceNow: refNow);
                     return (r.Success, r.StatusCode);
                 });
 
@@ -394,7 +395,7 @@ VALUES (N'PB-LEG001', 1, 1, N'Hội viên Cũ', N'0909111222', N'2026-11-18', N'
                 {
                     gateB.Wait();
                     await using var ctx = CreateSqlContext(dbName);
-                    return await bookingService.ExtendBookingDurationAsync(ctx, baseBookingCode, 30, 1, "admin");
+                    return await bookingService.ExtendBookingDurationAsync(ctx, baseBookingCode, 30, 1, "admin", referenceNow: refNow);
                 });
 
                 var adjacentBookTask = Task.Run(async () =>
@@ -480,12 +481,12 @@ VALUES (N'PB-LEG001', 1, 1, N'Hội viên Cũ', N'0909111222', N'2026-11-18', N'
                 int saleMovements = await verifyCtx.TbInventoryMovements.CountAsync(m => m.ProductId == productId && m.ChangeQty == -1);
                 Assert.Equal(3, saleMovements);
 
-                // Replay idempotency key of winner #0 -> returns existing order without failing or altering stock
+                // Replay idempotency key of winner #0 with matching actor & payload -> returns existing order without failing or altering stock
                 string winnerIdem = winners[0].Order!.IdempotencyKey!;
                 var replay = await orderService.CreateOrderAsync(verifyCtx, new CreateShopOrderInput
                 {
-                    CustomerName = "Replay Caller",
-                    Phone = "0933445500",
+                    CustomerName = winners[0].Order!.CustomerName ?? "Khách ProShop",
+                    Phone = winners[0].Order!.Phone ?? "0933445500",
                     IdempotencyKey = winnerIdem,
                     Items = new List<OrderItemInput> { new() { ProductId = productId, Qty = 1 } }
                 });
@@ -617,6 +618,53 @@ VALUES (N'PB-LEG001', 1, 1, N'Hội viên Cũ', N'0909111222', N'2026-11-18', N'
             await bookingService.ReconcileBookingLifecycleAsync(ctx, new DateTime(2026, 11, 19, 9, 30, 0));
             var afterGrace = await ctx.TbBookings.AsNoTracking().SingleAsync(b => b.BookingCode == noShowBk.Booking!.BookingCode);
             Assert.Equal("no_show", afterGrace.Status);
+        }
+        finally
+        {
+            await DropTempDatabaseSafeAsync(dbName);
+        }
+    }
+
+    // =========================================================================
+    // 6. V5 UI-API-DB Contract: Asset Normalization (UI-B07), Full-Day Slot Lock Rejection (UI-A08),
+    //    and Quote/Pricing Version Integrity (UI-A02)
+    // =========================================================================
+    [Fact]
+    public async Task UiV5_CourtAssetNormalization_And_FullDayLockRejectsStaleSlotSubmission()
+    {
+        // UI-B07: Broken /assets/hero-pickleball-club.png or empty image is normalized by courtType
+        Assert.Equal("/assets/court-vip-arena.png", ApiDbController.NormalizeCourtImageUrl(null, "Indoor"));
+        Assert.Equal("/assets/court-vip-arena.png", ApiDbController.NormalizeCourtImageUrl("/assets/hero-pickleball-club.png", "Indoor"));
+        Assert.Equal("/assets/hero-spike-pickleball.png", ApiDbController.NormalizeCourtImageUrl("/assets/hero-pickleball-club.png", "Outdoor"));
+        Assert.Equal("/assets/court-vip-arena.png", ApiDbController.NormalizeCourtImageUrl("/assets/court-vip-arena.png", "Outdoor"));
+
+        string dbName = "PickleballClub_Test_V5_" + Guid.NewGuid().ToString("N")[..8];
+        try
+        {
+            await SeedOperationalDataAsync(dbName);
+            await using var ctx = CreateSqlContext(dbName);
+            int courtId = await ctx.TbCourts.OrderBy(c => c.CourtId).Select(c => c.CourtId).FirstAsync();
+            var bookingService = CreateBookingService();
+            var refNow = new DateTime(2026, 11, 20, 8, 0, 0);
+
+            // Lock entire operating day 06:00 -> 22:00 (960 minutes) on court 1
+            var lockRes = await bookingService.CreateCourtLockAsync(
+                ctx, courtId, "2026-11-22", "06:00", 960, "Bảo dưỡng mặt sân toàn ngày", 1, "admin", referenceNow: refNow);
+            Assert.True(lockRes.Success);
+
+            // UI-A08: Any attempt to submit a stale StartTime on a fully locked court/date must be rejected 409
+            var staleBookingAttempt = await bookingService.CreateBookingAsync(ctx, new BookingCreateInput
+            {
+                CourtId = courtId,
+                CustomerName = "Khách Stale Slot",
+                Phone = "0905111222",
+                BookingDate = "2026-11-22",
+                StartTime = "18:00",
+                Duration = 60,
+                ReferenceNow = refNow
+            });
+            Assert.False(staleBookingAttempt.Success);
+            Assert.Equal(409, staleBookingAttempt.StatusCode);
         }
         finally
         {

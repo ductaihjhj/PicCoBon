@@ -33,6 +33,11 @@ public partial class TbOrder
 
     public string Status { get; set; } = "confirmed";
 
+    /// <summary>
+    /// pending, delivered, returned, cancelled
+    /// </summary>
+    public string FulfillmentStatus { get; set; } = "pending";
+
     public string? PaymentMethod { get; set; } = "cash";
 
     public string? IdempotencyKey { get; set; }

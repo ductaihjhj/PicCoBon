@@ -1,10 +1,14 @@
-using System;
+ using System;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Core.Infrastructure;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,8 +24,12 @@ bool isDevOrTesting = builder.Environment.IsDevelopment() || builder.Environment
 var cookieSecurePolicy = isDevOrTesting ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add<CsrfFailureResultFilter>();
+});
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddDataProtection();
 
 // P1-17: Consistent Anti-Forgery protection across forms and JSON API endpoints (RequestVerificationToken header)
 builder.Services.AddAntiforgery(options =>
@@ -43,6 +51,7 @@ builder.Services.AddScoped<ClubSettingsService>();
 builder.Services.AddScoped<PricingService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<ProductImageService>();
 
 if (builder.Configuration.GetValue("BackgroundWorkers:Enabled", true) && !builder.Environment.IsEnvironment("Testing"))
 {
@@ -87,7 +96,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             {
                 context.RejectPrincipal();
                 await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return;
             }
+
+            context.HttpContext.Items["MustChangePassword"] = acc.MustChangePassword;
         };
 
         options.Events.OnRedirectToLogin = context =>
@@ -128,21 +140,89 @@ builder.Services.AddAuthorization();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-
-    options.AddFixedWindowLimiter("AuthAndLookup", limiterOptions =>
+    options.OnRejected = async (context, cancellationToken) =>
     {
-        limiterOptions.PermitLimit = builder.Configuration.GetValue("RateLimiting:AuthPermitLimit", 25);
-        limiterOptions.Window = TimeSpan.FromMinutes(1);
-        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        limiterOptions.QueueLimit = 2;
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.HttpContext.Response.Headers.RetryAfter = "60";
+        context.HttpContext.Response.ContentType = "application/json; charset=utf-8";
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            ok = false,
+            code = "RATE_LIMITED",
+            retryAfterSeconds = 60,
+            error = "Bạn đã gửi quá nhiều yêu cầu trong thời gian ngắn. Vui lòng thử lại sau 60 giây."
+        }, cancellationToken);
+    };
+
+    static string ResolveTrustedClientPartition(HttpContext httpContext, bool allowTestHeader)
+    {
+        // V4-B5: Only trust RemoteIpAddress (never raw X-Forwarded-For without trusted proxy).
+        // Allow X-Test-Client-Ip ONLY when running in-memory TestServer (RemoteIpAddress == null) or Testing env.
+        string ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
+        if ((string.IsNullOrEmpty(ip) || allowTestHeader) &&
+            httpContext.Request.Headers.TryGetValue("X-Test-Client-Ip", out var testIp) &&
+            !string.IsNullOrWhiteSpace(testIp))
+        {
+            ip = testIp.ToString().Trim();
+        }
+        if (string.IsNullOrEmpty(ip)) ip = "loopback";
+
+        string userPart = httpContext.User?.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anon";
+        string path = httpContext.Request.Path.Value?.ToLowerInvariant() ?? "/";
+        string category = path switch
+        {
+            var p when p.Contains("/auth/login") || p.Contains("/account/login") => "auth.login",
+            var p when p.Contains("/reset-password") || p.Contains("/change-password") => "auth.password",
+            var p when p.Contains("/lookup/") => "ticket.lookup",
+            var p when p.Contains("/api/bookings") => "booking.create",
+            var p when p.Contains("/api/checkin") => "checkin.scan",
+            _ => "general"
+        };
+
+        return $"{category}|{ip}|{userPart}";
+    }
+
+    int authPermitLimit = builder.Configuration.GetValue("RateLimiting:AuthPermitLimit", 20);
+    int checkInPermitLimit = builder.Configuration.GetValue("RateLimiting:CheckInPermitLimit", 60);
+    int bookingPermitLimit = builder.Configuration.GetValue("RateLimiting:BookingPermitLimit", 15);
+
+    options.AddPolicy("AuthAndLookup", httpContext =>
+    {
+        string key = ResolveTrustedClientPartition(httpContext, isDevOrTesting);
+        return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = authPermitLimit,
+            Window = TimeSpan.FromMinutes(1),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
     });
 
-    options.AddFixedWindowLimiter("CheckInLimiter", limiterOptions =>
+    options.AddPolicy("CheckInLimiter", httpContext =>
     {
-        limiterOptions.PermitLimit = builder.Configuration.GetValue("RateLimiting:CheckInPermitLimit", 60);
-        limiterOptions.Window = TimeSpan.FromMinutes(1);
-        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        limiterOptions.QueueLimit = 2;
+        string key = ResolveTrustedClientPartition(httpContext, isDevOrTesting);
+        return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = checkInPermitLimit,
+            Window = TimeSpan.FromMinutes(1),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+
+    options.AddPolicy("BookingCreateLimiter", httpContext =>
+    {
+        string key = ResolveTrustedClientPartition(httpContext, isDevOrTesting);
+        return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = bookingPermitLimit,
+            Window = TimeSpan.FromMinutes(1),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
     });
 });
 
@@ -190,7 +270,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Security Headers Middleware (P2-09) & Legacy Cookie Cleanup (P0-02)
+// Security Headers Middleware (P2-09), Legacy Cookie Cleanup (P0-02) & V4-B1 CSRF Error Formatting
 app.Use(async (context, next) =>
 {
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
@@ -204,6 +284,32 @@ app.Use(async (context, next) =>
     }
 
     await next();
+
+    var afFeature = context.Features.Get<Microsoft.AspNetCore.Antiforgery.IAntiforgeryValidationFeature>();
+    bool isCsrfFail = (afFeature != null && !afFeature.IsValid) ||
+                      (context.Response.StatusCode == StatusCodes.Status400BadRequest &&
+                       !context.Response.HasStarted &&
+                       string.IsNullOrEmpty(context.Response.ContentType) &&
+                       (HttpMethods.IsPost(context.Request.Method) ||
+                        HttpMethods.IsPut(context.Request.Method) ||
+                        HttpMethods.IsPatch(context.Request.Method) ||
+                        HttpMethods.IsDelete(context.Request.Method)));
+
+    if (isCsrfFail)
+    {
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        context.Response.Headers["X-Csrf-Error"] = "CSRF_TOKEN_INVALID";
+        if (!context.Response.HasStarted)
+        {
+            context.Response.ContentType = "application/json; charset=utf-8";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                ok = false,
+                code = "CSRF_TOKEN_INVALID",
+                error = "Phiên bảo mật CSRF đã hết hạn hoặc không hợp lệ. Vui lòng thử lại."
+            });
+        }
+    }
 });
 
 app.UseHttpsRedirection();
@@ -211,9 +317,90 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseSession();
-app.UseRateLimiter();
 app.UseAuthentication();
+
+// V4-B1: Deterministic CSRF validation before MVC / ApiController ProblemDetails formatting
+app.Use(async (context, next) =>
+{
+    var endpoint = context.GetEndpoint();
+    bool requiresCsrf = endpoint?.Metadata.GetMetadata<Microsoft.AspNetCore.Antiforgery.IAntiforgeryMetadata>()?.RequiresValidation == true ||
+                        endpoint?.Metadata.GetMetadata<ValidateAntiForgeryTokenAttribute>() != null;
+
+    if (requiresCsrf &&
+        !HttpMethods.IsGet(context.Request.Method) &&
+        !HttpMethods.IsHead(context.Request.Method) &&
+        !HttpMethods.IsOptions(context.Request.Method) &&
+        !HttpMethods.IsTrace(context.Request.Method))
+    {
+        var antiforgery = context.RequestServices.GetRequiredService<Microsoft.AspNetCore.Antiforgery.IAntiforgery>();
+        try
+        {
+            await antiforgery.ValidateRequestAsync(context);
+        }
+        catch (Microsoft.AspNetCore.Antiforgery.AntiforgeryValidationException)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.Headers["X-Csrf-Error"] = "CSRF_TOKEN_INVALID";
+            context.Response.ContentType = "application/json; charset=utf-8";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                ok = false,
+                code = "CSRF_TOKEN_INVALID",
+                error = "Phiên bảo mật CSRF đã hết hạn hoặc không hợp lệ. Vui lòng thử lại."
+            });
+            return;
+        }
+    }
+
+    await next();
+});
+
 app.UseAuthorization();
+app.UseRateLimiter();
+
+// V4-B3: Server-side MustChangePassword enforcement middleware
+app.Use(async (context, next) =>
+{
+    bool mustChange = (context.Items.TryGetValue("MustChangePassword", out var mcpVal) && mcpVal is true) ||
+                      string.Equals(context.User?.FindFirstValue("MustChangePassword"), "true", StringComparison.OrdinalIgnoreCase);
+
+    if (context.User?.Identity?.IsAuthenticated == true && mustChange)
+    {
+        var path = context.Request.Path.Value ?? "/";
+        bool isAllowed =
+            path.StartsWith("/Account/Profile", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/Account/ChangePassword", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/Account/Logout", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/Account/Login", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/auth/change-password", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/auth/logout", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/security/csrf", StringComparison.OrdinalIgnoreCase) ||
+            (path.StartsWith("/api/db/state", StringComparison.OrdinalIgnoreCase) && HttpMethods.IsGet(context.Request.Method)) ||
+            path.StartsWith("/health", StringComparison.OrdinalIgnoreCase);
+
+        if (!isAllowed)
+        {
+            if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/json; charset=utf-8";
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    ok = false,
+                    code = "MUST_CHANGE_PASSWORD",
+                    redirectTo = "/Account/Profile",
+                    error = "Tài khoản của bạn đang sử dụng mật khẩu tạm thời. Vui lòng đổi mật khẩu mới trước khi thực hiện thao tác này."
+                });
+                return;
+            }
+
+            context.Response.Redirect("/Account/Profile?forceChange=1");
+            return;
+        }
+    }
+
+    await next();
+});
 
 // P2-08: Operational Health Endpoint (zero PII or connection string disclosure)
 app.MapGet("/health", async (PickleballContext db) =>
@@ -260,5 +447,29 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
+
+public sealed class CsrfFailureResultFilter : IAsyncAlwaysRunResultFilter, IOrderedFilter
+{
+    public int Order => -3000;
+
+    public Task OnResultExecutionAsync(ResultExecutingContext context, ResultExecutionDelegate next)
+    {
+        if (context.Result is IAntiforgeryValidationFailedResult)
+        {
+            context.HttpContext.Response.Headers["X-Csrf-Error"] = "CSRF_TOKEN_INVALID";
+            context.Result = new JsonResult(new
+            {
+                ok = false,
+                code = "CSRF_TOKEN_INVALID",
+                error = "Phiên bảo mật CSRF đã hết hạn hoặc không hợp lệ. Vui lòng thử lại."
+            })
+            {
+                StatusCode = StatusCodes.Status400BadRequest
+            };
+        }
+
+        return next();
+    }
+}
 
 public partial class Program { }

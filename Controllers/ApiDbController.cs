@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -25,6 +26,8 @@ namespace PickleballClub.Controllers;
 [ApiController]
 public class ApiDbController : ControllerBase
 {
+    private const string GuestRecoveryCookieName = "spike_guest_bk";
+
     private readonly PickleballContext _context;
     private readonly BookingService _bookingService;
     private readonly OrderService _orderService;
@@ -33,6 +36,7 @@ public class ApiDbController : ControllerBase
     private readonly ClubSettingsService _settingsService;
     private readonly PasswordService _passwordService;
     private readonly IAntiforgery _antiforgery;
+    private readonly IDataProtector _guestBookingProtector;
 
     public ApiDbController(
         PickleballContext context,
@@ -42,7 +46,8 @@ public class ApiDbController : ControllerBase
         QrTokenService qrTokenService,
         ClubSettingsService settingsService,
         PasswordService passwordService,
-        IAntiforgery antiforgery)
+        IAntiforgery antiforgery,
+        IDataProtectionProvider dataProtectionProvider)
     {
         _context = context;
         _bookingService = bookingService;
@@ -52,10 +57,24 @@ public class ApiDbController : ControllerBase
         _settingsService = settingsService;
         _passwordService = passwordService;
         _antiforgery = antiforgery;
+        _guestBookingProtector = dataProtectionProvider.CreateProtector("Spike.GuestBookingRecovery.v1");
     }
 
     public static string FormatIconHtml(string? rawIcon) =>
         IconSanitizer.FormatSafeIconHtmlString(rawIcon, width: 26, fallback: "mdi:cup-water");
+
+    public static string NormalizeCourtImageUrl(string? rawImage, string? courtType)
+    {
+        if (string.IsNullOrWhiteSpace(rawImage) ||
+            rawImage.Contains("hero-pickleball-club.png", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Equals(courtType, "Indoor", StringComparison.OrdinalIgnoreCase)
+                ? "/assets/court-vip-arena.png"
+                : "/assets/hero-spike-pickleball.png";
+        }
+
+        return rawImage.Trim();
+    }
 
     private string? ClientIp => HttpContext.Connection.RemoteIpAddress?.ToString();
 
@@ -67,14 +86,112 @@ public class ApiDbController : ControllerBase
         return Ok(new
         {
             ok = true,
-            token = tokens.RequestToken
+            token = tokens.RequestToken,
+            csrfToken = tokens.RequestToken
         });
+    }
+
+    private sealed class GuestBookingRecoveryEntry
+    {
+        public string BookingCode { get; set; } = string.Empty;
+        public string GuestAccessToken { get; set; } = string.Empty;
+        public string? IdempotencyKey { get; set; }
+        public DateTime ExpiresAtUtc { get; set; }
+    }
+
+    private void SaveGuestBookingRecoveryProof(string bookingCode, string rawGuestToken, string? idempotencyKey)
+    {
+        if (string.IsNullOrWhiteSpace(bookingCode) || string.IsNullOrWhiteSpace(rawGuestToken))
+            return;
+
+        try
+        {
+            var entries = ReadGuestBookingRecoveryEntries();
+            entries.RemoveAll(e =>
+                e.ExpiresAtUtc <= DateTime.UtcNow ||
+                string.Equals(e.BookingCode, bookingCode, StringComparison.OrdinalIgnoreCase));
+
+            entries.Insert(0, new GuestBookingRecoveryEntry
+            {
+                BookingCode = bookingCode.Trim().ToUpperInvariant(),
+                GuestAccessToken = rawGuestToken,
+                IdempotencyKey = IdempotencyService.NormalizeKey(idempotencyKey),
+                ExpiresAtUtc = DateTime.UtcNow.AddHours(2)
+            });
+
+            if (entries.Count > 5)
+            {
+                entries.RemoveRange(5, entries.Count - 5);
+            }
+
+            string json = JsonSerializer.Serialize(entries);
+            string protectedPayload = _guestBookingProtector.Protect(json);
+
+            Response.Cookies.Append(GuestRecoveryCookieName, protectedPayload, new CookieOptions
+            {
+                HttpOnly = true,
+                SameSite = SameSiteMode.Lax,
+                Secure = Request.IsHttps,
+                Expires = DateTimeOffset.UtcNow.AddHours(2),
+                IsEssential = true
+            });
+        }
+        catch
+        {
+            // Ignore non-fatal cookie serialization error
+        }
+    }
+
+    private List<GuestBookingRecoveryEntry> ReadGuestBookingRecoveryEntries()
+    {
+        try
+        {
+            if (!Request.Cookies.TryGetValue(GuestRecoveryCookieName, out var rawCookie) ||
+                string.IsNullOrWhiteSpace(rawCookie))
+            {
+                return new List<GuestBookingRecoveryEntry>();
+            }
+
+            string json = _guestBookingProtector.Unprotect(rawCookie);
+            return JsonSerializer.Deserialize<List<GuestBookingRecoveryEntry>>(json) ?? new List<GuestBookingRecoveryEntry>();
+        }
+        catch
+        {
+            return new List<GuestBookingRecoveryEntry>();
+        }
+    }
+
+    private string? TryRecoverGuestBookingToken(TbBooking booking, string? idempotencyKey)
+    {
+        string cleanIdem = IdempotencyService.NormalizeKey(idempotencyKey) ?? string.Empty;
+        var entries = ReadGuestBookingRecoveryEntries();
+        var match = entries.FirstOrDefault(e =>
+            e.ExpiresAtUtc > DateTime.UtcNow &&
+            string.Equals(e.BookingCode, booking.BookingCode, StringComparison.OrdinalIgnoreCase) &&
+            (string.IsNullOrEmpty(cleanIdem) || string.Equals(e.IdempotencyKey, cleanIdem, StringComparison.Ordinal)));
+
+        if (match != null && QrTokenService.VerifyGuestAccessToken(match.GuestAccessToken, booking.AccessTokenHash))
+        {
+            return match.GuestAccessToken;
+        }
+
+        return null;
     }
 
     private object MapOwnerOrStaffBookingDto(TbBooking b, string? accessTokenForUrl = null, bool embedQrSvg = false)
     {
+        var utcNow = DateTime.UtcNow;
         var posItemsObj = BookingService.ParsePosItems(b.PosItemsJson)
-            .Select(i => new { id = i.ProductId, productId = i.ProductId, name = i.Name, price = i.Price, qty = i.Qty })
+            .Select(i => new
+            {
+                id = i.ProductId,
+                productId = i.ProductId,
+                name = i.Name,
+                price = i.Price,
+                qty = i.Qty,
+                orderId = i.OrderId,
+                orderCode = i.OrderCode
+            })
             .ToList();
 
         object? pricingBreakdown = null;
@@ -92,6 +209,19 @@ public class ApiDbController : ControllerBase
 
         int amountDue = b.AmountDue > 0 ? b.AmountDue : Math.Max(0, b.CourtFee + b.PosTotal - b.DiscountAmount);
         int paidAmount = b.PaidAmount;
+
+        bool isExpiredPending = string.Equals(b.Status, "pending", StringComparison.OrdinalIgnoreCase) &&
+                                !BookingService.IsPendingHoldActive(b, utcNow);
+        string effectiveStatus = isExpiredPending ? "expired" : b.Status;
+
+        DateTime? holdExpiresUtc = b.HoldExpiresAtUtc.HasValue
+            ? (b.HoldExpiresAtUtc.Value.Kind == DateTimeKind.Utc
+                ? b.HoldExpiresAtUtc.Value
+                : DateTime.SpecifyKind(b.HoldExpiresAtUtc.Value, DateTimeKind.Utc))
+            : null;
+        int holdRemainingSeconds = (string.Equals(effectiveStatus, "pending", StringComparison.OrdinalIgnoreCase) && holdExpiresUtc.HasValue)
+            ? Math.Max(0, (int)Math.Ceiling((holdExpiresUtc.Value - utcNow).TotalSeconds))
+            : 0;
 
         string qrToken = !string.IsNullOrWhiteSpace(b.CheckInToken)
             ? b.CheckInToken
@@ -116,7 +246,9 @@ public class ApiDbController : ControllerBase
             phone = b.Phone ?? string.Empty,
             time = b.StartTime,
             duration = b.Duration,
-            status = b.Status,
+            status = effectiveStatus,
+            holdExpiresAtUtc = holdExpiresUtc?.ToString("O"),
+            holdRemainingSeconds,
             players = b.Players,
             skillLevel = b.SkillLevel ?? "Giao lưu",
             courtFee = b.CourtFee,
@@ -137,7 +269,9 @@ public class ApiDbController : ControllerBase
             checkedInAt = b.CheckedInAt?.ToString("yyyy-MM-dd HH:mm:ss"),
             completedAt = b.CompletedAt?.ToString("yyyy-MM-dd HH:mm:ss"),
             cancelledAt = b.CancelledAt?.ToString("yyyy-MM-dd HH:mm:ss"),
-            cancelReason = b.CancelReason,
+            cancelReason = isExpiredPending && string.IsNullOrWhiteSpace(b.CancelReason)
+                ? "Hết thời gian giữ chỗ chờ duyệt (TTL)"
+                : b.CancelReason,
             isBusySlot = false
         };
     }
@@ -221,6 +355,8 @@ public class ApiDbController : ControllerBase
         var rawLocks = await locksQuery.OrderByDescending(l => l.LockDate).ToListAsync();
 
         List<TbOrder> standaloneOrders = new();
+        object? todayLedgerSummaryDto = null;
+        string todayLedgerHashSeed = "no-ledger";
         if (isStaffOrAdmin)
         {
             standaloneOrders = await _context.TbOrders
@@ -230,22 +366,128 @@ public class ApiDbController : ControllerBase
                 .OrderByDescending(o => o.CreatedDate)
                 .Take(100)
                 .ToListAsync();
+
+            string todayIso = today.ToString("yyyy-MM-dd");
+            DateTime todayStart = today.ToDateTime(TimeOnly.MinValue);
+            DateTime tomorrowStart = today.AddDays(1).ToDateTime(TimeOnly.MinValue);
+
+            var todayLedgerRows = await _context.TbPaymentTransactions
+                .AsNoTracking()
+                .Where(t => t.Status == "completed" && t.CreatedAt >= todayStart && t.CreatedAt < tomorrowStart)
+                .ToListAsync();
+
+            int grossToday = todayLedgerRows
+                .Where(t => !string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase))
+                .Sum(t => Math.Max(0, t.Amount));
+            int refundedToday = todayLedgerRows
+                .Where(t => string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase))
+                .Sum(t => Math.Abs(t.Amount));
+            int netCollectedToday = grossToday - refundedToday;
+
+            int bookingNetToday = todayLedgerRows
+                .Where(t => t.BookingId != null)
+                .Sum(t => string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase) ? -Math.Abs(t.Amount) : Math.Max(0, t.Amount));
+            int shopNetToday = todayLedgerRows
+                .Where(t => t.OrderId != null && t.BookingId == null)
+                .Sum(t => string.Equals(t.TransactionType, "refund", StringComparison.OrdinalIgnoreCase) ? -Math.Abs(t.Amount) : Math.Max(0, t.Amount));
+
+            var billableStatuses = new[] { "approved", "confirmed", "playing", "completed" };
+            var todayBillableBookings = scopedBookings
+                .Where(b => b.BookingDate == todayIso && billableStatuses.Contains(b.Status))
+                .ToList();
+
+            int todayBookingReceivableTotal = todayBillableBookings
+                .Sum(b => b.AmountDue > 0 ? b.AmountDue : Math.Max(0, b.CourtFee + b.PosTotal - b.DiscountAmount));
+            int todayBookingUnpaid = todayBillableBookings
+                .Sum(b => Math.Max(0, (b.AmountDue > 0 ? b.AmountDue : Math.Max(0, b.CourtFee + b.PosTotal - b.DiscountAmount)) - b.PaidAmount));
+
+            var todayStandaloneOrders = standaloneOrders
+                .Where(o => o.Status != "cancelled" && o.CreatedDate.HasValue && o.CreatedDate.Value >= todayStart && o.CreatedDate.Value < tomorrowStart)
+                .ToList();
+            int todayShopReceivableTotal = todayStandaloneOrders.Sum(o => o.TotalAmount ?? 0);
+            int todayShopUnpaid = todayStandaloneOrders.Sum(o => Math.Max(0, (o.TotalAmount ?? 0) - o.PaidAmount));
+
+            int todayReceivableTotal = todayBookingReceivableTotal + todayShopReceivableTotal;
+            int todayUnpaidReceivable = todayBookingUnpaid + todayShopUnpaid;
+
+            todayLedgerHashSeed = $"{todayIso}:{grossToday}:{refundedToday}:{netCollectedToday}:{todayReceivableTotal}:{todayUnpaidReceivable}:{todayLedgerRows.Count}";
+            todayLedgerSummaryDto = new
+            {
+                date = todayIso,
+                grossCollectedToday = grossToday,
+                refundedToday,
+                netCollectedToday,
+                bookingNetToday,
+                shopNetToday,
+                todayReceivableTotal,
+                todayUnpaidReceivable,
+                txCountToday = todayLedgerRows.Count
+            };
         }
 
-        // Compute deterministic ETag for conditional 304 Not Modified responses (P2-04)
-        var etagSb = new StringBuilder(512);
-        etagSb.Append($"u:{currentAccountId ?? 0}|r:{currentRoleId}|pv:{settings.PricingVersion}|");
-        etagSb.Append($"c:{courtsRaw.Count}:{courtsRaw.Sum(c => c.BasePrice + c.Surcharge)}|");
-        etagSb.Append($"p:{rawProducts.Count}:{rawProducts.Sum(p => (p.UnitInStock ?? p.Quantity ?? 0) + (p.Price ?? 0))}|");
-        etagSb.Append($"l:{rawLocks.Count}:{string.Join(',', rawLocks.Select(l => l.LockId))}|");
-        etagSb.Append($"b:{scopedBookings.Count}:");
+        var utcNow = DateTime.UtcNow;
+
+        object? currentUserDto = null;
+        string currentUserHashSeed = "anon";
+        if (Function.IsLogin() && currentAccountId.HasValue)
+        {
+            var acc = await _context.TbAccounts.AsNoTracking().FirstOrDefaultAsync(a => a.AccountId == currentAccountId.Value && a.IsActive);
+            if (acc != null)
+            {
+                int paidSpend = await _pricingService.GetVerifiedAccountNetPaidSpendAsync(_context, acc.AccountId);
+                var (tierName, discountPct) = PricingService.ResolveMemberTier(paidSpend, acc.MemberTier);
+                currentUserHashSeed = $"{acc.AccountId}:{acc.FullName}:{acc.Email}:{acc.Phone}:{acc.SkillLevel}:{tierName}:{discountPct}:{paidSpend}:{acc.MustChangePassword}:{acc.RoleId}:{acc.Avatar}";
+                currentUserDto = new
+                {
+                    id = acc.AccountId,
+                    name = acc.FullName ?? acc.Username ?? "Hội viên",
+                    email = acc.Email ?? string.Empty,
+                    phone = acc.Phone ?? string.Empty,
+                    skillLevel = acc.SkillLevel ?? "Giao lưu (DUPR 3.0)",
+                    memberTier = tierName,
+                    discountPercent = discountPct,
+                    paidSpend,
+                    mustChangePassword = acc.MustChangePassword,
+                    role = acc.RoleId == 1 ? "admin" : acc.RoleId == 3 ? "staff" : "user",
+                    roleLabel = acc.RoleId == 1 ? "Ban Quản Trị CLB" : acc.RoleId == 3 ? "Nhân viên Vận hành" : "Hội viên CLB",
+                    avatar = acc.Avatar ?? string.Empty
+                };
+            }
+        }
+
+        // V4-B4: Compute comprehensive ETag over ALL returned fields so any change to any displayed property invalidates 304 cache
+        var etagSb = new StringBuilder(1024);
+        etagSb.Append($"u:{currentUserHashSeed}|r:{currentRoleId}|pv:{settings.PricingVersion}|");
+        etagSb.Append($"c:{courtsRaw.Count}:");
+        foreach (var c in courtsRaw)
+        {
+            etagSb.Append($"{c.CourtId}:{c.CourtName}:{c.CourtType}:{c.TypeLabel}:{c.Surface}:{c.BasePrice}:{c.Surcharge}:{c.Image}:{c.Description}:{c.IsActive};");
+        }
+        etagSb.Append($"|p:{rawProducts.Count}:");
+        foreach (var p in rawProducts)
+        {
+            etagSb.Append($"{p.ProductId}:{p.Title}:{p.Price ?? 0}:{p.UnitInStock ?? p.Quantity ?? 0}:{p.CategoryProductId}:{p.Icon}:{p.Image}:{p.Description}:{p.ModifiedDate:O}:{Convert.ToHexString(p.RowVersion ?? Array.Empty<byte>())};");
+        }
+        etagSb.Append($"|l:{rawLocks.Count}:");
+        foreach (var l in rawLocks)
+        {
+            etagSb.Append($"{l.LockId}:{l.LockCode}:{l.CourtId}:{l.LockDate}:{l.StartTime}:{l.Duration}:{l.Reason}:{Convert.ToHexString(l.RowVersion ?? Array.Empty<byte>())};");
+        }
+        etagSb.Append($"|b:{scopedBookings.Count}:");
         foreach (var b in scopedBookings)
         {
-            etagSb.Append($"{b.BookingId}:{b.CourtId}:{b.Duration}:{b.Status}:{b.PaidAmount}:{b.AmountDue};");
+            bool isExpiredHold = string.Equals(b.Status, "pending", StringComparison.OrdinalIgnoreCase) &&
+                                 !BookingService.IsPendingHoldActive(b, utcNow);
+            string effStatus = isExpiredHold ? "expired" : b.Status;
+            etagSb.Append($"{b.BookingId}:{b.BookingCode}:{b.CourtId}:{b.BookingDate}:{b.StartTime}:{b.Duration}:{effStatus}:{b.HoldExpiresAtUtc:O}:{b.CustomerName}:{b.Phone}:{b.CourtFee}:{b.DiscountAmount}:{b.PosTotal}:{b.AmountDue}:{b.PaidAmount}:{b.PaymentStatus}:{b.PosItemsJson}:{Convert.ToHexString(b.RowVersion ?? Array.Empty<byte>())};");
         }
         if (isStaffOrAdmin)
         {
-            etagSb.Append($"o:{standaloneOrders.Count}:{standaloneOrders.Sum(o => o.PaidAmount + (o.TotalAmount ?? 0))}:{string.Join(',', standaloneOrders.Select(o => o.Status))}|");
+            etagSb.Append($"|tl:{todayLedgerHashSeed}|o:{standaloneOrders.Count}:");
+            foreach (var o in standaloneOrders)
+            {
+                etagSb.Append($"{o.OrderId}:{o.Code}:{o.Status}:{o.FulfillmentStatus}:{o.PaidAmount}:{o.TotalAmount ?? 0}:{o.PaymentStatus}:{Convert.ToHexString(o.RowVersion ?? Array.Empty<byte>())};");
+            }
         }
         foreach (var kv in settings.RawCms.OrderBy(k => k.Key))
         {
@@ -272,7 +514,7 @@ public class ApiDbController : ControllerBase
             surface = c.Surface,
             surcharge = c.Surcharge,
             basePrice = c.BasePrice,
-            imageUrl = c.Image,
+            imageUrl = NormalizeCourtImageUrl(c.Image, c.CourtType),
             description = c.Description,
             isActive = c.IsActive
         }).ToList();
@@ -284,7 +526,7 @@ public class ApiDbController : ControllerBase
             {
                 bookings.Add(MapOwnerOrStaffBookingDto(b));
             }
-            else
+            else if (BookingService.IsBookingHoldingSlot(b, utcNow, includePendingConflicts: true))
             {
                 bookings.Add(MapAnonymousBusyIntervalDto(b));
             }
@@ -316,14 +558,24 @@ public class ApiDbController : ControllerBase
                 status = "locked"
             }).ToList();
 
-        var menu = rawProducts.Select(p => new
+        var menu = rawProducts.Select(p =>
         {
-            id = p.ProductId,
-            name = p.Title,
-            price = p.Price ?? 0,
-            stock = p.UnitInStock ?? p.Quantity ?? 0,
-            type = p.CategoryProduct != null && !string.IsNullOrEmpty(p.CategoryProduct.Alias) ? p.CategoryProduct.Alias : "drink",
-            icon = FormatIconHtml(p.Icon)
+            var categoryAlias = p.CategoryProduct != null && !string.IsNullOrEmpty(p.CategoryProduct.Alias)
+                ? p.CategoryProduct.Alias
+                : "drink";
+            return new
+            {
+                id = p.ProductId,
+                name = p.Title,
+                price = p.Price ?? 0,
+                stock = p.UnitInStock ?? p.Quantity ?? 0,
+                type = categoryAlias,
+                description = p.Description ?? string.Empty,
+                imageUrl = ProductImageService.NormalizeProductImageUrl(p.Image, categoryAlias),
+                rawImage = ProductImageService.HasCustomProductImage(p.Image) ? p.Image : null,
+                hasCustomImage = ProductImageService.HasCustomProductImage(p.Image),
+                icon = FormatIconHtml(p.Icon)
+            };
         }).ToList();
 
         var cmsConfig = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
@@ -342,34 +594,10 @@ public class ApiDbController : ControllerBase
         cmsConfig["peakSurcharge"] = settings.PeakSurchargePerHour;
         cmsConfig["checkInEarlyMinutes"] = settings.CheckInEarlyMinutes;
         cmsConfig["cancelCutoffMinutes"] = settings.CancelCutoffMinutes;
+        cmsConfig["pendingHoldMinutes"] = settings.PendingHoldMinutes;
+        cmsConfig["maxActivePendingPerActor"] = settings.MaxActivePendingPerActor;
         cmsConfig["hotline"] = settings.Hotline;
         cmsConfig["pricingVersion"] = settings.PricingVersion;
-
-        object? currentUserDto = null;
-        if (Function.IsLogin() && currentAccountId.HasValue)
-        {
-            var acc = await _context.TbAccounts.AsNoTracking().FirstOrDefaultAsync(a => a.AccountId == currentAccountId.Value && a.IsActive);
-            if (acc != null)
-            {
-                int paidSpend = await _pricingService.GetVerifiedAccountNetPaidSpendAsync(_context, acc.AccountId);
-                var (tierName, discountPct) = PricingService.ResolveMemberTier(paidSpend, acc.MemberTier);
-                currentUserDto = new
-                {
-                    id = acc.AccountId,
-                    name = acc.FullName ?? acc.Username ?? "Hội viên",
-                    email = acc.Email ?? string.Empty,
-                    phone = acc.Phone ?? string.Empty,
-                    skillLevel = acc.SkillLevel ?? "Giao lưu (DUPR 3.0)",
-                    memberTier = tierName,
-                    discountPercent = discountPct,
-                    paidSpend,
-                    mustChangePassword = acc.MustChangePassword,
-                    role = acc.RoleId == 1 ? "admin" : acc.RoleId == 3 ? "staff" : "user",
-                    roleLabel = acc.RoleId == 1 ? "Ban Quản Trị CLB" : acc.RoleId == 3 ? "Nhân viên Vận hành" : "Hội viên CLB",
-                    avatar = acc.Avatar ?? string.Empty
-                };
-            }
-        }
 
         var ordersDto = isStaffOrAdmin
             ? standaloneOrders.Select(MapOrderDto).ToList()
@@ -381,6 +609,7 @@ public class ApiDbController : ControllerBase
             etag,
             pricingVersion = settings.PricingVersion,
             serverTime = vnNow.ToString("yyyy-MM-dd HH:mm:ss"),
+            serverTimeUtc = utcNow.ToString("O"),
             isStaffOrAdmin,
             currentUser = currentUserDto,
             courts,
@@ -389,6 +618,7 @@ public class ApiDbController : ControllerBase
             courtLocks,
             menu,
             orders = ordersDto,
+            todayLedgerSummary = todayLedgerSummaryDto,
             cmsConfig
         });
     }
@@ -412,6 +642,7 @@ public class ApiDbController : ControllerBase
             paymentStatus = o.PaymentStatus ?? BookingService.ComputePaymentStatus(paid, total),
             paymentMethod = o.PaymentMethod ?? "cash",
             status = o.Status ?? "confirmed",
+            fulfillmentStatus = o.FulfillmentStatus ?? "pending",
             quantity = o.Quanlity ?? 0,
             createdDate = o.CreatedDate?.ToString("yyyy-MM-dd HH:mm:ss"),
             items = o.TbOrderDetails?.Select(d => new
@@ -570,9 +801,10 @@ public class ApiDbController : ControllerBase
     public async Task<IActionResult> GetBookingQuoteGet(
         [FromQuery] int courtId = 1,
         [FromQuery] string time = "17:00",
-        [FromQuery] double duration = 60)
+        [FromQuery] double duration = 60,
+        [FromQuery] string? date = null)
     {
-        return await ComputeQuoteResponseAsync(courtId, time, duration);
+        return await ComputeQuoteResponseAsync(courtId, time, duration, date);
     }
 
     [ValidateAntiForgeryToken]
@@ -582,11 +814,22 @@ public class ApiDbController : ControllerBase
         int courtId = payload.TryGetProperty("courtId", out var cEl) && cEl.TryGetInt32(out int cid) ? cid : 1;
         string time = payload.TryGetProperty("time", out var tEl) ? (tEl.GetString() ?? "17:00") : "17:00";
         double rawDur = payload.TryGetProperty("duration", out var dEl) && dEl.TryGetDouble(out double d) ? d : 60;
-        return await ComputeQuoteResponseAsync(courtId, time, rawDur);
+        string? date = payload.TryGetProperty("date", out var dtEl) ? dtEl.GetString() : null;
+        return await ComputeQuoteResponseAsync(courtId, time, rawDur, date);
     }
 
-    private async Task<IActionResult> ComputeQuoteResponseAsync(int courtId, string time, double rawDuration)
+    private async Task<IActionResult> ComputeQuoteResponseAsync(int courtId, string time, double rawDuration, string? date = null)
     {
+        string resolvedDate = BookingService.GetVietnamNow().ToString("yyyy-MM-dd");
+        if (!string.IsNullOrWhiteSpace(date))
+        {
+            if (!DateOnly.TryParseExact(date.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedQuoteDate))
+            {
+                return BadRequest(new { ok = false, error = "Ngày báo giá không đúng định dạng YYYY-MM-DD." });
+            }
+            resolvedDate = parsedQuoteDate.ToString("yyyy-MM-dd");
+        }
+
         int durationMinutes = rawDuration <= 8
             ? (int)Math.Round(rawDuration * 60, MidpointRounding.AwayFromZero)
             : (int)Math.Round(rawDuration, MidpointRounding.AwayFromZero);
@@ -632,10 +875,20 @@ public class ApiDbController : ControllerBase
             settings: settings,
             isAuthenticatedMember: isAuthenticatedMember);
 
-        return Ok(new { ok = true, quote });
+        return Ok(new
+        {
+            ok = true,
+            courtId,
+            date = resolvedDate,
+            time = time.Trim(),
+            durationMinutes,
+            pricingVersion = settings.PricingVersion,
+            quote
+        });
     }
 
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("BookingCreateLimiter")]
     [HttpPost("/api/bookings")]
     public async Task<IActionResult> CreateBooking([FromBody] JsonElement payload)
     {
@@ -696,6 +949,7 @@ public class ApiDbController : ControllerBase
             return StatusCode(result.StatusCode, new
             {
                 ok = false,
+                code = result.ErrorCode,
                 error = result.ErrorMessage,
                 latestQuote = result.Quote
             });
@@ -707,12 +961,22 @@ public class ApiDbController : ControllerBase
                 .FirstOrDefaultAsync(c => c.CourtId == result.Booking.CourtId);
         }
 
+        string? effectiveGuestToken = result.GuestAccessToken;
+        if (!result.IsIdempotentReplay && !string.IsNullOrEmpty(effectiveGuestToken))
+        {
+            SaveGuestBookingRecoveryProof(result.Booking.BookingCode, effectiveGuestToken, idempotencyKey);
+        }
+        else if (result.IsIdempotentReplay && string.IsNullOrEmpty(effectiveGuestToken))
+        {
+            effectiveGuestToken = TryRecoverGuestBookingToken(result.Booking, idempotencyKey);
+        }
+
         return Ok(new
         {
             ok = true,
             deduplicated = result.IsIdempotentReplay,
-            guestAccessToken = result.GuestAccessToken,
-            booking = MapOwnerOrStaffBookingDto(result.Booking, result.GuestAccessToken, embedQrSvg: true)
+            guestAccessToken = effectiveGuestToken,
+            booking = MapOwnerOrStaffBookingDto(result.Booking, effectiveGuestToken, embedQrSvg: true)
         });
     }
 
@@ -748,7 +1012,11 @@ public class ApiDbController : ControllerBase
 
     [HttpGet("/api/bookings/{code}/qr.svg")]
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-    public async Task<IActionResult> GetBookingQrSvg(string code, [FromQuery] string? accessToken = null)
+    public async Task<IActionResult> GetBookingQrSvg(
+        string code,
+        [FromQuery] string? accessToken = null,
+        [FromQuery] int size = 512,
+        [FromQuery] bool logo = false)
     {
         var booking = await BookingService.FindBookingAsync(_context, code);
         if (booking == null)
@@ -765,13 +1033,18 @@ public class ApiDbController : ControllerBase
             ? booking.CheckInToken
             : _qrTokenService.GenerateCheckInToken(booking.BookingCode, booking.BookingDate, DateTime.UtcNow.AddDays(30));
 
-        string svg = _qrTokenService.GenerateQrSvg(qrToken, 6);
+        int ppm = Math.Clamp(size / 45, 6, 20);
+        string svg = _qrTokenService.GenerateQrSvg(qrToken, ppm, includeLogo: logo);
         return Content(svg, "image/svg+xml; charset=utf-8");
     }
 
     [HttpGet("/api/bookings/{code}/qr.png")]
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-    public async Task<IActionResult> GetBookingQrPng(string code, [FromQuery] string? accessToken = null)
+    public async Task<IActionResult> GetBookingQrPng(
+        string code,
+        [FromQuery] string? accessToken = null,
+        [FromQuery] int size = 512,
+        [FromQuery] bool logo = false)
     {
         var booking = await BookingService.FindBookingAsync(_context, code);
         if (booking == null)
@@ -788,7 +1061,9 @@ public class ApiDbController : ControllerBase
             ? booking.CheckInToken
             : _qrTokenService.GenerateCheckInToken(booking.BookingCode, booking.BookingDate, DateTime.UtcNow.AddDays(30));
 
-        byte[] pngBytes = _qrTokenService.GenerateQrPngBytes(qrToken, 8);
+        int clampedSize = Math.Clamp(size, 256, 1024);
+        int ppm = Math.Clamp(clampedSize / 45, 8, 22);
+        byte[] pngBytes = _qrTokenService.GenerateQrPngBytes(qrToken, ppm, includeLogo: logo, targetSizePx: clampedSize);
         return File(pngBytes, "image/png", $"{booking.BookingCode}-QR.png");
     }
 
@@ -967,6 +1242,10 @@ public class ApiDbController : ControllerBase
             ? rEl.GetString()
             : null;
 
+        string? idempotencyKey = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("idempotencyKey", out var ikEl)
+            ? ikEl.GetString()
+            : null;
+
         int? callerAccountId = Function.IsLogin() ? Function._AccountId : null;
         int? callerRoleId = Function.IsLogin() ? Function._RoleId : null;
 
@@ -977,16 +1256,18 @@ public class ApiDbController : ControllerBase
             callerRoleId,
             accessToken,
             reason,
-            ClientIp);
+            ClientIp,
+            idempotencyKey: idempotencyKey);
 
         if (!result.Success || result.Booking == null)
         {
-            return StatusCode(result.StatusCode, new { ok = false, error = result.ErrorMessage });
+            return StatusCode(result.StatusCode, new { ok = false, code = result.ErrorCode, error = result.ErrorMessage });
         }
 
         return Ok(new
         {
             ok = true,
+            deduplicated = result.IsIdempotentReplay,
             booking = MapOwnerOrStaffBookingDto(result.Booking, accessToken)
         });
     }
@@ -1009,7 +1290,7 @@ public class ApiDbController : ControllerBase
 
         if (!res.Success || res.Booking == null)
         {
-            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+            return StatusCode(res.StatusCode, new { ok = false, code = res.ErrorCode, error = res.ErrorMessage });
         }
 
         return Ok(new { ok = true, booking = MapOwnerOrStaffBookingDto(res.Booking) });
@@ -1024,6 +1305,10 @@ public class ApiDbController : ControllerBase
             ? rEl.GetString()
             : "rejected";
 
+        string? idempotencyKey = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("idempotencyKey", out var ikEl)
+            ? ikEl.GetString()
+            : null;
+
         var res = await _bookingService.CancelBookingAsync(
             _context,
             code.Trim().ToUpperInvariant(),
@@ -1031,14 +1316,15 @@ public class ApiDbController : ControllerBase
             Function._RoleId,
             guestAccessToken: null,
             reason: string.IsNullOrWhiteSpace(reason) ? "rejected" : reason,
-            ipAddress: ClientIp);
+            ipAddress: ClientIp,
+            idempotencyKey: idempotencyKey);
 
         if (!res.Success || res.Booking == null)
         {
-            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+            return StatusCode(res.StatusCode, new { ok = false, code = res.ErrorCode, error = res.ErrorMessage });
         }
 
-        return Ok(new { ok = true, booking = MapOwnerOrStaffBookingDto(res.Booking) });
+        return Ok(new { ok = true, deduplicated = res.IsIdempotentReplay, booking = MapOwnerOrStaffBookingDto(res.Booking) });
     }
 
     [Authorize(Roles = "Admin,Staff")]
@@ -1061,7 +1347,7 @@ public class ApiDbController : ControllerBase
 
         if (!res.Success || res.Booking == null)
         {
-            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+            return StatusCode(res.StatusCode, new { ok = false, code = res.ErrorCode, error = res.ErrorMessage });
         }
 
         if (res.Booking.Court == null)
@@ -1153,6 +1439,7 @@ public class ApiDbController : ControllerBase
             return StatusCode(res.StatusCode, new
             {
                 ok = false,
+                code = res.ErrorCode,
                 decodedText,
                 error = res.ErrorMessage
             });
@@ -1177,19 +1464,22 @@ public class ApiDbController : ControllerBase
     public async Task<IActionResult> ExtendBookingApi(string code, [FromBody] JsonElement payload)
     {
         int addMinutes = payload.TryGetProperty("addMinutes", out var mEl) && mEl.TryGetInt32(out int m) ? m : 30;
+        string? idempotencyKey = payload.TryGetProperty("idempotencyKey", out var ikEl) ? ikEl.GetString() : null;
+
         var res = await _bookingService.ExtendBookingDurationAsync(
             _context,
             code.Trim().ToUpperInvariant(),
             addMinutes,
             Function._AccountId,
-            Function._Username);
+            Function._Username,
+            idempotencyKey);
 
         if (!res.Success || res.Booking == null)
         {
-            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+            return StatusCode(res.StatusCode, new { ok = false, code = res.ErrorCode, error = res.ErrorMessage });
         }
 
-        return Ok(new { ok = true, booking = MapOwnerOrStaffBookingDto(res.Booking) });
+        return Ok(new { ok = true, deduplicated = res.IsIdempotentReplay, booking = MapOwnerOrStaffBookingDto(res.Booking) });
     }
 
     [Authorize(Roles = "Admin,Staff")]
@@ -1207,7 +1497,7 @@ public class ApiDbController : ControllerBase
 
         if (!res.Success || res.Booking == null)
         {
-            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+            return StatusCode(res.StatusCode, new { ok = false, code = res.ErrorCode, error = res.ErrorMessage });
         }
 
         return Ok(new { ok = true, booking = MapOwnerOrStaffBookingDto(res.Booking) });
@@ -1231,7 +1521,7 @@ public class ApiDbController : ControllerBase
 
         if (!res.Success || res.Booking == null)
         {
-            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+            return StatusCode(res.StatusCode, new { ok = false, code = res.ErrorCode, error = res.ErrorMessage });
         }
 
         return Ok(new { ok = true, booking = MapOwnerOrStaffBookingDto(res.Booking) });
@@ -1254,7 +1544,7 @@ public class ApiDbController : ControllerBase
 
         if (!res.Success || res.Booking == null)
         {
-            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+            return StatusCode(res.StatusCode, new { ok = false, code = res.ErrorCode, error = res.ErrorMessage });
         }
 
         return Ok(new { ok = true, booking = MapOwnerOrStaffBookingDto(res.Booking) });
@@ -1288,7 +1578,7 @@ public class ApiDbController : ControllerBase
 
         if (!res.Success || res.Booking == null)
         {
-            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+            return StatusCode(res.StatusCode, new { ok = false, code = res.ErrorCode, error = res.ErrorMessage });
         }
 
         // Optional convenience flag: ONLY AFTER payment succeeds, staff may also close an active playing session
@@ -1342,7 +1632,7 @@ public class ApiDbController : ControllerBase
 
         if (!res.Success || res.Booking == null)
         {
-            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+            return StatusCode(res.StatusCode, new { ok = false, code = res.ErrorCode, error = res.ErrorMessage });
         }
 
         return Ok(new
@@ -1454,7 +1744,7 @@ public class ApiDbController : ControllerBase
     }
 
     // ================================================================
-    // AUTHENTICATION JSON ENDPOINTS (P0-01, P0-02, P0-09, P1-17)
+    // AUTHENTICATION JSON ENDPOINTS (P0-01, P0-02, P0-09, P1-17, V4-B3)
     // ================================================================
 
     [ValidateAntiForgeryToken]
@@ -1530,6 +1820,64 @@ public class ApiDbController : ControllerBase
                 avatar = account.Avatar ?? string.Empty
             }
         });
+    }
+
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    [HttpPost("/api/auth/change-password")]
+    public async Task<IActionResult> ChangePasswordApi([FromBody] JsonElement payload)
+    {
+        string currentPassword = payload.TryGetProperty("currentPassword", out var curEl) ? (curEl.GetString() ?? string.Empty) : string.Empty;
+        string newPassword = payload.TryGetProperty("newPassword", out var newEl) ? (newEl.GetString() ?? string.Empty) : string.Empty;
+
+        if (string.IsNullOrEmpty(currentPassword) || string.IsNullOrEmpty(newPassword))
+        {
+            return BadRequest(new { ok = false, error = "Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới." });
+        }
+
+        if (newPassword.Length < 8 || string.Equals(currentPassword, newPassword, StringComparison.Ordinal))
+        {
+            return BadRequest(new { ok = false, error = "Mật khẩu mới phải từ 8 ký tự trở lên và khác mật khẩu hiện tại." });
+        }
+
+        int accountId = Function._AccountId;
+        var account = await _context.TbAccounts.FirstOrDefaultAsync(a => a.AccountId == accountId);
+        if (account == null)
+        {
+            return Unauthorized(new { ok = false, error = "Tài khoản không tồn tại." });
+        }
+
+        var verify = _passwordService.VerifyPassword(account, account.Password, currentPassword, out _);
+        if (verify == PasswordVerificationResult.Failed)
+        {
+            return BadRequest(new { ok = false, error = "Mật khẩu hiện tại không chính xác." });
+        }
+
+        account.Password = _passwordService.HashPassword(account, newPassword);
+        account.MustChangePassword = false;
+        account.SecurityStamp = Function.GenerateSecurityStamp();
+        await _context.SaveChangesAsync();
+
+        await Function.SignInAccountAsync(HttpContext, account);
+        var csrfTokens = _antiforgery.GetAndStoreTokens(HttpContext);
+
+        return Ok(new
+        {
+            ok = true,
+            mustChangePassword = false,
+            csrfToken = csrfTokens.RequestToken
+        });
+    }
+
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    [HttpPost("/api/auth/logout")]
+    public async Task<IActionResult> LogoutApi()
+    {
+        await Microsoft.AspNetCore.Authentication.AuthenticationHttpContextExtensions.SignOutAsync(
+            HttpContext,
+            Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme);
+        return Ok(new { ok = true });
     }
 
     [ValidateAntiForgeryToken]
@@ -1616,7 +1964,7 @@ public class ApiDbController : ControllerBase
     }
 
     // ================================================================
-    // PRO SHOP ORDERS, ATOMIC STOCK & STANDALONE SETTLEMENT (P0-10, P1-14, P1-15)
+    // PRO SHOP ORDERS, ATOMIC STOCK & STANDALONE SETTLEMENT (P0-10, P1-14, P1-15, V4-A4)
     // ================================================================
 
     [ValidateAntiForgeryToken]
@@ -1661,7 +2009,7 @@ public class ApiDbController : ControllerBase
 
         if (!res.Success || res.Order == null)
         {
-            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+            return StatusCode(res.StatusCode, new { ok = false, code = res.ErrorCode, error = res.ErrorMessage });
         }
 
         return Ok(new
@@ -1726,7 +2074,7 @@ public class ApiDbController : ControllerBase
 
         if (!res.Success || res.Order == null)
         {
-            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+            return StatusCode(res.StatusCode, new { ok = false, code = res.ErrorCode, error = res.ErrorMessage });
         }
 
         return Ok(new
@@ -1763,7 +2111,7 @@ public class ApiDbController : ControllerBase
 
         if (!res.Success || res.Order == null)
         {
-            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+            return StatusCode(res.StatusCode, new { ok = false, code = res.ErrorCode, error = res.ErrorMessage });
         }
 
         return Ok(new
@@ -1784,17 +2132,47 @@ public class ApiDbController : ControllerBase
             ? rEl.GetString()
             : null;
 
+        string? idempotencyKey = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("idempotencyKey", out var ikEl)
+            ? ikEl.GetString()
+            : null;
+
         var res = await _orderService.CancelOrderAndRestockAsync(
             _context,
             code,
             reason,
             Function._AccountId,
             Function._Username,
+            ClientIp,
+            idempotencyKey);
+
+        if (!res.Success || res.Order == null)
+        {
+            return StatusCode(res.StatusCode, new { ok = false, code = res.ErrorCode, error = res.ErrorMessage });
+        }
+
+        return Ok(new
+        {
+            ok = true,
+            deduplicated = res.IsIdempotentReplay,
+            order = MapOrderDto(res.Order)
+        });
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [ValidateAntiForgeryToken]
+    [HttpPost("/api/admin/orders/{code}/fulfill")]
+    public async Task<IActionResult> FulfillOrderApi(string code)
+    {
+        var res = await _orderService.FulfillOrderAsync(
+            _context,
+            code,
+            Function._AccountId,
+            Function._Username,
             ClientIp);
 
         if (!res.Success || res.Order == null)
         {
-            return StatusCode(res.StatusCode, new { ok = false, error = res.ErrorMessage });
+            return StatusCode(res.StatusCode, new { ok = false, code = res.ErrorCode, error = res.ErrorMessage });
         }
 
         return Ok(new

@@ -27,11 +27,11 @@
                 <iconify-icon icon="lucide:search" class="input-icon-left" width="18"></iconify-icon>
                 <input type="text" id="menuSearchInput" class="form-input" placeholder="Tìm nhanh nước điện giải, mì trộn, vợt Carbon, bóng..." oninput="renderMenu()">
             </div>
-            <div class="filter-tabs" id="menuCategoryTabs">
-                <button type="button" class="filter-tab active" onclick="filterMenuCategory('all')">Tất cả (<span id="menuCount">0</span>)</button>
-                <button type="button" class="filter-tab" onclick="filterMenuCategory('drink')">Đồ uống bù khoáng</button>
-                <button type="button" class="filter-tab" onclick="filterMenuCategory('food')">Đồ ăn nhẹ</button>
-                <button type="button" class="filter-tab" onclick="filterMenuCategory('other')">Thuê vợt &amp; Bóng</button>
+            <div class="filter-tabs" id="menuCategoryTabs" role="tablist" aria-label="Danh mục sản phẩm Pro Shop">
+                <button type="button" class="filter-tab active" role="tab" aria-selected="true" data-cat="all" onclick="filterMenuCategory('all')">Tất cả (<span id="menuCount">0</span>)</button>
+                <button type="button" class="filter-tab" role="tab" aria-selected="false" data-cat="drink" onclick="filterMenuCategory('drink')">Đồ uống bù khoáng</button>
+                <button type="button" class="filter-tab" role="tab" aria-selected="false" data-cat="food" onclick="filterMenuCategory('food')">Đồ ăn nhẹ</button>
+                <button type="button" class="filter-tab" role="tab" aria-selected="false" data-cat="other" onclick="filterMenuCategory('other')">Thuê vợt &amp; Bóng</button>
             </div>
         </div>
 
@@ -55,13 +55,13 @@
             </div>
 
             <!-- CỘT PHẢI: GIỎ HÀNG PRO SHOP & GIAO TẬN SÂN -->
-            <aside class="card sticky-panel shop-cart-panel">
+            <aside class="card sticky-panel shop-cart-panel" id="shopCartPanel">
                 <div class="card-header shop-cart-header">
                     <span class="card-header-title" style="color:#FFF;">
                         <iconify-icon icon="lucide:shopping-bag" width="18" style="color:var(--color-volt);"></iconify-icon>
                         <span>Giỏ Hàng Dịch Vụ</span>
                     </span>
-                    <span class="badge" style="background:rgba(212,255,0,0.18);color:var(--color-volt);" id="shopCartBadge">0 món</span>
+                    <span class="badge" style="background:rgba(212,255,0,0.18);color:var(--color-volt);" id="shopCartBadge" aria-live="polite" aria-atomic="true">0 món</span>
                 </div>
 
                 <div class="card-body shop-cart-body">
@@ -104,7 +104,7 @@
                         <div class="payment-summary">
                             <div class="payment-line total" style="padding-top:0;border-top:none;">
                                 <span>Tổng phải thu</span>
-                                <span class="text-mono" id="shopCartTotal">0 đ</span>
+                                <span class="text-mono" id="shopCartTotal" aria-live="polite" aria-atomic="true">0 đ</span>
                             </div>
                         </div>
 
@@ -115,6 +115,20 @@
                     </div>
                 </div>
             </aside>
+        </div>
+    </div>
+
+    <!-- THANH GIỎ HÀNG CỐ ĐỊNH TRÊN MOBILE (UI-B05) -->
+    <div class="mobile-shop-cart-bar" id="mobileShopCartBar" role="region" aria-label="Tóm tắt giỏ hàng Pro Shop">
+        <div class="mobile-shop-cart-bar-inner">
+            <div class="mobile-shop-cart-summary">
+                <span class="mobile-shop-cart-count" id="mobileCartCount" aria-live="polite" aria-atomic="true">0 món</span>
+                <span class="mobile-shop-cart-total text-mono" id="mobileCartTotal" aria-live="polite" aria-atomic="true">0 đ</span>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" id="mobileCartActionBtn" onclick="scrollToShopCartPanel()">
+                <iconify-icon icon="lucide:shopping-bag" width="16"></iconify-icon>
+                <span>Xem giỏ &amp; Đặt ngay</span>
+            </button>
         </div>
     </div>
 </main>

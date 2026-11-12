@@ -78,6 +78,10 @@ public partial class TbBooking
 
     public byte[]? RowVersion { get; set; }
 
+    public DateTime? HoldExpiresAtUtc { get; set; }
+
+    public string? ClientIpHash { get; set; }
+
     public DateTime? CheckedInAt { get; set; }
 
     public DateTime? CompletedAt { get; set; }

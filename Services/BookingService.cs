@@ -36,6 +36,7 @@ public class BookingOperationResult
 {
     public bool Success { get; set; }
     public int StatusCode { get; set; } = 200;
+    public string? ErrorCode { get; set; }
     public string? ErrorMessage { get; set; }
     public TbBooking? Booking { get; set; }
     public BookingQuoteBreakdown? Quote { get; set; }
@@ -43,10 +44,15 @@ public class BookingOperationResult
     public TbPaymentTransaction? Transaction { get; set; }
     public bool IsIdempotentReplay { get; set; }
 
-    public static BookingOperationResult Fail(string message, int statusCode = 400, BookingQuoteBreakdown? latestQuote = null) => new()
+    public static BookingOperationResult Fail(
+        string message,
+        int statusCode = 400,
+        BookingQuoteBreakdown? latestQuote = null,
+        string? errorCode = null) => new()
     {
         Success = false,
         StatusCode = statusCode,
+        ErrorCode = errorCode,
         ErrorMessage = message,
         Quote = latestQuote
     };
@@ -74,6 +80,8 @@ public class PosCartItemDto
     public string Name { get; set; } = string.Empty;
     public int Price { get; set; }
     public int Qty { get; set; }
+    public int? OrderId { get; set; }
+    public string? OrderCode { get; set; }
 }
 
 public class BookingService
@@ -136,6 +144,54 @@ public class BookingService
     public static bool RangesOverlap(int startA, int endA, int startB, int endB) =>
         startA < endB && endA > startB;
 
+    public static DateTime ToUtcFromVietnamNow(DateTime? referenceVietnamNow = null)
+    {
+        var vn = referenceVietnamNow ?? GetVietnamNow();
+        if (vn.Kind == DateTimeKind.Utc) return vn;
+        return DateTime.SpecifyKind(vn.AddHours(-7), DateTimeKind.Utc);
+    }
+
+    public static bool IsPendingHoldActive(TbBooking b, DateTime utcNow)
+    {
+        if (!string.Equals(b.Status, "pending", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (b.HoldExpiresAtUtc.HasValue)
+        {
+            var holdUtc = b.HoldExpiresAtUtc.Value.Kind == DateTimeKind.Utc
+                ? b.HoldExpiresAtUtc.Value
+                : DateTime.SpecifyKind(b.HoldExpiresAtUtc.Value, DateTimeKind.Utc);
+            return holdUtc > utcNow;
+        }
+
+        if (b.CreatedDate.HasValue)
+        {
+            var fallbackExpiryUtc = ToUtcFromVietnamNow(b.CreatedDate.Value).AddMinutes(30);
+            return fallbackExpiryUtc > utcNow;
+        }
+
+        return false;
+    }
+
+    public static bool IsBookingHoldingSlot(TbBooking b, DateTime utcNow, bool includePendingConflicts = true)
+    {
+        if (b.Status is "approved" or "confirmed" or "playing" or "active")
+            return true;
+
+        if (includePendingConflicts && string.Equals(b.Status, "pending", StringComparison.OrdinalIgnoreCase))
+            return IsPendingHoldActive(b, utcNow);
+
+        return false;
+    }
+
+    public static string? ComputeClientIpHash(string? ipAddress)
+    {
+        if (string.IsNullOrWhiteSpace(ipAddress)) return null;
+        var bytes = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes($"SPK_IP|{ipAddress.Trim().ToLowerInvariant()}"));
+        return Convert.ToHexString(bytes)[..32];
+    }
+
     private static async Task LockCourtForUpdateAsync(PickleballContext context, int courtId)
     {
         if (context.Database.IsRelational())
@@ -153,7 +209,8 @@ public class BookingService
         int startMins,
         int endMins,
         int? excludeBookingId = null,
-        bool includePendingConflicts = true)
+        bool includePendingConflicts = true,
+        DateTime? referenceNow = null)
     {
         var locks = await context.TbCourtLocks
             .AsNoTracking()
@@ -182,8 +239,13 @@ public class BookingService
                         (!excludeBookingId.HasValue || b.BookingId != excludeBookingId.Value))
             .ToListAsync();
 
+        var utcNow = ToUtcFromVietnamNow(referenceNow);
+
         foreach (var b in existingBookings)
         {
+            if (!IsBookingHoldingSlot(b, utcNow, includePendingConflicts))
+                continue;
+
             if (!PricingService.TryParseTimeMinutes(b.StartTime, out int bStart)) continue;
             int bEnd = bStart + Math.Max(30, b.Duration);
             if (RangesOverlap(startMins, endMins, bStart, bEnd))
@@ -231,17 +293,61 @@ public class BookingService
             return BookingOperationResult.Fail("Thời lượng thuê sân không hợp lệ (chỉ chấp nhận 60, 90, 120, 150, 180 hoặc 240 phút).");
         }
 
-        string cleanIdemKey = string.IsNullOrWhiteSpace(input.IdempotencyKey)
-            ? string.Empty
-            : input.IdempotencyKey.Trim()[..Math.Min(input.IdempotencyKey.Trim().Length, 100)];
+        string cleanIdemKey = IdempotencyService.NormalizeKey(input.IdempotencyKey) ?? string.Empty;
+        string dateIso = parsedDate.ToString("yyyy-MM-dd");
+        string normalizedStartTime = PricingService.MinutesToTime(startMins);
+        int clampedPlayers = Math.Clamp(input.Players, 1, 16);
+
+        string requestedMethod = (input.PaymentMethod ?? "cash").Trim().ToLowerInvariant();
+        if (requestedMethod == "vnpay" || requestedMethod == "online")
+        {
+            return BookingOperationResult.Fail(
+                "Thanh toán trực tuyến chưa được kích hoạt tài khoản Merchant. Vui lòng chọn Thanh toán tại quầy.", 422);
+        }
+        string paymentMethod = requestedMethod == "transfer" ? "transfer" : "cash";
+
+        string idemScope = "booking.create";
+        string idemActor = IdempotencyService.BuildActorKey(input.AccountId, cleanPhone);
+        string idemTarget = $"COURT:{input.CourtId}:{dateIso}:{normalizedStartTime}";
+        string idemPayload = $"court={input.CourtId}|date={dateIso}|start={normalizedStartTime}|dur={input.Duration}|players={clampedPlayers}|phone={cleanPhone}|name={cleanName.ToLowerInvariant()}|method={paymentMethod}|walkin={input.AutoApproveWalkIn}";
 
         if (!string.IsNullOrEmpty(cleanIdemKey))
         {
+            var idemCheck = await IdempotencyService.CheckAsync(context, cleanIdemKey, idemScope, idemActor, idemTarget, idemPayload);
+            if (idemCheck.Status == IdempotencyStatus.Conflict)
+            {
+                return BookingOperationResult.Fail(idemCheck.ConflictMessage!, 409, errorCode: IdempotencyService.ConflictErrorCode);
+            }
+            if (idemCheck.Status == IdempotencyStatus.Replay && idemCheck.ExistingRecord?.ResultEntityId != null)
+            {
+                var replayed = await context.TbBookings.AsNoTracking()
+                    .FirstOrDefaultAsync(b => b.BookingId == idemCheck.ExistingRecord.ResultEntityId.Value);
+                if (replayed != null)
+                {
+                    return BookingOperationResult.Ok(replayed, replay: true);
+                }
+            }
+
             var existingByIdem = await context.TbBookings
                 .AsNoTracking()
                 .FirstOrDefaultAsync(b => b.IdempotencyKey == cleanIdemKey);
             if (existingByIdem != null)
             {
+                bool matchesExisting =
+                    existingByIdem.CourtId == input.CourtId &&
+                    string.Equals(existingByIdem.BookingDate, dateIso, StringComparison.Ordinal) &&
+                    string.Equals(existingByIdem.StartTime, normalizedStartTime, StringComparison.Ordinal) &&
+                    existingByIdem.Duration == input.Duration &&
+                    existingByIdem.AccountId == (input.AccountId.HasValue && input.AccountId.Value > 0 && !input.AutoApproveWalkIn ? input.AccountId : null) &&
+                    string.Equals(NormalizePhone(existingByIdem.Phone), cleanPhone, StringComparison.Ordinal);
+
+                if (!matchesExisting)
+                {
+                    return BookingOperationResult.Fail(
+                        "Khóa IdempotencyKey đã được sử dụng cho một đơn đặt sân khác.",
+                        409,
+                        errorCode: IdempotencyService.ConflictErrorCode);
+                }
                 return BookingOperationResult.Ok(existingByIdem, replay: true);
             }
         }
@@ -255,6 +361,7 @@ public class BookingService
         }
 
         var vnNow = input.ReferenceNow ?? GetVietnamNow();
+        var utcNow = ToUtcFromVietnamNow(vnNow);
         var today = DateOnly.FromDateTime(vnNow);
         if (parsedDate < today)
         {
@@ -273,14 +380,6 @@ public class BookingService
             return BookingOperationResult.Fail("Khung giờ bắt đầu đã qua so với thời điểm hiện tại. Vui lòng chọn khung giờ khác.", 422);
         }
 
-        string requestedMethod = (input.PaymentMethod ?? "cash").Trim().ToLowerInvariant();
-        if (requestedMethod == "vnpay" || requestedMethod == "online")
-        {
-            return BookingOperationResult.Fail(
-                "Thanh toán trực tuyến chưa được kích hoạt tài khoản Merchant. Vui lòng chọn Thanh toán tại quầy.", 422);
-        }
-        string paymentMethod = requestedMethod == "transfer" ? "transfer" : "cash";
-
         bool isRelational = context.Database.IsRelational();
         await using var transaction = isRelational
             ? await context.Database.BeginTransactionAsync(IsolationLevel.Serializable)
@@ -292,11 +391,20 @@ public class BookingService
 
             if (!string.IsNullOrEmpty(cleanIdemKey))
             {
-                var existingInTx = await context.TbBookings.FirstOrDefaultAsync(b => b.IdempotencyKey == cleanIdemKey);
-                if (existingInTx != null)
+                var txIdem = await IdempotencyService.CheckAsync(context, cleanIdemKey, idemScope, idemActor, idemTarget, idemPayload);
+                if (txIdem.Status == IdempotencyStatus.Conflict)
                 {
-                    if (transaction != null) await transaction.CommitAsync();
-                    return BookingOperationResult.Ok(existingInTx, replay: true);
+                    if (transaction != null) await transaction.RollbackAsync();
+                    return BookingOperationResult.Fail(txIdem.ConflictMessage!, 409, errorCode: IdempotencyService.ConflictErrorCode);
+                }
+                if (txIdem.Status == IdempotencyStatus.Replay && txIdem.ExistingRecord?.ResultEntityId != null)
+                {
+                    var existingReplay = await context.TbBookings.FirstOrDefaultAsync(b => b.BookingId == txIdem.ExistingRecord.ResultEntityId.Value);
+                    if (existingReplay != null)
+                    {
+                        if (transaction != null) await transaction.CommitAsync();
+                        return BookingOperationResult.Ok(existingReplay, replay: true);
+                    }
                 }
             }
 
@@ -307,14 +415,50 @@ public class BookingService
                 return BookingOperationResult.Fail("Sân thi đấu không tồn tại hoặc đang ngừng phục vụ.", 404);
             }
 
-            string dateIso = parsedDate.ToString("yyyy-MM-dd");
+            // V4-A1: Immediately transition any expired pending holds on this court+date so history is accurate
+            var stalePendingOnCourt = await context.TbBookings
+                .Where(b => b.CourtId == court.CourtId && b.BookingDate == dateIso && b.Status == "pending")
+                .ToListAsync();
+            foreach (var stale in stalePendingOnCourt)
+            {
+                if (!IsPendingHoldActive(stale, utcNow))
+                {
+                    stale.Status = "expired";
+                    stale.OrderStatusId = 5;
+                    stale.CancelledAt = vnNow;
+                    stale.CancelReason = "Hết thời gian giữ chỗ chờ duyệt (TTL)";
+                }
+            }
+
             var (hasConflict, conflictReason) = await CheckSlotConflictAsync(
-                context, court.CourtId, dateIso, startMins, endMins);
+                context, court.CourtId, dateIso, startMins, endMins, referenceNow: vnNow);
 
             if (hasConflict)
             {
                 if (transaction != null) await transaction.RollbackAsync();
-                return BookingOperationResult.Fail(conflictReason, 409);
+                return BookingOperationResult.Fail(conflictReason, 409, errorCode: "SLOT_CONFLICT");
+            }
+
+            // V4-A1: Anti-abuse active pending cap per account / phone / IP
+            string? clientIpHash = ComputeClientIpHash(input.IpAddress);
+            if (!input.AutoApproveWalkIn)
+            {
+                var activePendingCandidates = await context.TbBookings
+                    .AsNoTracking()
+                    .Where(b => b.Status == "pending" &&
+                                ((input.AccountId.HasValue && input.AccountId.Value > 0 && b.AccountId == input.AccountId.Value) ||
+                                 b.Phone == cleanPhone))
+                    .ToListAsync();
+
+                int activePendingCount = activePendingCandidates.Count(b => IsPendingHoldActive(b, utcNow));
+                if (activePendingCount >= settings.MaxActivePendingPerActor)
+                {
+                    if (transaction != null) await transaction.RollbackAsync();
+                    return BookingOperationResult.Fail(
+                        $"Bạn đang có {activePendingCount} đơn chờ duyệt giữ chỗ tạm thời (tối đa {settings.MaxActivePendingPerActor} đơn cùng lúc). Vui lòng chờ duyệt hoặc hủy đơn cũ trước khi đặt thêm.",
+                        429,
+                        errorCode: "PENDING_HOLD_LIMIT_EXCEEDED");
+                }
             }
 
             // P1-16 & P1-18: Member discount ONLY for verified logged-in accounts (NEVER self-declared phone!)
@@ -338,7 +482,7 @@ public class BookingService
 
             var quote = _pricingService.CalculateQuote(
                 court,
-                PricingService.MinutesToTime(startMins),
+                normalizedStartTime,
                 input.Duration,
                 posTotal: 0,
                 verifiedPaidSpend: verifiedSpend,
@@ -366,6 +510,8 @@ public class BookingService
             }
 
             string bookingCode = await GenerateUniqueBookingCodeAsync(context);
+            var slotStartLocal = parsedDate.ToDateTime(new TimeOnly(startMins / 60, startMins % 60));
+            var slotStartUtc = ToUtcFromVietnamNow(slotStartLocal);
             var endOfSlotLocal = parsedDate.ToDateTime(new TimeOnly(Math.Min(23, endMins / 60), endMins % 60)).AddHours(2);
             var expiresUtc = DateTime.SpecifyKind(endOfSlotLocal.AddHours(-7), DateTimeKind.Utc);
             string qrToken = _qrTokenService.GenerateCheckInToken(bookingCode, dateIso, expiresUtc);
@@ -380,6 +526,15 @@ public class BookingService
             string initialStatus = input.AutoApproveWalkIn ? "approved" : "pending";
             int initialOrderStatusId = input.AutoApproveWalkIn ? 2 : 1;
 
+            DateTime? holdExpiresAtUtc = null;
+            if (initialStatus == "pending")
+            {
+                var holdByMinutesUtc = utcNow.AddMinutes(settings.PendingHoldMinutes);
+                holdExpiresAtUtc = slotStartUtc > utcNow && slotStartUtc < holdByMinutesUtc
+                    ? slotStartUtc
+                    : holdByMinutesUtc;
+            }
+
             var booking = new TbBooking
             {
                 BookingCode = bookingCode,
@@ -388,9 +543,9 @@ public class BookingService
                 CustomerName = cleanName,
                 Phone = cleanPhone,
                 BookingDate = dateIso,
-                StartTime = PricingService.MinutesToTime(startMins),
+                StartTime = normalizedStartTime,
                 Duration = input.Duration,
-                Players = Math.Clamp(input.Players, 1, 16),
+                Players = clampedPlayers,
                 SkillLevel = string.IsNullOrWhiteSpace(input.SkillLevel) ? "Giao lưu (DUPR 3.0)" : input.SkillLevel.Trim()[..Math.Min(input.SkillLevel.Trim().Length, 100)],
                 PaymentMethod = paymentMethod,
                 CourtFee = quote.CourtFeeBeforeDiscount,
@@ -405,19 +560,30 @@ public class BookingService
                 CheckInToken = qrToken,
                 AccessTokenHash = guestTokenHash,
                 IdempotencyKey = string.IsNullOrEmpty(cleanIdemKey) ? null : cleanIdemKey,
+                HoldExpiresAtUtc = holdExpiresAtUtc,
+                ClientIpHash = clientIpHash,
                 Status = initialStatus,
                 OrderStatusId = initialOrderStatusId,
                 CreatedDate = vnNow
             };
 
             context.TbBookings.Add(booking);
+            await context.SaveChangesAsync();
+
+            if (!string.IsNullOrEmpty(cleanIdemKey))
+            {
+                string reqHash = IdempotencyService.ComputeCanonicalHash(idemScope, idemActor, idemTarget, idemPayload);
+                context.TbIdempotencyRecords.Add(IdempotencyService.CreateRecord(
+                    cleanIdemKey, idemScope, idemActor, idemTarget, reqHash, booking.BookingCode, booking.BookingId));
+            }
+
             context.TbAuditLogs.Add(new TbAuditLog
             {
                 Action = input.AutoApproveWalkIn ? "WALKIN_BOOKING_CREATED" : "BOOKING_CREATED",
                 EntityType = "Booking",
                 EntityId = bookingCode,
                 ActorAccountId = input.AccountId,
-                Details = $"CourtId={court.CourtId}, Date={dateIso}, Start={booking.StartTime}, Dur={booking.Duration}, Due={booking.AmountDue}",
+                Details = $"CourtId={court.CourtId}, Date={dateIso}, Start={booking.StartTime}, Dur={booking.Duration}, Due={booking.AmountDue}, HoldUntilUtc={holdExpiresAtUtc:O}",
                 IpAddress = input.IpAddress,
                 CreatedAt = vnNow
             });
@@ -433,6 +599,23 @@ public class BookingService
         catch (DbUpdateException)
         {
             if (transaction != null) await transaction.RollbackAsync();
+
+            if (!string.IsNullOrEmpty(cleanIdemKey))
+            {
+                var afterConflict = await IdempotencyService.CheckAsync(context, cleanIdemKey, idemScope, idemActor, idemTarget, idemPayload);
+                if (afterConflict.Status == IdempotencyStatus.Conflict)
+                {
+                    return BookingOperationResult.Fail(afterConflict.ConflictMessage!, 409, errorCode: IdempotencyService.ConflictErrorCode);
+                }
+                if (afterConflict.Status == IdempotencyStatus.Replay && afterConflict.ExistingRecord?.ResultEntityId != null)
+                {
+                    var replayed = await context.TbBookings.AsNoTracking()
+                        .FirstOrDefaultAsync(b => b.BookingId == afterConflict.ExistingRecord.ResultEntityId.Value);
+                    if (replayed != null)
+                        return BookingOperationResult.Ok(replayed, replay: true);
+                }
+            }
+
             return BookingOperationResult.Fail("Khung giờ này vừa được người chơi khác đặt thành công. Vui lòng chọn giờ khác!", 409);
         }
     }
@@ -446,7 +629,8 @@ public class BookingService
         string? reason,
         int? actorAccountId,
         string? actorUsername,
-        string? ipAddress = null)
+        string? ipAddress = null,
+        DateTime? referenceNow = null)
     {
         if (!DateOnly.TryParseExact(lockDate?.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
         {
@@ -475,7 +659,7 @@ public class BookingService
         }
 
         var (hasConflict, conflictReason) = await CheckSlotConflictAsync(
-            context, courtId, dateIso, startMins, endMins, includePendingConflicts: true);
+            context, courtId, dateIso, startMins, endMins, includePendingConflicts: true, referenceNow: referenceNow);
 
         if (hasConflict)
         {
@@ -519,7 +703,8 @@ public class BookingService
         string bookingCodeOrId,
         int? actorAccountId,
         string? actorUsername,
-        string? ipAddress = null)
+        string? ipAddress = null,
+        DateTime? referenceNow = null)
     {
         bool isRelational = context.Database.IsRelational();
         await using var tx = isRelational ? await context.Database.BeginTransactionAsync(IsolationLevel.Serializable) : null;
@@ -532,6 +717,10 @@ public class BookingService
         }
 
         await LockCourtForUpdateAsync(context, booking.CourtId);
+        if (isRelational)
+        {
+            await context.Entry(booking).ReloadAsync();
+        }
 
         if (booking.Status == "approved")
         {
@@ -545,15 +734,44 @@ public class BookingService
             return BookingOperationResult.Fail($"Không thể duyệt đơn đang ở trạng thái '{booking.Status}'.", 409);
         }
 
+        var vnNow = referenceNow ?? GetVietnamNow();
+        var utcNow = ToUtcFromVietnamNow(vnNow);
+
+        // V4-A1: Reject approving a pending booking whose HoldExpiresAtUtc has already passed!
+        if (!IsPendingHoldActive(booking, utcNow))
+        {
+            booking.Status = "expired";
+            booking.OrderStatusId = 5;
+            booking.CancelledAt = vnNow;
+            booking.CancelReason = "Hết thời gian giữ chỗ chờ duyệt (TTL)";
+            context.TbAuditLogs.Add(new TbAuditLog
+            {
+                Action = "BOOKING_EXPIRED_ON_APPROVE",
+                EntityType = "Booking",
+                EntityId = booking.BookingCode,
+                ActorAccountId = actorAccountId,
+                ActorUsername = actorUsername,
+                Details = $"HoldExpiresAtUtc={booking.HoldExpiresAtUtc:O}, UtcNow={utcNow:O}",
+                IpAddress = ipAddress,
+                CreatedAt = vnNow
+            });
+            await context.SaveChangesAsync();
+            if (tx != null) await tx.CommitAsync();
+            return BookingOperationResult.Fail(
+                "Đơn đặt sân đã hết thời gian giữ chỗ tạm (TTL) nên không thể duyệt.",
+                409,
+                errorCode: "PENDING_HOLD_EXPIRED");
+        }
+
         PricingService.TryParseTimeMinutes(booking.StartTime, out int startMins);
         var (hasConflict, reason) = await CheckSlotConflictAsync(
             context, booking.CourtId, booking.BookingDate, startMins, startMins + booking.Duration,
-            excludeBookingId: booking.BookingId, includePendingConflicts: false);
+            excludeBookingId: booking.BookingId, includePendingConflicts: true, referenceNow: vnNow);
 
         if (hasConflict)
         {
             if (tx != null) await tx.RollbackAsync();
-            return BookingOperationResult.Fail(reason, 409);
+            return BookingOperationResult.Fail(reason, 409, errorCode: "SLOT_CONFLICT");
         }
 
         booking.Status = "approved";
@@ -572,7 +790,7 @@ public class BookingService
             ActorAccountId = actorAccountId,
             ActorUsername = actorUsername,
             IpAddress = ipAddress,
-            CreatedAt = GetVietnamNow()
+            CreatedAt = vnNow
         });
 
         await context.SaveChangesAsync();
@@ -724,12 +942,33 @@ public class BookingService
         string? guestAccessToken,
         string? reason,
         string? ipAddress = null,
-        DateTime? referenceNow = null)
+        DateTime? referenceNow = null,
+        string? idempotencyKey = null,
+        string? actorUsername = null)
     {
         var booking = await FindBookingAsync(context, bookingCodeOrId);
         if (booking == null)
         {
             return BookingOperationResult.Fail("Không tìm thấy đơn đặt sân.", 404);
+        }
+
+        string cleanIdem = IdempotencyService.NormalizeKey(idempotencyKey) ?? string.Empty;
+        string idemScope = "booking.cancel";
+        string idemActor = IdempotencyService.BuildActorKey(actorAccountId, guestAccessToken);
+        string idemTarget = $"BOOKING:{booking.BookingCode}";
+        string idemPayload = $"code={booking.BookingCode}|reason={(reason ?? "").Trim().ToLowerInvariant()}";
+
+        if (!string.IsNullOrEmpty(cleanIdem))
+        {
+            var idemCheck = await IdempotencyService.CheckAsync(context, cleanIdem, idemScope, idemActor, idemTarget, idemPayload);
+            if (idemCheck.Status == IdempotencyStatus.Conflict)
+            {
+                return BookingOperationResult.Fail(idemCheck.ConflictMessage!, 409, errorCode: IdempotencyService.ConflictErrorCode);
+            }
+            if (idemCheck.Status == IdempotencyStatus.Replay)
+            {
+                return BookingOperationResult.Ok(booking, replay: true);
+            }
         }
 
         bool isStaffOrAdmin = actorRoleId == 1 || actorRoleId == 3;
@@ -744,6 +983,11 @@ public class BookingService
                 return BookingOperationResult.Fail("Bạn không có quyền hủy đơn đặt sân này (yêu cầu đăng nhập đúng tài khoản chủ vé hoặc cung cấp Mã bảo mật vé hợp lệ).", 403);
             }
 
+            if (booking.Status is "cancelled" or "rejected")
+            {
+                return BookingOperationResult.Ok(booking, replay: true);
+            }
+
             if (booking.Status != "pending" && booking.Status != "approved")
             {
                 return BookingOperationResult.Fail("Chỉ có thể hủy lịch khi đơn đang Chờ duyệt hoặc Đã duyệt (trước giờ nhận sân).", 409);
@@ -751,7 +995,7 @@ public class BookingService
 
             if (booking.PaidAmount > 0)
             {
-                return BookingOperationResult.Fail("Đơn đặt sân đã phát sinh thanh toán. Vui lòng liên hệ Quầy lễ tân để hoàn tiền và hủy lịch.", 409);
+                return BookingOperationResult.Fail("Đơn đặt sân đã phát sinh thanh toán. Vui lòng liên hệ Quầy lễ tân để hoàn tiền và hủy lịch.", 409, errorCode: "BOOKING_HAS_PAYMENT");
             }
 
             var settings = await _settingsService.GetSettingsAsync(context);
@@ -770,54 +1014,208 @@ public class BookingService
         }
         else
         {
+            if (booking.Status is "cancelled" or "rejected")
+            {
+                return BookingOperationResult.Ok(booking, replay: true);
+            }
             if (booking.Status == "completed")
             {
                 return BookingOperationResult.Fail("Không thể hủy ca thi đấu đã hoàn tất.", 409);
             }
             if (booking.PaidAmount > 0)
             {
-                return BookingOperationResult.Fail("Đơn đã thu tiền. Vui lòng thực hiện giao dịch Hoàn tiền (Refund) trong sổ quỹ trước khi hủy đơn.", 409);
+                return BookingOperationResult.Fail("Đơn đã thu tiền. Vui lòng thực hiện giao dịch Hoàn tiền (Refund) trong sổ quỹ trước khi hủy đơn.", 409, errorCode: "BOOKING_HAS_PAYMENT");
             }
         }
 
         bool isRelational = context.Database.IsRelational();
-        await using var tx = isRelational ? await context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted) : null;
+        await using var tx = isRelational ? await context.Database.BeginTransactionAsync(IsolationLevel.Serializable) : null;
 
-        // Restock any POS items reserved directly on this booking
-        if (!string.IsNullOrWhiteSpace(booking.PosItemsJson) && booking.PosItemsJson != "[]")
+        if (isRelational)
         {
-            var posItems = ParsePosItems(booking.PosItemsJson);
-            foreach (var item in posItems.Where(i => i.Qty > 0))
+            await context.Database.ExecuteSqlRawAsync(
+                "SELECT BookingId FROM tb_Booking WITH (UPDLOCK, HOLDLOCK) WHERE BookingId = {0}",
+                booking.BookingId);
+            await context.Entry(booking).ReloadAsync();
+        }
+
+        if (booking.Status is "cancelled" or "rejected")
+        {
+            if (tx != null) await tx.CommitAsync();
+            return BookingOperationResult.Ok(booking, replay: true);
+        }
+
+        // V4-A4: Load all linked Pro Shop orders (TbOrder where BookingId == booking.BookingId)
+        var linkedOrders = await context.TbOrders
+            .Include(o => o.TbOrderDetails)
+            .Where(o => o.BookingId == booking.BookingId && o.Status != "cancelled" && o.Status != "rejected")
+            .ToListAsync();
+
+        foreach (var lo in linkedOrders)
+        {
+            if (lo.PaidAmount > 0 || lo.PaymentStatus is "paid" or "partial")
             {
-                var prod = await context.TbProducts.FirstOrDefaultAsync(p => p.ProductId == item.ProductId);
+                if (tx != null) await tx.RollbackAsync();
+                return BookingOperationResult.Fail(
+                    $"Đơn Pro Shop đính kèm ({lo.Code}) đã thu tiền ({lo.PaidAmount:N0} đ). Vui lòng hoàn tiền đơn Pro Shop trước khi hủy đặt sân.",
+                    409,
+                    errorCode: "LINKED_ORDER_PAID");
+            }
+
+            if (string.Equals(lo.FulfillmentStatus, "delivered", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(lo.Status, "completed", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(lo.Status, "delivered", StringComparison.OrdinalIgnoreCase))
+            {
+                if (tx != null) await tx.RollbackAsync();
+                return BookingOperationResult.Fail(
+                    $"Đơn Pro Shop đính kèm ({lo.Code}) đã giao hàng thực tế cho khách. Vui lòng thu hồi hàng hóa / xử lý đơn Pro Shop trước khi hủy sân.",
+                    409,
+                    errorCode: "LINKED_ORDER_DELIVERED");
+            }
+        }
+
+        // V4-A4: Compute exact restock per ProductId without double-restocking between TbOrderDetails and PosItemsJson!
+        var linkedOrderQtyByProduct = new Dictionary<int, int>();
+        var untaggedLinkedOrderQtyByProduct = new Dictionary<int, int>();
+        var posItems = ParsePosItems(booking.PosItemsJson);
+        var taggedOrderIdsInPos = posItems.Where(i => i.OrderId.HasValue).Select(i => i.OrderId!.Value).ToHashSet();
+
+        foreach (var lo in linkedOrders)
+        {
+            bool isTaggedInPos = taggedOrderIdsInPos.Contains(lo.OrderId);
+            foreach (var detail in lo.TbOrderDetails)
+            {
+                if (!detail.ProductId.HasValue || (detail.Quantity ?? 0) <= 0) continue;
+                int pid = detail.ProductId.Value;
+                int qty = detail.Quantity!.Value;
+                linkedOrderQtyByProduct[pid] = linkedOrderQtyByProduct.GetValueOrDefault(pid) + qty;
+                if (!isTaggedInPos)
+                {
+                    untaggedLinkedOrderQtyByProduct[pid] = untaggedLinkedOrderQtyByProduct.GetValueOrDefault(pid) + qty;
+                }
+            }
+        }
+
+        var directPosQtyByProduct = new Dictionary<int, int>();
+        foreach (var item in posItems.Where(i => i.Qty > 0 && !i.OrderId.HasValue))
+        {
+            directPosQtyByProduct[item.ProductId] = directPosQtyByProduct.GetValueOrDefault(item.ProductId) + item.Qty;
+        }
+
+        // Subtract any legacy untagged linked-order quantities from directPosQtyByProduct so legacy rows never double-restock
+        foreach (var kv in untaggedLinkedOrderQtyByProduct)
+        {
+            if (directPosQtyByProduct.TryGetValue(kv.Key, out int curDirect))
+            {
+                directPosQtyByProduct[kv.Key] = Math.Max(0, curDirect - kv.Value);
+            }
+        }
+
+        var allAffectedProductIds = linkedOrderQtyByProduct.Keys
+            .Union(directPosQtyByProduct.Where(kv => kv.Value > 0).Select(kv => kv.Key))
+            .OrderBy(id => id)
+            .ToList();
+
+        var vnNowCancel = referenceNow ?? GetVietnamNow();
+
+        // Lock products in deterministic ascending ProductId order
+        foreach (var pid in allAffectedProductIds)
+        {
+            if (isRelational)
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    "SELECT ProductId FROM tb_Product WITH (UPDLOCK, HOLDLOCK) WHERE ProductId = {0}",
+                    pid);
+            }
+        }
+
+        // 1. Cancel all linked TbOrders and restock their TbOrderDetails
+        foreach (var lo in linkedOrders)
+        {
+            foreach (var detail in lo.TbOrderDetails)
+            {
+                if (!detail.ProductId.HasValue || (detail.Quantity ?? 0) <= 0) continue;
+                int pid = detail.ProductId.Value;
+                int qty = detail.Quantity!.Value;
+                var prod = await context.TbProducts.FirstOrDefaultAsync(p => p.ProductId == pid);
                 if (prod != null)
                 {
-                    int newStock = (prod.UnitInStock ?? prod.Quantity ?? 0) + item.Qty;
+                    int newStock = (prod.UnitInStock ?? prod.Quantity ?? 0) + qty;
                     prod.UnitInStock = newStock;
                     prod.Quantity = newStock;
                     context.TbInventoryMovements.Add(new TbInventoryMovement
                     {
                         ProductId = prod.ProductId,
+                        OrderId = lo.OrderId,
                         BookingId = booking.BookingId,
-                        ChangeQty = item.Qty,
+                        ChangeQty = qty,
                         BalanceAfter = newStock,
-                        Reason = $"Restock on cancel booking {booking.BookingCode}",
+                        Reason = $"Restock linked order {lo.Code} on cancel booking {booking.BookingCode}",
                         ActorAccountId = actorAccountId,
-                        CreatedAt = GetVietnamNow()
+                        CreatedAt = vnNowCancel
                     });
                 }
             }
-            booking.PosItemsJson = "[]";
-            booking.PosTotal = 0;
-            booking.AmountDue = Math.Max(0, booking.CourtFee - booking.DiscountAmount);
+
+            lo.Status = "cancelled";
+            lo.FulfillmentStatus = "cancelled";
+            lo.OrderStatusId = 5;
+            lo.ModifiedDate = vnNowCancel;
+            lo.ModifiedBy = actorUsername ?? (isStaffOrAdmin ? "staff" : "customer");
+
+            context.TbAuditLogs.Add(new TbAuditLog
+            {
+                Action = "ORDER_CANCELLED_WITH_BOOKING",
+                EntityType = "Order",
+                EntityId = lo.Code ?? lo.OrderId.ToString(),
+                ActorAccountId = actorAccountId,
+                ActorUsername = actorUsername,
+                Details = $"Cancelled atomically with booking {booking.BookingCode}",
+                IpAddress = ipAddress,
+                CreatedAt = vnNowCancel
+            });
         }
+
+        // 2. Restock any standalone direct POS items (OrderId == null)
+        foreach (var kv in directPosQtyByProduct.Where(k => k.Value > 0))
+        {
+            var prod = await context.TbProducts.FirstOrDefaultAsync(p => p.ProductId == kv.Key);
+            if (prod != null)
+            {
+                int newStock = (prod.UnitInStock ?? prod.Quantity ?? 0) + kv.Value;
+                prod.UnitInStock = newStock;
+                prod.Quantity = newStock;
+                context.TbInventoryMovements.Add(new TbInventoryMovement
+                {
+                    ProductId = prod.ProductId,
+                    BookingId = booking.BookingId,
+                    ChangeQty = kv.Value,
+                    BalanceAfter = newStock,
+                    Reason = $"Restock direct POS on cancel booking {booking.BookingCode}",
+                    ActorAccountId = actorAccountId,
+                    CreatedAt = vnNowCancel
+                });
+            }
+        }
+
+        booking.PosItemsJson = "[]";
+        booking.PosTotal = 0;
+        booking.AmountDue = 0;
+        booking.AmountDueDec = 0m;
 
         booking.Status = isStaffOrAdmin && string.Equals(reason, "rejected", StringComparison.OrdinalIgnoreCase) ? "rejected" : "cancelled";
         booking.OrderStatusId = 5;
-        booking.CancelledAt = GetVietnamNow();
+        booking.CancelledAt = vnNowCancel;
         booking.CancelReason = string.IsNullOrWhiteSpace(reason)
             ? (isStaffOrAdmin ? "Quản trị viên hủy đơn" : "Khách hàng tự hủy lịch")
             : reason.Trim()[..Math.Min(reason.Trim().Length, 300)];
+
+        if (!string.IsNullOrEmpty(cleanIdem))
+        {
+            string reqHash = IdempotencyService.ComputeCanonicalHash(idemScope, idemActor, idemTarget, idemPayload);
+            context.TbIdempotencyRecords.Add(IdempotencyService.CreateRecord(
+                cleanIdem, idemScope, idemActor, idemTarget, reqHash, booking.BookingCode, booking.BookingId));
+        }
 
         context.TbAuditLogs.Add(new TbAuditLog
         {
@@ -825,9 +1223,10 @@ public class BookingService
             EntityType = "Booking",
             EntityId = booking.BookingCode,
             ActorAccountId = actorAccountId,
-            Details = booking.CancelReason,
+            ActorUsername = actorUsername,
+            Details = $"{booking.CancelReason} (LinkedOrdersCancelled={linkedOrders.Count})",
             IpAddress = ipAddress,
-            CreatedAt = GetVietnamNow()
+            CreatedAt = vnNowCancel
         });
 
         await context.SaveChangesAsync();
@@ -840,7 +1239,9 @@ public class BookingService
         string bookingCodeOrId,
         int deltaMinutes,
         int? actorAccountId,
-        string? actorUsername)
+        string? actorUsername,
+        string? idempotencyKey = null,
+        DateTime? referenceNow = null)
     {
         if (deltaMinutes == 0 || deltaMinutes % 15 != 0)
         {
@@ -859,6 +1260,27 @@ public class BookingService
         }
 
         await LockCourtForUpdateAsync(context, booking.CourtId);
+
+        string cleanIdem = IdempotencyService.NormalizeKey(idempotencyKey) ?? string.Empty;
+        string idemScope = "booking.extend";
+        string idemActor = IdempotencyService.BuildActorKey(actorAccountId, actorUsername);
+        string idemTarget = $"BOOKING:{booking.BookingCode}";
+        string idemPayload = $"code={booking.BookingCode}|delta={deltaMinutes}";
+
+        if (!string.IsNullOrEmpty(cleanIdem))
+        {
+            var idemCheck = await IdempotencyService.CheckAsync(context, cleanIdem, idemScope, idemActor, idemTarget, idemPayload);
+            if (idemCheck.Status == IdempotencyStatus.Conflict)
+            {
+                if (tx != null) await tx.RollbackAsync();
+                return BookingOperationResult.Fail(idemCheck.ConflictMessage!, 409, errorCode: IdempotencyService.ConflictErrorCode);
+            }
+            if (idemCheck.Status == IdempotencyStatus.Replay)
+            {
+                if (tx != null) await tx.CommitAsync();
+                return BookingOperationResult.Ok(booking, replay: true);
+            }
+        }
 
         if (booking.Status != "playing" && booking.Status != "approved")
         {
@@ -884,7 +1306,7 @@ public class BookingService
         if (deltaMinutes > 0)
         {
             var (hasConflict, reason) = await CheckSlotConflictAsync(
-                context, booking.CourtId, booking.BookingDate, startMins, newEndMins, excludeBookingId: booking.BookingId);
+                context, booking.CourtId, booking.BookingDate, startMins, newEndMins, excludeBookingId: booking.BookingId, referenceNow: referenceNow);
             if (hasConflict)
             {
                 if (tx != null) await tx.RollbackAsync();
@@ -925,6 +1347,13 @@ public class BookingService
         booking.AmountDue = quote.AmountDue;
         booking.PricingBreakdownJson = quote.ToJson();
         booking.PaymentStatus = ComputePaymentStatus(booking.PaidAmount, booking.AmountDue);
+
+        if (!string.IsNullOrEmpty(cleanIdem))
+        {
+            string reqHash = IdempotencyService.ComputeCanonicalHash(idemScope, idemActor, idemTarget, idemPayload);
+            context.TbIdempotencyRecords.Add(IdempotencyService.CreateRecord(
+                cleanIdem, idemScope, idemActor, idemTarget, reqHash, booking.BookingCode, booking.BookingId));
+        }
 
         context.TbAuditLogs.Add(new TbAuditLog
         {
@@ -1068,7 +1497,7 @@ public class BookingService
         }
 
         var items = ParsePosItems(booking.PosItemsJson);
-        var existing = items.FirstOrDefault(i => i.ProductId == productId);
+        var existing = items.FirstOrDefault(i => i.ProductId == productId && !i.OrderId.HasValue);
         int currentCartQty = existing?.Qty ?? 0;
         int newCartQty = currentCartQty + quantityDelta;
 
@@ -1296,24 +1725,54 @@ WHERE ProductId = {0}",
         bool isRelational = context.Database.IsRelational();
         await using var tx = isRelational ? await context.Database.BeginTransactionAsync(IsolationLevel.Serializable) : null;
 
-        var existingTx = await context.TbPaymentTransactions
-            .FirstOrDefaultAsync(t => t.IdempotencyKey == cleanIdem);
-        if (existingTx != null)
-        {
-            var existingBooking = existingTx.BookingId.HasValue
-                ? await context.TbBookings.FindAsync(existingTx.BookingId.Value)
-                : await FindBookingAsync(context, bookingCodeOrId);
-            if (tx != null) await tx.CommitAsync();
-            return existingBooking != null
-                ? BookingOperationResult.Ok(existingBooking, tx: existingTx, replay: true)
-                : BookingOperationResult.Fail("IdempotencyKey đã được sử dụng cho một giao dịch khác.", 409);
-        }
-
         var booking = await FindBookingAsync(context, bookingCodeOrId);
         if (booking == null)
         {
             if (tx != null) await tx.RollbackAsync();
             return BookingOperationResult.Fail("Không tìm thấy đơn đặt sân.", 404);
+        }
+
+        string idemScope = "booking.payment";
+        string idemActor = IdempotencyService.BuildActorKey(actorAccountId, actorUsername);
+        string idemTarget = $"BOOKING:{booking.BookingCode}";
+        string idemPayload = $"code={booking.BookingCode}|amount={amount}|method={cleanMethod}|ref={(cleanRef ?? "").ToUpperInvariant()}";
+
+        var idemCheck = await IdempotencyService.CheckAsync(context, cleanIdem, idemScope, idemActor, idemTarget, idemPayload);
+        if (idemCheck.Status == IdempotencyStatus.Conflict)
+        {
+            if (tx != null) await tx.RollbackAsync();
+            return BookingOperationResult.Fail(idemCheck.ConflictMessage!, 409, errorCode: IdempotencyService.ConflictErrorCode);
+        }
+
+        var existingTx = await context.TbPaymentTransactions
+            .FirstOrDefaultAsync(t => t.IdempotencyKey == cleanIdem);
+        if (existingTx != null)
+        {
+            bool matchesTx =
+                existingTx.BookingId == booking.BookingId &&
+                string.Equals(existingTx.TransactionType, "payment", StringComparison.OrdinalIgnoreCase) &&
+                existingTx.Amount == amount &&
+                string.Equals(existingTx.PaymentMethod, cleanMethod, StringComparison.OrdinalIgnoreCase) &&
+                (!actorAccountId.HasValue || !existingTx.ActorAccountId.HasValue || existingTx.ActorAccountId == actorAccountId);
+
+            if (!matchesTx)
+            {
+                if (tx != null) await tx.RollbackAsync();
+                return BookingOperationResult.Fail(
+                    "Khóa IdempotencyKey đã được sử dụng cho một giao dịch thu tiền khác (khác đơn, số tiền hoặc phương thức).",
+                    409,
+                    errorCode: IdempotencyService.ConflictErrorCode);
+            }
+
+            if (tx != null) await tx.CommitAsync();
+            return BookingOperationResult.Ok(booking, tx: existingTx, replay: true);
+        }
+
+        if (idemCheck.Status == IdempotencyStatus.Replay && idemCheck.ExistingRecord?.ResultEntityId != null)
+        {
+            var replayedTx = await context.TbPaymentTransactions.FirstOrDefaultAsync(t => t.TransactionId == idemCheck.ExistingRecord.ResultEntityId.Value);
+            if (tx != null) await tx.CommitAsync();
+            return BookingOperationResult.Ok(booking, tx: replayedTx, replay: true);
         }
 
         if (isRelational)
@@ -1371,6 +1830,10 @@ WHERE ProductId = {0}",
         context.TbPaymentTransactions.Add(paymentRow);
         await context.SaveChangesAsync();
 
+        string reqHash = IdempotencyService.ComputeCanonicalHash(idemScope, idemActor, idemTarget, idemPayload);
+        context.TbIdempotencyRecords.Add(IdempotencyService.CreateRecord(
+            cleanIdem, idemScope, idemActor, idemTarget, reqHash, booking.BookingCode, paymentRow.TransactionId));
+
         int updatedNetPaid = await ComputeBookingLedgerNetPaidAsync(context, booking.BookingId);
         booking.PaidAmount = updatedNetPaid;
         booking.TotalPaid = updatedNetPaid;
@@ -1427,21 +1890,45 @@ WHERE ProductId = {0}",
         bool isRelational = context.Database.IsRelational();
         await using var tx = isRelational ? await context.Database.BeginTransactionAsync(IsolationLevel.Serializable) : null;
 
-        var existingTx = await context.TbPaymentTransactions.FirstOrDefaultAsync(t => t.IdempotencyKey == cleanIdem);
-        if (existingTx != null)
-        {
-            var b = await FindBookingAsync(context, bookingCodeOrId);
-            if (tx != null) await tx.CommitAsync();
-            return b != null
-                ? BookingOperationResult.Ok(b, tx: existingTx, replay: true)
-                : BookingOperationResult.Fail("IdempotencyKey đã sử dụng.", 409);
-        }
-
         var booking = await FindBookingAsync(context, bookingCodeOrId);
         if (booking == null)
         {
             if (tx != null) await tx.RollbackAsync();
             return BookingOperationResult.Fail("Không tìm thấy đơn đặt sân.", 404);
+        }
+
+        string idemScope = "booking.refund";
+        string idemActor = IdempotencyService.BuildActorKey(actorAccountId, actorUsername);
+        string idemTarget = $"BOOKING:{booking.BookingCode}";
+        string idemPayload = $"code={booking.BookingCode}|refund={refundAmount}|method={cleanMethod}";
+
+        var idemCheck = await IdempotencyService.CheckAsync(context, cleanIdem, idemScope, idemActor, idemTarget, idemPayload);
+        if (idemCheck.Status == IdempotencyStatus.Conflict)
+        {
+            if (tx != null) await tx.RollbackAsync();
+            return BookingOperationResult.Fail(idemCheck.ConflictMessage!, 409, errorCode: IdempotencyService.ConflictErrorCode);
+        }
+
+        var existingTx = await context.TbPaymentTransactions.FirstOrDefaultAsync(t => t.IdempotencyKey == cleanIdem);
+        if (existingTx != null)
+        {
+            bool matchesRefund =
+                existingTx.BookingId == booking.BookingId &&
+                string.Equals(existingTx.TransactionType, "refund", StringComparison.OrdinalIgnoreCase) &&
+                existingTx.Amount == refundAmount &&
+                string.Equals(existingTx.PaymentMethod, cleanMethod, StringComparison.OrdinalIgnoreCase);
+
+            if (!matchesRefund)
+            {
+                if (tx != null) await tx.RollbackAsync();
+                return BookingOperationResult.Fail(
+                    "Khóa IdempotencyKey đã được sử dụng cho một giao dịch hoàn tiền khác.",
+                    409,
+                    errorCode: IdempotencyService.ConflictErrorCode);
+            }
+
+            if (tx != null) await tx.CommitAsync();
+            return BookingOperationResult.Ok(booking, tx: existingTx, replay: true);
         }
 
         int currentNetPaid = await ComputeBookingLedgerNetPaidAsync(context, booking.BookingId);
@@ -1471,6 +1958,10 @@ WHERE ProductId = {0}",
 
         context.TbPaymentTransactions.Add(refundRow);
         await context.SaveChangesAsync();
+
+        string refundHash = IdempotencyService.ComputeCanonicalHash(idemScope, idemActor, idemTarget, idemPayload);
+        context.TbIdempotencyRecords.Add(IdempotencyService.CreateRecord(
+            cleanIdem, idemScope, idemActor, idemTarget, refundHash, booking.BookingCode, refundRow.TransactionId));
 
         int updatedNetPaid = await ComputeBookingLedgerNetPaidAsync(context, booking.BookingId);
         booking.PaidAmount = updatedNetPaid;
@@ -1523,49 +2014,47 @@ WHERE ProductId = {0}",
 
     /// <summary>
     /// Idempotent background lifecycle reconciliation:
-    /// - Unapproved pending bookings past start/hold time -> 'expired'
+    /// - Unapproved pending bookings past HoldExpiresAtUtc or slot end -> 'expired'
     /// - Approved bookings not checked in past grace/slot end -> 'no_show'
-    /// Never auto-starts 'approved' into 'playing' and never touches PaidAmount.
+    /// Never auto-starts 'approved' into 'playing' and never touches PaidAmount or auto-completes 'playing'.
     /// </summary>
     public async Task<int> ReconcileBookingLifecycleAsync(PickleballContext context, DateTime? referenceNow = null)
     {
         var vnNow = referenceNow ?? GetVietnamNow();
+        var utcNow = ToUtcFromVietnamNow(vnNow);
         string todayIso = vnNow.ToString("yyyy-MM-dd");
-        var settings = await _settingsService.GetSettingsAsync(context);
 
         var candidates = await context.TbBookings
-            .Where(b => (b.Status == "pending" || b.Status == "approved") &&
-                        string.Compare(b.BookingDate, todayIso) <= 0)
+            .Where(b => b.Status == "pending" ||
+                        (b.Status == "approved" && string.Compare(b.BookingDate, todayIso) <= 0))
             .ToListAsync();
 
         int updated = 0;
         foreach (var b in candidates)
         {
-            if (!DateOnly.TryParseExact(b.BookingDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var bDate))
-                continue;
-            if (!PricingService.TryParseTimeMinutes(b.StartTime, out int sMins))
-                continue;
+            bool hasParsedDate = DateOnly.TryParseExact(b.BookingDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var bDate);
+            bool hasParsedTime = PricingService.TryParseTimeMinutes(b.StartTime, out int sMins);
+            DateTime? endDt = (hasParsedDate && hasParsedTime)
+                ? bDate.ToDateTime(new TimeOnly(sMins / 60, sMins % 60)).AddMinutes(Math.Max(30, b.Duration))
+                : null;
 
-            var startDt = bDate.ToDateTime(new TimeOnly(sMins / 60, sMins % 60));
-            var endDt = startDt.AddMinutes(Math.Max(30, b.Duration));
-
-            if (b.Status == "pending" && vnNow >= endDt)
+            if (b.Status == "pending" && (!IsPendingHoldActive(b, utcNow) || (endDt.HasValue && vnNow >= endDt.Value)))
             {
                 b.Status = "expired";
                 b.OrderStatusId = 5;
                 b.CancelledAt = vnNow;
-                b.CancelReason = "Quá hạn duyệt lịch (Tự động hết hạn)";
+                b.CancelReason = "Hết thời gian giữ chỗ chờ duyệt (TTL)";
                 context.TbAuditLogs.Add(new TbAuditLog
                 {
                     Action = "BOOKING_EXPIRED_AUTO",
                     EntityType = "Booking",
                     EntityId = b.BookingCode,
-                    Details = $"Date={b.BookingDate}, Start={b.StartTime}",
+                    Details = $"Date={b.BookingDate}, Start={b.StartTime}, HoldExpiresAtUtc={b.HoldExpiresAtUtc:O}",
                     CreatedAt = vnNow
                 });
                 updated++;
             }
-            else if (b.Status == "approved" && b.CheckedInAt == null && vnNow >= endDt)
+            else if (b.Status == "approved" && b.CheckedInAt == null && endDt.HasValue && vnNow >= endDt.Value)
             {
                 b.Status = "no_show";
                 b.OrderStatusId = 5;
@@ -1596,7 +2085,6 @@ WHERE ProductId = {0}",
         if (string.IsNullOrWhiteSpace(json)) return new List<PosCartItemDto>();
         try
         {
-            var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return new List<PosCartItemDto>();
 
@@ -1604,13 +2092,29 @@ WHERE ProductId = {0}",
             foreach (var el in doc.RootElement.EnumerateArray())
             {
                 int prodId = el.TryGetProperty("productId", out var p1) && p1.TryGetInt32(out int v1) ? v1
+                           : el.TryGetProperty("ProductId", out var p1b) && p1b.TryGetInt32(out int v1b) ? v1b
                            : el.TryGetProperty("id", out var p2) && p2.TryGetInt32(out int v2) ? v2 : 0;
-                string name = el.TryGetProperty("name", out var nEl) ? nEl.GetString() ?? "" : "";
-                int price = el.TryGetProperty("price", out var prEl) && prEl.TryGetInt32(out int vp) ? vp : 0;
-                int qty = el.TryGetProperty("qty", out var qEl) && qEl.TryGetInt32(out int vq) ? vq : 0;
+                string name = el.TryGetProperty("name", out var nEl) ? nEl.GetString() ?? ""
+                            : el.TryGetProperty("Name", out var nEl2) ? nEl2.GetString() ?? "" : "";
+                int price = el.TryGetProperty("price", out var prEl) && prEl.TryGetInt32(out int vp) ? vp
+                          : el.TryGetProperty("Price", out var prEl2) && prEl2.TryGetInt32(out int vp2) ? vp2 : 0;
+                int qty = el.TryGetProperty("qty", out var qEl) && qEl.TryGetInt32(out int vq) ? vq
+                        : el.TryGetProperty("Qty", out var qEl2) && qEl2.TryGetInt32(out int vq2) ? vq2 : 0;
+                int? orderId = el.TryGetProperty("orderId", out var oEl) && oEl.ValueKind == JsonValueKind.Number && oEl.TryGetInt32(out int vo) ? vo
+                             : el.TryGetProperty("OrderId", out var oEl2) && oEl2.ValueKind == JsonValueKind.Number && oEl2.TryGetInt32(out int vo2) ? vo2 : null;
+                string? orderCode = el.TryGetProperty("orderCode", out var ocEl) && ocEl.ValueKind == JsonValueKind.String ? ocEl.GetString()
+                                  : el.TryGetProperty("OrderCode", out var ocEl2) && ocEl2.ValueKind == JsonValueKind.String ? ocEl2.GetString() : null;
                 if (qty > 0)
                 {
-                    list.Add(new PosCartItemDto { ProductId = prodId, Name = name, Price = price, Qty = qty });
+                    list.Add(new PosCartItemDto
+                    {
+                        ProductId = prodId,
+                        Name = name,
+                        Price = price,
+                        Qty = qty,
+                        OrderId = orderId,
+                        OrderCode = orderCode
+                    });
                 }
             }
             return list;

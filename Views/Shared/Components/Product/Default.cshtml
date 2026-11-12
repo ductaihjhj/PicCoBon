@@ -1,30 +1,49 @@
 @model IEnumerable<PickleballClub.Models.TbProduct>
+@using PickleballClub.Services
 
-@foreach (var p in Model)
+@foreach (var item in Model)
 {
-    var stock = p.UnitInStock ?? p.Quantity ?? 0;
-    <div class="card">
-        <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
-            <div style="display:flex;align-items:center;gap:0.85rem;">
-                <div class="stat-icon" style="background:var(--color-primary-50);color:var(--color-primary);">
-                    @PickleballClub.Services.IconSanitizer.RenderSafeIcon(p.Icon)
-                </div>
-                <div>
-                    <div class="font-bold">@p.Title</div>
-                    <div class="text-xs text-muted">@(p.Description ?? "Phục vụ tận sân thi đấu")</div>
-                </div>
+    var categoryAlias = item.CategoryProduct?.Alias ?? "drink";
+    var resolvedImg = ProductImageService.NormalizeProductImageUrl(item.Image, categoryAlias);
+    var stock = item.UnitInStock ?? item.Quantity ?? 0;
+    var outOfStock = stock <= 0;
+    var catLabel = categoryAlias == "drink" ? "Đồ uống" : categoryAlias == "food" ? "Đồ ăn" : "Phụ kiện";
+
+    <article class="menu-item @(outOfStock ? "is-out-of-stock" : "")"
+             data-product-id="@item.ProductId"
+             data-category="@categoryAlias">
+        <div class="menu-item-media">
+            <img class="menu-item-img"
+                 src="@resolvedImg"
+                 alt="@item.Title"
+                 width="240"
+                 height="240"
+                 loading="lazy"
+                 decoding="async"
+                 onerror="this.onerror=null;this.src='/assets/products/placeholder-default.svg';" />
+            <span class="menu-item-cat-pill">@catLabel</span>
+            <span class="menu-item-stock-badge @(outOfStock ? "is-empty" : stock <= 5 ? "is-low" : "is-ok")">
+                @(outOfStock ? "Hết hàng" : stock <= 5 ? $"Sắp hết · {stock}" : $"Còn {stock}")
+            </span>
+        </div>
+        <div class="menu-item-body">
+            <h3 class="menu-item-name" title="@item.Title">@item.Title</h3>
+            <p class="menu-item-desc">@(!string.IsNullOrWhiteSpace(item.Description) ? item.Description : (categoryAlias == "drink" ? "Phục vụ ướp lạnh tại sân" : categoryAlias == "food" ? "Chế biến nóng · Giao tận sân" : "Phụ kiện thi đấu chính hãng"))</p>
+        </div>
+        <div class="menu-item-footer">
+            <div class="menu-item-price-block">
+                <span class="menu-item-price-label">Đơn giá</span>
+                <span class="menu-item-price text-mono">@((item.Price ?? 0).ToString("N0"))đ</span>
             </div>
-            <div style="text-align:right;">
-                <div class="font-bold text-mono" style="color:var(--color-primary);">@((p.Price ?? 0).ToString("N0")) đ</div>
-                @if (stock > 0)
-                {
-                    <span class="badge badge-success">Còn hàng (@stock)</span>
-                }
-                else
-                {
-                    <span class="badge badge-danger">Tạm hết hàng</span>
-                }
+            <div class="menu-item-actions">
+                <button type="button"
+                        class="menu-item-cta"
+                        @(outOfStock ? "disabled" : "")
+                        onclick="quickBuyItem(@item.ProductId)">
+                    <iconify-icon icon="@(outOfStock ? "lucide:ban" : "lucide:shopping-bag")" width="15"></iconify-icon>
+                    <span>@(outOfStock ? "Tạm hết" : "Chọn mua")</span>
+                </button>
             </div>
         </div>
-    </div>
+    </article>
 }

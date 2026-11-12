@@ -21,6 +21,19 @@ function renderReadyCheckinList() {
   const countEl = document.getElementById('readyCheckinCount');
   if (!listEl) return;
 
+  if (!HAS_SERVER_STATE) {
+    if (countEl) countEl.textContent = 'Đang tải…';
+    const syncState = (typeof SPIKE_SYNC_STATE !== 'undefined' && (SPIKE_SYNC_STATE === 'offline' || SPIKE_SYNC_STATE === 'error'))
+      ? SPIKE_SYNC_STATE
+      : 'loading';
+    listEl.innerHTML = renderUiStateBanner(syncState, {
+      title: syncState === 'loading' ? 'Đang tải danh sách vé Check-in hôm nay...' : undefined,
+      subtitle: syncState === 'loading' ? 'Đang đồng bộ danh sách vé từ máy chủ.' : (typeof LAST_SYNC_ERROR !== 'undefined' ? LAST_SYNC_ERROR : undefined),
+      onRetry: 'retryServerSync()'
+    });
+    return;
+  }
+
   const todayIso = getTodayStr();
   const readyList = BOOKINGS.filter(b =>
     ['approved', 'pending', 'playing'].includes(b.status) &&
@@ -40,7 +53,8 @@ function renderReadyCheckinList() {
   }
 
   listEl.innerHTML = readyList.map(b => {
-    const court = getCourtById(b.courtId);
+    const courtName = getCourtDisplayName(b.courtId, b.courtName);
+    const courtNum = Number(b.courtId) || 1;
     const endTime = getEndTime(b.time, b.duration);
     const isPlaying = b.status === 'playing';
     const isPending = b.status === 'pending';
@@ -54,12 +68,12 @@ function renderReadyCheckinList() {
     } else if (!timing.canCheckIn) {
       actionBtnHtml = `<span class="badge badge-neutral" title="Chỉ mở Check-in từ 30 phút trước giờ bắt đầu">Mở lúc ${escapeHtml(minutesToTime(Math.max(0, timeToMinutes(b.time) - 30)))}</span>`;
     } else {
-      actionBtnHtml = `<button class="btn btn-primary btn-sm" onclick="performCheckInByTokenOrCode('${escapeAttr(b.checkInToken || b.id)}')"><iconify-icon icon="lucide:log-in" width="14"></iconify-icon> Check-in mở sân</button>`;
+      actionBtnHtml = `<button type="button" class="btn btn-primary btn-sm" onclick="performCheckInByTokenOrCode('${escapeAttr(b.checkInToken || b.id)}')"><iconify-icon icon="lucide:log-in" width="14"></iconify-icon> Check-in mở sân</button>`;
     }
 
     return `
       <div class="item-row" ${isPlaying ? 'style="background:var(--color-primary-50)"' : ''}>
-        <div class="item-avatar" style="background:${isPlaying ? 'var(--color-primary)' : 'var(--color-indigo-50)'};color:${isPlaying ? '#FFF' : 'var(--color-indigo)'}">S${Number(court.id)}</div>
+        <div class="item-avatar" style="background:${isPlaying ? 'var(--color-primary)' : 'var(--color-indigo-50)'};color:${isPlaying ? '#FFF' : 'var(--color-indigo)'}">S${courtNum}</div>
         <div class="item-info">
           <div class="item-name">
             <span>${escapeHtml(b.name)}</span>
@@ -67,7 +81,7 @@ function renderReadyCheckinList() {
             <span class="badge ${statusBadgeClass(b.status)}">${escapeHtml(statusLabel(b.status, b))}</span>
           </div>
           <div class="item-detail">
-            <strong>${escapeHtml(court.name)}</strong> · <span class="text-mono font-bold">${escapeHtml(b.time)} → ${escapeHtml(endTime)}</span> · ${escapeHtml(formatDateVN(b.date))} · SĐT: <span class="text-mono">${escapeHtml(b.phone)}</span>
+            <strong>${escapeHtml(courtName)}</strong> · <span class="text-mono font-bold">${escapeHtml(b.time)} → ${escapeHtml(endTime)}</span> · ${escapeHtml(formatDateVN(b.date))} · SĐT: <span class="text-mono">${escapeHtml(b.phone)}</span>
           </div>
         </div>
         <div class="item-actions">
@@ -106,12 +120,12 @@ async function performCheckInByTokenOrCode(tokenOrCode) {
 
     stopCameraScanner();
     const b = data.booking;
-    const court = getCourtById(b.courtId);
+    const courtName = getCourtDisplayName(b.courtId, b.courtName);
     await syncDatabaseFromServer(true);
     showCheckInResult(
       b.id,
       true,
-      `Xác thực hợp lệ! Khách: ${b.name} (${b.phone}) — Đã mở ${court.name} (${b.time} → ${getEndTime(b.time, b.duration)})`
+      `Xác thực hợp lệ! Khách: ${b.name} (${b.phone}) — Đã mở ${courtName} (${b.time} → ${getEndTime(b.time, b.duration)})`
     );
     renderReadyCheckinList();
   } catch (_) {
@@ -182,12 +196,12 @@ async function handleDecodedCheckinResponse(res, fallbackLabel) {
 
   stopCameraScanner();
   const b = res.booking;
-  const court = getCourtById(b.courtId);
+  const courtName = getCourtDisplayName(b.courtId, b.courtName);
   await syncDatabaseFromServer(true);
   showCheckInResult(
     b.id,
     true,
-    `Giải mã QR thành công! Khách: ${b.name} (${b.phone}) — Đã mở ${court.name} (${b.time} → ${getEndTime(b.time, b.duration)})`
+    `Giải mã QR thành công! Khách: ${b.name} (${b.phone}) — Đã mở ${courtName} (${b.time} → ${getEndTime(b.time, b.duration)})`
   );
   renderReadyCheckinList();
 }
@@ -314,3 +328,4 @@ function resetCheckIn() {
 window.addEventListener('beforeunload', stopCameraScanner);
 document.addEventListener('DOMContentLoaded', initCheckin);
 window.addEventListener('pickleball:db-synced', renderReadyCheckinList);
+window.addEventListener('pickleball:sync-state', renderReadyCheckinList);

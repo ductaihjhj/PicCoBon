@@ -11,16 +11,19 @@
         <p class="page-hero-sub">Tổng hợp trực tiếp từ bút toán Sổ cái (Payment Ledger) theo đúng ngày thu/hoàn tiền thực tế</p>
       </div>
       <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
-        <input class="form-input text-mono" type="date" id="reportFrom" style="width:auto;background:#FFFFFF;color:#0F172A;color-scheme:light;">
-        <span style="color:#CBD5E1">→</span>
-        <input class="form-input text-mono" type="date" id="reportTo" style="width:auto;background:#FFFFFF;color:#0F172A;color-scheme:light;">
-        <button class="btn btn-primary" onclick="filterReport()">Lọc sổ cái</button>
+        <label for="reportFrom" class="sr-only">Từ ngày</label>
+        <input class="form-input text-mono" type="date" id="reportFrom" aria-label="Từ ngày" style="width:auto;background:#FFFFFF;color:#0F172A;color-scheme:light;">
+        <span style="color:#CBD5E1" aria-hidden="true">→</span>
+        <label for="reportTo" class="sr-only">Đến ngày</label>
+        <input class="form-input text-mono" type="date" id="reportTo" aria-label="Đến ngày" style="width:auto;background:#FFFFFF;color:#0F172A;color-scheme:light;">
+        <button type="button" class="btn btn-primary" id="btnFilterReport" onclick="filterReport()">Lọc sổ cái</button>
       </div>
     </div>
   </section>
 
   <main class="page-main">
     <div class="container stack">
+      <div id="reportStatusBanner" style="display:none;"></div>
       <div class="stats-row" id="reportStats"></div>
 
       <div class="col-main-aside">

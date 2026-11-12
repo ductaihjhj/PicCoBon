@@ -1,5 +1,7 @@
 @{
     ViewData["Title"] = "Spike Pickleball Club — Tổ Hợp Sân Pickleball Chuyên Nghiệp";
+    var initialCourts = ViewBag.Courts as ICollection<PickleballClub.Models.TbCourt>;
+    int initialCourtCount = initialCourts?.Count ?? 4;
 }
 
 <!-- HERO BANNER -->
@@ -15,7 +17,7 @@
                     Nâng Tầm Trải Nghiệm Pickleball Đỉnh Cao
                 </h1>
                 <p class="web-hero-desc" id="heroSubText">
-                    Tổ hợp 4 sân thi đấu chuyên nghiệp với mặt thảm Acrylic Cushion 8 lớp giảm chấn, hệ thống đèn LED chống chói 1000 Lux và đặt lịch nhận mã vé QR thật tức thì.
+                    Tổ hợp <span data-cms="courtCount">@initialCourtCount</span> sân thi đấu chuyên nghiệp với mặt thảm Acrylic Cushion 8 lớp giảm chấn, hệ thống đèn LED chống chói 1000 Lux và đặt lịch nhận mã vé QR thật tức thì.
                 </p>
                 <div class="web-hero-actions">
                     <a href="/Booking" class="btn btn-primary btn-lg btn-pill">
@@ -29,10 +31,10 @@
                 </div>
             </div>
 
-            <!-- Bảng trạng thái 4 sân thời gian thực -->
+            <!-- Bảng trạng thái sân thời gian thực -->
             <div class="hero-live-panel">
                 <div class="hero-live-header">
-                    <span class="live-pulse-tag">Trạng thái 4 sân trực tiếp</span>
+                    <span class="live-pulse-tag" id="heroLiveCountTag">Trạng thái <span data-cms="courtCount">@initialCourtCount</span> sân trực tiếp</span>
                     <span class="text-xs" style="color:#CBD5E1;">Mở cửa: <strong class="text-mono" id="heroOpenHours" data-cms="openHours" style="color:#FFF;">06:00 – 22:00</strong></span>
                 </div>
                 <div class="hero-mini-courts" id="heroMiniCourts"></div>
@@ -168,10 +170,10 @@
 
             <div class="pricing-card">
                 <span class="pricing-tag" id="promoTitleText">Đặc Quyền Hội Viên CLB</span>
-                <div class="pricing-price">-15% <span>/ mọi khung giờ</span></div>
-                <p class="text-sm text-muted" id="promoDescText">Đăng ký tài khoản hội viên chính thức để tích lũy chi tiêu thực thu và tự động nâng hạng thẻ Bạc (-5%), Vàng VIP (-15%).</p>
+                <div class="pricing-price" id="promoTierPrice">Đến -15% <span>/ hạng thẻ VIP</span></div>
+                <p class="text-sm text-muted" id="promoDescText">Đăng ký tài khoản hội viên chính thức để tích lũy chi tiêu thực thu và tự động nâng hạng thẻ Bạc (-5%), Vàng (-10%), VIP Kim Cương (-15%).</p>
                 <ul class="pricing-features">
-                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Chiết khấu tự động khi đăng nhập đặt sân</li>
+                    <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Chiết khấu tự động theo hạng thẻ (5% – 15%)</li>
                     <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Quản lý lịch sử vé QR &amp; hóa đơn cá nhân</li>
                     <li><iconify-icon icon="lucide:check" style="color:var(--color-success)"></iconify-icon> Gộp đơn nước &amp; phụ kiện trực tiếp vào ca sân</li>
                 </ul>

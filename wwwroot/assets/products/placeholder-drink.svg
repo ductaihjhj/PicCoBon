@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" fill="none">
+  <defs>
+    <radialGradient id="pedestalDrink" cx="50%" cy="82%" r="36%">
+      <stop offset="0%" stop-color="#0B111E" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#0B111E" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bottleBody" x1="210" y1="130" x2="390" y2="470" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0EA5E9"/>
+      <stop offset="48%" stop-color="#0284C7"/>
+      <stop offset="100%" stop-color="#0369A1"/>
+    </linearGradient>
+    <linearGradient id="bottleGloss" x1="235" y1="140" x2="290" y2="460" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.05"/>
+    </linearGradient>
+    <linearGradient id="capGrad" x1="265" y1="88" x2="335" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF5520"/>
+      <stop offset="100%" stop-color="#C8370B"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="300" cy="495" rx="145" ry="26" fill="url(#pedestalDrink)"/>
+  <!-- Energy splash ring -->
+  <circle cx="300" cy="300" r="185" stroke="#0EA5E9" stroke-opacity="0.14" stroke-width="2" stroke-dasharray="8 8"/>
+  <path d="M266 96C266 90.4772 270.477 86 276 86H324C329.523 86 334 90.4772 334 96V128H266V96Z" fill="url(#capGrad)"/>
+  <rect x="258" y="124" width="84" height="14" rx="7" fill="#0B111E"/>
+  <!-- Sports Bottle Body -->
+  <path d="M254 138H346L376 196V245C376 256 364 265 364 278C364 291 376 300 376 312V446C376 467 359 484 338 484H262C241 484 224 467 224 446V312C224 300 236 291 236 278C236 265 224 256 224 245V196L254 138Z" fill="url(#bottleBody)" stroke="#0B111E" stroke-width="6" stroke-linejoin="round"/>
+  <!-- Studio Highlight -->
+  <path d="M248 202L268 152H285L268 202V446C268 456 272 464 278 468H258C246 464 242 455 242 444V202H248Z" fill="url(#bottleGloss)"/>
+  <!-- Brand Label -->
+  <rect x="227" y="258" width="146" height="114" fill="#0B111E"/>
+  <rect x="227" y="258" width="146" height="10" fill="#D8F826"/>
+  <rect x="227" y="362" width="146" height="10" fill="#FF5520"/>
+  <!-- Lightning Bolt Emblem -->
+  <path d="M308 278L282 316H303L293 350L322 310H301L308 278Z" fill="#D8F826"/>
+  <!-- Condensation droplets -->
+  <circle cx="348" cy="216" r="5" fill="#E0F2FE" fill-opacity="0.85"/>
+  <circle cx="356" cy="232" r="3.5" fill="#E0F2FE" fill-opacity="0.75"/>
+  <circle cx="252" cy="405" r="4.5" fill="#E0F2FE" fill-opacity="0.8"/>
+</svg>

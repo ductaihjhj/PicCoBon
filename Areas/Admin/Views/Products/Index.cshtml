@@ -1,22 +1,23 @@
 @model IEnumerable<PickleballClub.Models.TbProduct>
+@using PickleballClub.Services
 
 @{
-    ViewData["Title"] = "Quản lý Sản phẩm & Dịch vụ POS";
+    ViewData["Title"] = "Quản lý sản phẩm Pro Shop";
     Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
 }
 
 <div class="content-wrapper">
     <section class="content-header">
         <div class="container-fluid">
-            <div class="row mb-2">
+            <div class="row mb-2 align-items-center">
                 <div class="col-sm-6">
-                    <h1>Quản lý Sản phẩm & Dịch vụ POS</h1>
+                    <h1 class="m-0 font-weight-bold">Quản lý sản phẩm (Pro Shop / POS)</h1>
+                    <small class="text-muted">Quản lý hình ảnh sản phẩm, giá bán và tồn kho đồng bộ trực tiếp với Pro Shop &amp; Quầy POS.</small>
                 </div>
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="/Admin">Quản trị</a></li>
-                        <li class="breadcrumb-item active">Sản phẩm POS</li>
-                    </ol>
+                <div class="col-sm-6 text-sm-right mt-2 mt-sm-0">
+                    <a asp-action="Create" class="btn btn-primary" data-testid="admin-btn-create-product">
+                        <i class="fas fa-plus mr-1"></i> Thêm sản phẩm mới
+                    </a>
                 </div>
             </div>
         </div>
@@ -24,48 +25,114 @@
 
     <section class="content">
         <div class="container-fluid">
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title"><a asp-action="Create" class="btn btn-success btn-sm">+ Thêm sản phẩm mới</a></h3>
-                        </div>
-                        <div class="card-body table-responsive p-0">
-                            <table class="table table-hover text-nowrap">
-                                <thead>
-                                    <tr>
-                                        <th>STT</th>
-                                        <th>Tên sản phẩm</th>
-                                        <th>Danh mục</th>
-                                        <th>Đơn giá</th>
-                                        <th>Mô tả</th>
-                                        <th>Tồn kho</th>
-                                        <th>Hiển thị</th>
-                                        <th>Thao tác</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @{ int i = 1; }
-                                    @foreach (var item in Model)
-                                    {
-                                        <tr>
-                                            <td>@(i++)</td>
-                                            <td class="font-weight-bold">@item.Title</td>
-                                            <td>@(item.CategoryProduct?.Title ?? "-")</td>
-                                            <td class="text-success font-weight-bold">@string.Format("{0:N0} đ", item.Price)</td>
-                                            <td>@item.Description</td>
-                                            <td>@item.Quantity</td>
-                                            <td>@Html.DisplayFor(modelItem => item.IsActive)</td>
-                                            <td>
-                                                <a asp-action="Edit" asp-route-id="@item.ProductId" class="btn btn-primary btn-sm">Sửa</a>
-                                                <a asp-action="Delete" asp-route-id="@item.ProductId" class="btn btn-danger btn-sm">Xoá</a>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+            @if (TempData["SuccessMessage"] is string successMsg && !string.IsNullOrWhiteSpace(successMsg))
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert" data-testid="admin-product-alert-success">
+                    <i class="fas fa-check-circle mr-1"></i> @successMsg
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Đóng">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            }
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h3 class="card-title font-weight-bold mb-0">Danh mục mặt hàng Pro Shop (@Model.Count() sản phẩm)</h3>
+                </div>
+                <div class="card-body table-responsive p-0">
+                    <table class="table table-hover text-nowrap align-middle mb-0" data-testid="admin-products-table">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 60px;">ID</th>
+                                <th style="width: 110px;">Ảnh SP</th>
+                                <th>Tên sản phẩm</th>
+                                <th>Danh mục</th>
+                                <th>Giá bán</th>
+                                <th>Tồn kho</th>
+                                <th>Trạng thái</th>
+                                <th style="width: 150px;">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{ int i = 1; }
+                            @foreach (var item in Model)
+                            {
+                                var categoryAlias = item.CategoryProduct?.Alias ?? "other";
+                                var resolvedImg = ProductImageService.NormalizeProductImageUrl(item.Image, categoryAlias);
+                                var hasCustomImg = ProductImageService.HasCustomProductImage(item.Image);
+                                var stock = item.UnitInStock ?? item.Quantity ?? 0;
+                                <tr data-product-row-id="@item.ProductId">
+                                    <td class="align-middle text-muted font-weight-bold">#@(i++)</td>
+                                    <td class="align-middle">
+                                        <div class="d-flex align-items-center">
+                                            <div style="width:56px;height:56px;border-radius:10px;background:#F8FAFC;border:1px solid #E2E8F0;padding:4px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
+                                                <img src="@resolvedImg"
+                                                     alt="@item.Title"
+                                                     width="48"
+                                                     height="48"
+                                                     loading="lazy"
+                                                     decoding="async"
+                                                     data-testid="admin-product-thumb-@item.ProductId"
+                                                     style="width:100%;height:100%;object-fit:contain;"
+                                                     onerror="this.onerror=null;this.src='/assets/products/placeholder-default.svg';" />
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="align-middle">
+                                        <div class="font-weight-bold text-dark">@item.Title</div>
+                                        @if (!string.IsNullOrWhiteSpace(item.Description))
+                                        {
+                                            <div class="small text-muted text-truncate" style="max-width: 280px;">@item.Description</div>
+                                        }
+                                        <div class="mt-1">
+                                            @if (hasCustomImg)
+                                            {
+                                                <span class="badge badge-info" style="font-size:11px;">Ảnh sản phẩm</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge badge-light border" style="font-size:11px;">Ảnh mặc định</span>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td class="align-middle">@(item.CategoryProduct?.Title ?? "Chưa phân loại")</td>
+                                    <td class="align-middle text-danger font-weight-bold">@string.Format("{0:N0} đ", item.Price ?? 0)</td>
+                                    <td class="align-middle">
+                                        @if (stock <= 0)
+                                        {
+                                            <span class="badge badge-danger">Hết hàng (0)</span>
+                                        }
+                                        else if (stock <= 5)
+                                        {
+                                            <span class="badge badge-warning">Sắp hết (@stock)</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-success">Còn @stock</span>
+                                        }
+                                    </td>
+                                    <td class="align-middle">
+                                        @if (item.IsActive)
+                                        {
+                                            <span class="badge badge-success">Đang bán</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-secondary">Ngừng bán</span>
+                                        }
+                                    </td>
+                                    <td class="align-middle">
+                                        <a asp-action="Edit" asp-route-id="@item.ProductId" class="btn btn-sm btn-info mr-1" data-testid="admin-edit-product-@item.ProductId">
+                                            <i class="fas fa-edit"></i> Sửa
+                                        </a>
+                                        <a asp-action="Delete" asp-route-id="@item.ProductId" class="btn btn-sm btn-outline-danger" data-testid="admin-delete-product-@item.ProductId">
+                                            <i class="fas fa-trash"></i> Xoá
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

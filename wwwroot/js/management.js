@@ -57,7 +57,24 @@ function renderManagement() {
   const approveAllBtn = document.getElementById('approveAllBtn');
   if (!pendingList || !todayList) return;
 
-  const pendings = BOOKINGS.filter(b => b.status === 'pending');
+  if (!HAS_SERVER_STATE) {
+    const syncState = (typeof SPIKE_SYNC_STATE !== 'undefined' && (SPIKE_SYNC_STATE === 'offline' || SPIKE_SYNC_STATE === 'error'))
+      ? SPIKE_SYNC_STATE
+      : 'loading';
+    const bannerHtml = renderUiStateBanner(syncState, {
+      title: syncState === 'loading' ? 'Đang tải danh sách điều phối & POS...' : undefined,
+      subtitle: syncState === 'loading' ? 'Đang đồng bộ trạng thái sân, yêu cầu đặt lịch và sổ cái thu ngân.' : (typeof LAST_SYNC_ERROR !== 'undefined' ? LAST_SYNC_ERROR : undefined),
+      onRetry: 'retryServerSync()'
+    });
+    pendingList.innerHTML = bannerHtml;
+    todayList.innerHTML = bannerHtml;
+    const pendingCountEl = document.getElementById('pendingCount');
+    if (pendingCountEl) pendingCountEl.textContent = '…';
+    if (approveAllBtn) approveAllBtn.style.display = 'none';
+    return;
+  }
+
+  const pendings = BOOKINGS.filter(b => b.status === 'pending' && isPendingBookingHoldActive(b));
   const pendingCountEl = document.getElementById('pendingCount');
   if (pendingCountEl) pendingCountEl.textContent = pendings.length;
   if (approveAllBtn) approveAllBtn.style.display = pendings.length > 1 ? 'inline-flex' : 'none';
@@ -72,27 +89,30 @@ function renderManagement() {
       </div>`;
   } else {
     pendingList.innerHTML = pendings.map(b => {
-      const court = getCourtById(b.courtId);
+      const courtName = getCourtDisplayName(b.courtId, b.courtName);
+      const courtNum = Number(b.courtId) || 1;
       const endTime = getEndTime(b.time, b.duration);
       const expectedFee = Number(b.amountDue) || Number(b.courtFee) || calcBookingPrice(b.courtId, b.time, b.duration);
+      const holdLabel = getPendingHoldRemainingLabel(b);
       return `
         <div class="item-row">
-          <div class="item-avatar" style="background:var(--color-warning-light);color:#B45309">S${Number(court.id)}</div>
+          <div class="item-avatar" style="background:var(--color-warning-light);color:#B45309">S${courtNum}</div>
           <div class="item-info">
-            <div class="item-name">
+            <div class="item-name" style="flex-wrap:wrap;gap:0.35rem;">
               <span>${escapeHtml(b.name)}</span>
               <span class="badge badge-neutral text-mono">${escapeHtml(b.id)}</span>
               <span class="badge badge-warning">${escapeHtml(formatDateVN(b.date))}</span>
+              ${holdLabel ? `<span class="badge badge-primary" style="font-size:0.7rem;">⏳ ${escapeHtml(holdLabel)}</span>` : ''}
             </div>
             <div class="item-detail">
-              <strong>${escapeHtml(court.name)}</strong> · <span class="text-mono font-bold">${escapeHtml(b.time)} → ${escapeHtml(endTime)}</span> (${Number(b.duration)}p) · SĐT: <span class="text-mono">${escapeHtml(b.phone)}</span> · Phải thu: <strong class="text-mono" style="color:var(--color-primary)">${formatMoney(expectedFee)}</strong>
+              <strong>${escapeHtml(courtName)}</strong> · <span class="text-mono font-bold">${escapeHtml(b.time)} → ${escapeHtml(endTime)}</span> (${Number(b.duration)}p) · SĐT: <span class="text-mono">${escapeHtml(b.phone)}</span> · Phải thu: <strong class="text-mono" style="color:var(--color-primary)">${formatMoney(expectedFee)}</strong>
             </div>
           </div>
           <div class="item-actions">
-            <button class="btn btn-success btn-sm" onclick="approveBooking('${escapeAttr(b.id)}')">
+            <button type="button" class="btn btn-success btn-sm" onclick="approveBooking('${escapeAttr(b.id)}')">
               <iconify-icon icon="lucide:check" width="14"></iconify-icon> Duyệt vé
             </button>
-            <button class="btn btn-danger-outline btn-sm" onclick="rejectBooking('${escapeAttr(b.id)}')">
+            <button type="button" class="btn btn-danger-outline btn-sm" onclick="rejectBooking('${escapeAttr(b.id)}')">
               <iconify-icon icon="lucide:x" width="14"></iconify-icon> Từ chối
             </button>
           </div>
@@ -124,7 +144,8 @@ function renderManagement() {
       </div>`;
   } else {
     todayList.innerHTML = listData.map(b => {
-      const court = getCourtById(b.courtId);
+      const courtName = getCourtDisplayName(b.courtId, b.courtName);
+      const courtNum = Number(b.courtId) || 1;
       const endTime = getEndTime(b.time, b.duration);
       const isPlaying = b.status === 'playing';
       const isApproved = b.status === 'approved';
@@ -138,53 +159,53 @@ function renderManagement() {
       let actionsHtml = '';
       if (isApproved) {
         actionsHtml = `
-          <button class="btn btn-primary btn-sm" onclick="startMatchNow('${escapeAttr(b.id)}')">
+          <button type="button" class="btn btn-primary btn-sm" onclick="startMatchNow('${escapeAttr(b.id)}')">
             <iconify-icon icon="lucide:play" width="14"></iconify-icon> Nhận sân
           </button>
-          <button class="btn btn-outline btn-sm" onclick="openPos('${escapeAttr(b.id)}')">
+          <button type="button" class="btn btn-outline btn-sm" onclick="openPos('${escapeAttr(b.id)}')">
             <iconify-icon icon="lucide:coffee" width="14"></iconify-icon> POS (${posCount})
           </button>
-          <button class="btn btn-outline btn-sm" onclick="openLedgerModal('booking', '${escapeAttr(b.id)}')">
+          <button type="button" class="btn btn-outline btn-sm" onclick="openLedgerModal('booking', '${escapeAttr(b.id)}')">
             <iconify-icon icon="lucide:wallet" width="14"></iconify-icon> Sổ thu
           </button>
         `;
       } else if (isPlaying) {
         actionsHtml = `
-          <button class="btn btn-accent btn-sm" onclick="openPos('${escapeAttr(b.id)}')">
+          <button type="button" class="btn btn-accent btn-sm" onclick="openPos('${escapeAttr(b.id)}')">
             <iconify-icon icon="lucide:shopping-cart" width="14"></iconify-icon> POS ${posCount > 0 ? `(${posCount})` : ''}
           </button>
-          <button class="btn btn-primary btn-sm" onclick="openLedgerModal('booking', '${escapeAttr(b.id)}')">
+          <button type="button" class="btn btn-primary btn-sm" onclick="openLedgerModal('booking', '${escapeAttr(b.id)}')">
             <iconify-icon icon="lucide:wallet" width="14"></iconify-icon> ${remaining > 0 ? 'Thu tiền' : 'Sổ cái'}
           </button>
-          <button class="btn btn-outline btn-sm" onclick="finishSessionOnly('${escapeAttr(b.id)}')" title="Chỉ đóng ca chơi, KHÔNG tự ghi thu tiền khống">
+          <button type="button" class="btn btn-outline btn-sm" onclick="finishSessionOnly('${escapeAttr(b.id)}')" title="Chỉ đóng ca chơi, KHÔNG tự ghi thu tiền khống">
             <iconify-icon icon="lucide:flag" width="13"></iconify-icon> Đóng ca
           </button>
         `;
       } else if (isCompleted) {
         actionsHtml = `
-          <button class="btn ${remaining > 0 ? 'btn-primary' : 'btn-outline'} btn-sm" onclick="openLedgerModal('booking', '${escapeAttr(b.id)}')">
+          <button type="button" class="btn ${remaining > 0 ? 'btn-primary' : 'btn-outline'} btn-sm" onclick="openLedgerModal('booking', '${escapeAttr(b.id)}')">
             <iconify-icon icon="lucide:wallet" width="14"></iconify-icon> ${remaining > 0 ? `Thu nợ (${formatMoney(remaining)})` : 'Sổ cái / Hoàn'}
           </button>
         `;
       } else {
         actionsHtml = `
           <span class="badge badge-danger">${escapeHtml(statusLabel(b.status, b))}</span>
-          ${paidAmount > 0 ? `<button class="btn btn-outline btn-xs" onclick="openLedgerModal('booking', '${escapeAttr(b.id)}')">Hoàn tiền</button>` : ''}
+          ${paidAmount > 0 ? `<button type="button" class="btn btn-outline btn-xs" onclick="openLedgerModal('booking', '${escapeAttr(b.id)}')">Hoàn tiền</button>` : ''}
         `;
       }
 
       return `
         <div class="item-row" ${isPlaying ? 'style="background:var(--color-primary-50)"' : ''}>
-          <div class="item-avatar" style="background:${isPlaying ? 'var(--color-primary)' : 'var(--bg-surface-alt)'};color:${isPlaying ? '#FFFFFF' : 'var(--text-primary)'}">S${Number(court.id)}</div>
+          <div class="item-avatar" style="background:${isPlaying ? 'var(--color-primary)' : 'var(--bg-surface-alt)'};color:${isPlaying ? '#FFFFFF' : 'var(--text-primary)'}">S${courtNum}</div>
           <div class="item-info">
             <div class="item-name" style="flex-wrap:wrap;gap:0.35rem;">
               <span>${escapeHtml(b.name)}</span>
-              <span class="badge ${statusBadgeClass(b.status)}">${escapeHtml(statusLabel(b.status, b))}</span>
+              <span class="badge ${statusBadgeClass(b.status, b)}">${escapeHtml(statusLabel(b.status, b))}</span>
               ${paymentBadgeHtml(paidAmount, amountDue, b.paymentStatus)}
               <span class="text-xs text-mono text-muted">${escapeHtml(b.id)}</span>
             </div>
             <div class="item-detail">
-              <strong>${escapeHtml(court.name)}</strong> · <span class="text-mono font-semibold">${escapeHtml(b.time)} → ${escapeHtml(endTime)}</span> (${Number(b.duration)}p) · ${escapeHtml(formatDateVN(b.date))} · Phải thu: <strong class="text-mono" style="color:var(--color-indigo)">${formatMoney(amountDue)}</strong> · Đã thu: <strong class="text-mono" style="color:var(--color-success)">${formatMoney(paidAmount)}</strong>
+              <strong>${escapeHtml(courtName)}</strong> · <span class="text-mono font-semibold">${escapeHtml(b.time)} → ${escapeHtml(endTime)}</span> (${Number(b.duration)}p) · ${escapeHtml(formatDateVN(b.date))} · Phải thu: <strong class="text-mono" style="color:var(--color-indigo)">${formatMoney(amountDue)}</strong> · Đã thu: <strong class="text-mono" style="color:var(--color-success)">${formatMoney(paidAmount)}</strong>
             </div>
           </div>
           <div class="item-actions" style="flex-wrap:wrap;">
@@ -216,15 +237,15 @@ function renderManagement() {
       locksListEl.innerHTML = `<div class="empty-state" style="padding:1.25rem"><div class="text-xs text-muted">Tất cả ${COURTS.length} sân đang hoạt động bình thường.</div></div>`;
     } else {
       locksListEl.innerHTML = COURT_LOCKS.map(l => {
-        const c = getCourtById(l.courtId);
+        const courtName = getCourtDisplayName(l.courtId);
         const end = getEndTime(l.startTime, l.duration);
         return `
           <div class="item-row" style="padding:0.65rem 1rem">
             <div class="item-info">
-              <div class="item-name" style="font-size:0.825rem">${escapeHtml(c.name)} <span class="badge badge-danger">${escapeHtml(l.startTime)}→${escapeHtml(end)}</span></div>
+              <div class="item-name" style="font-size:0.825rem">${escapeHtml(courtName)} <span class="badge badge-danger">${escapeHtml(l.startTime)}→${escapeHtml(end)}</span></div>
               <div class="item-detail">${escapeHtml(formatDateVN(l.date))} · ${escapeHtml(l.reason)}</div>
             </div>
-            <button class="btn btn-outline btn-sm" onclick="unlockCourt('${escapeAttr(l.id)}')">Mở khóa</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="unlockCourt('${escapeAttr(l.id)}')">Mở khóa</button>
           </div>
         `;
       }).join('');
@@ -293,7 +314,7 @@ async function approveBooking(id) {
     }
 
     const b = data.booking;
-    const court = getCourtById(b.courtId);
+    const courtName = getCourtDisplayName(b.courtId, b.courtName);
     const qrPlaceholder = document.querySelector('#modalQR .qr-placeholder');
     if (qrPlaceholder) {
       qrPlaceholder.innerHTML = `
@@ -302,7 +323,7 @@ async function approveBooking(id) {
       `;
     }
     document.getElementById('qrName').textContent = `${b.name} (${b.phone})`;
-    document.getElementById('qrCourt').textContent = court.name;
+    document.getElementById('qrCourt').textContent = courtName;
     document.getElementById('qrTime').textContent = `${b.time} (${b.duration} phút) · ${formatDateVN(b.date)}`;
     openModal('modalQR');
     showToast('Đã duyệt đơn', `Đơn ${b.id} của ${b.name} đã chuyển sang Đã duyệt.`, 'success');
@@ -422,7 +443,7 @@ async function openLedgerModal(kind, code) {
     const b = BOOKINGS.find(x => x.id === code);
     if (!b) return;
     isPlayingBooking = b.status === 'playing';
-    const court = getCourtById(b.courtId);
+    const courtName = getCourtDisplayName(b.courtId, b.courtName);
     const posExtra = Number(b.posTotal) || (b.posItems || []).reduce((s, i) => s + Number(i.price || 0) * Number(i.qty || 0), 0);
     const courtFee = Number(b.courtFee) || 0;
     const disc = Number(b.discountAmount) || 0;
@@ -430,7 +451,7 @@ async function openLedgerModal(kind, code) {
     paid = Number(b.paidAmount) || 0;
 
     title = `Sổ Cái Ca Sân — ${b.id}`;
-    subtitle = `${b.name} (${b.phone}) · ${court.name} · ${b.time}`;
+    subtitle = `${b.name} (${b.phone}) · ${courtName} · ${b.time}`;
     summaryHtml = `
       <div class="payment-line"><span class="text-muted">Tiền thuê sân (${Number(b.duration)}p)</span><span class="font-semibold text-mono">${formatMoney(courtFee)}</span></div>
       ${disc > 0 ? `<div class="payment-line"><span class="text-muted">Chiết khấu hội viên</span><span class="font-semibold text-mono" style="color:var(--color-success)">-${formatMoney(disc)}</span></div>` : ''}
@@ -661,7 +682,7 @@ function selectLockCourt(id) {
 }
 
 async function lockCourt() {
-  const court = getCourtById(lockSelectedCourt);
+  const court = getCourtById(lockSelectedCourt) || { id: Number(lockSelectedCourt) || 1, name: getCourtDisplayName(lockSelectedCourt) };
   const date = document.getElementById('lockDate')?.value || getTodayStr();
   const startTime = document.getElementById('lockStart')?.value || '12:00';
   const duration = Number(document.getElementById('lockDuration')?.value) || 60;
@@ -716,9 +737,9 @@ function openPos(bookingId) {
   posCart = JSON.parse(JSON.stringify(posBooking.posItems || []));
   posCourtDuration = Number(posBooking.duration) || 60;
 
-  const court = getCourtById(posBooking.courtId);
+  const courtName = getCourtDisplayName(posBooking.courtId, posBooking.courtName);
   document.getElementById('posCustomer').textContent = `${posBooking.name} (${posBooking.phone})`;
-  document.getElementById('posCourtInfo').textContent = `${court.name} · Bắt đầu: ${posBooking.time} · Mã: ${posBooking.id}`;
+  document.getElementById('posCourtInfo').textContent = `${courtName} · Bắt đầu: ${posBooking.time} · Mã: ${posBooking.id}`;
 
   const moveSel = document.getElementById('posMoveCourtSelect');
   if (moveSel) {
@@ -754,12 +775,12 @@ async function movePosBookingCourt() {
     }
     posBooking = data.booking;
     await syncDatabaseFromServer(true);
-    const court = getCourtById(posBooking.courtId);
-    document.getElementById('posCourtInfo').textContent = `${court.name} · Bắt đầu: ${posBooking.time} · Mã: ${posBooking.id}`;
+    const courtName = getCourtDisplayName(posBooking.courtId, posBooking.courtName);
+    document.getElementById('posCourtInfo').textContent = `${courtName} · Bắt đầu: ${posBooking.time} · Mã: ${posBooking.id}`;
     updatePosCourtFee();
     updatePosTotal();
     renderManagement();
-    showToast('Đã chuyển sân!', `Ca ${posBooking.id} đã chuyển sang ${court.name}.`, 'success');
+    showToast('Đã chuyển sân!', `Ca ${posBooking.id} đã chuyển sang ${courtName}.`, 'success');
   } catch (_) {
     showToast('Lỗi kết nối', 'Không thể chuyển sân lúc này.', 'error');
   }
@@ -800,16 +821,29 @@ async function adjustCourtTime(delta) {
 function renderPosMenu() {
   const grid = document.getElementById('posMenuGrid');
   if (!grid) return;
-  const menuData = Array.isArray(MENU) && MENU.length > 0 ? MENU : MENU_ITEMS;
+  const menuData = Array.isArray(MENU) ? MENU : [];
   grid.innerHTML = menuData.map(item => {
     const stock = typeof item.stock === 'number' ? item.stock : 0;
     const outOfStock = stock <= 0;
+    const rawImg = String(item.imageUrl || item.image || '').trim();
+    const imgUrl = (rawImg.startsWith('/uploads/products/') || rawImg.startsWith('/assets/products/'))
+      ? rawImg
+      : '/assets/products/placeholder-default.svg';
     return `
-      <div class="pos-menu-item" ${outOfStock ? 'style="opacity:0.5;pointer-events:none"' : ''} onclick="addToCart(${Number(item.id)})">
-        <div class="pos-menu-item-icon">${sanitizeIconHtml(item.icon)}</div>
+      <button type="button" class="pos-menu-item" data-pos-product-id="${Number(item.id)}" ${outOfStock ? 'disabled style="opacity:0.5"' : ''} onclick="addToCart(${Number(item.id)})">
+        <div class="pos-menu-item-media">
+          <img class="pos-menu-item-thumb"
+               src="${escapeHtml(imgUrl)}"
+               alt="${escapeHtml(item.name)}"
+               width="56"
+               height="56"
+               loading="lazy"
+               decoding="async"
+               onerror="this.onerror=null;this.src='/assets/products/placeholder-default.svg';" />
+        </div>
         <div class="pos-menu-item-name">${escapeHtml(item.name)}</div>
         <div class="pos-menu-item-price text-mono">${formatMoney(item.price)} <span style="font-size:0.65rem;color:var(--text-muted)">(${outOfStock ? 'Hết' : `Kho: ${stock}`})</span></div>
-      </div>
+      </button>
     `;
   }).join('');
 }
@@ -900,5 +934,8 @@ async function openBookingSettlementFromPos() {
 document.addEventListener('DOMContentLoaded', initManagement);
 window.addEventListener('pickleball:db-synced', () => {
   populateLockStartOptions();
+  renderManagement();
+});
+window.addEventListener('pickleball:sync-state', () => {
   renderManagement();
 });

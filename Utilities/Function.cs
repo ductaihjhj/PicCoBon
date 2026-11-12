@@ -97,7 +97,8 @@ public static class Function
             new(ClaimTypes.Role, roleName),
             new("Avatar", account.Avatar ?? string.Empty),
             new("SkillLevel", account.SkillLevel ?? string.Empty),
-            new("SecurityStamp", account.SecurityStamp ?? string.Empty)
+            new("SecurityStamp", account.SecurityStamp ?? string.Empty),
+            new("MustChangePassword", account.MustChangePassword ? "true" : "false")
         };
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);

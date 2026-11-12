@@ -57,7 +57,8 @@ public sealed class SpikeWebAppFactory : WebApplicationFactory<Program>, IAsyncL
                 ["Security:QrSigningKey"] = "HttpIntegration-HMAC-SecretKey-2026-SpikePickleball-32CharsPlus!",
                 ["BackgroundWorkers:Enabled"] = "false",
                 ["RateLimiting:AuthPermitLimit"] = "500",
-                ["RateLimiting:CheckInPermitLimit"] = "500"
+                ["RateLimiting:CheckInPermitLimit"] = "500",
+                ["RateLimiting:BookingCreatePermitLimit"] = "500"
             });
         });
 

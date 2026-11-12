@@ -408,9 +408,15 @@ public class AccountController : Controller
             return RedirectToAction("Profile");
         }
 
-        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
         {
-            TempData["ProfileError"] = "Mật khẩu mới phải có ít nhất 6 ký tự!";
+            TempData["ProfileError"] = "Mật khẩu mới phải có ít nhất 8 ký tự!";
+            return RedirectToAction("Profile");
+        }
+
+        if (string.Equals(currentPassword, newPassword, StringComparison.Ordinal))
+        {
+            TempData["ProfileError"] = "Mật khẩu mới không được trùng với mật khẩu tạm thời hiện tại!";
             return RedirectToAction("Profile");
         }
 
