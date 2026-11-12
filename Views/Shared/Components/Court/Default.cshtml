@@ -1,4 +1,4 @@
-﻿@model IEnumerable<PickleballClub.Models.TbCourt>
+@model IEnumerable<PickleballClub.Models.TbCourt>
 
 @foreach (var court in Model)
 {
@@ -10,20 +10,20 @@
                 <span class="badge" style="background:rgba(11,17,30,0.78);color:#FFF;backdrop-filter:blur(6px);">
                     @(isIndoor ? "Sân Trong Nhà VIP" : "Sân Ngoài Trời")
                 </span>
-                <span class="match-live-badge available"><span class="match-live-dot"></span> Sẵn sàng đặt lịch</span>
+                <span class="match-live-badge" style="background:rgba(15,23,42,0.82);color:#E2E8F0;">Đang đồng bộ lịch...</span>
             </div>
             <div>
                 <h3 style="font-family:var(--font-display);font-size:1.55rem;font-weight:700;text-transform:uppercase;">@court.CourtName</h3>
-                <p style="font-size:0.82rem;color:#E2E8F0;">@court.TypeLabel — Mặt sân @court.Surface</p>
+                <p style="font-size:0.82rem;color:#E2E8F0;">@court.TypeLabel — Mặt sân @((court.Surface ?? "Acrylic Cushion 8 lớp").Replace("USAPA ", "").Replace("USAPA", "").Trim())</p>
             </div>
         </div>
         <div class="match-card-body">
-            <div class="court-status-callout is-free">
+            <div class="court-status-callout" style="background:#F8FAFC;border-color:#E2E8F0;">
                 <div>
                     <div class="text-xs text-muted">Tình trạng khung giờ</div>
-                    <div style="font-weight:700;font-size:0.9rem;color:var(--color-success);">Trống nhiều khung giờ đẹp hôm nay</div>
+                    <div style="font-weight:700;font-size:0.9rem;color:var(--text-secondary);">Đang kiểm tra lịch trống trực tiếp từ máy chủ...</div>
                 </div>
-                <span class="badge badge-success">Sẵn sàng</span>
+                <span class="badge badge-neutral">Đang tải</span>
             </div>
             <div class="match-card-footer">
                 <div>

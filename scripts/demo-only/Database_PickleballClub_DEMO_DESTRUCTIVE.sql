@@ -1,4 +1,10 @@
 ﻿-- ============================================================================
+-- [CẢNH BÁO NGUY HIỂM / DESTRUCTIVE DEMO SCRIPT ONLY — DO NOT RUN ON PRODUCTION]
+-- Tệp này chứa lệnh DROP DATABASE PickleballClub và CHỈ DÙNG ĐỂ KHỞI TẠO MÔI TRƯỜNG DEMO TRỐNG.
+-- TUYỆT ĐỐI KHÔNG CHẠY TRÊN CƠ SỞ DỮ LIỆU ĐANG VẬN HÀNH HOẶC PRODUCTION!
+-- Để nâng cấp schema an toàn, sử dụng EF Core Migrations (xem docs/DEPLOY_AND_ROLLBACK.md).
+-- ============================================================================
+-- ============================================================================
 -- ĐỒ ÁN MÔN HỌC: PHÁT TRIỂN ỨNG DỤNG WEB (ASP.NET CORE MVC & SQL SERVER)
 -- CƠ SỞ DỮ LIỆU: PickleballClub (Theo chuẩn cấu trúc học phần Harmic)
 -- Server: .\SQLEXPRESS
@@ -277,3 +283,4 @@ INSERT INTO tb_CmsConfig (ConfigKey, ConfigValue, Description) VALUES
 (N'clubTitle', N'Thẻ Hội Viên Spike VIP', N'Tiêu đề gói hội viên'),
 (N'clubDesc', N'Giảm ngay 15% giá thuê sân mọi khung giờ, miễn phí nước khoáng điện giải và ưu tiên giữ lịch cố định hàng tuần.', N'Mô tả gói hội viên');
 GO
+

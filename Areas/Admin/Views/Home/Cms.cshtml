@@ -1,14 +1,14 @@
-﻿@{
+@{
     Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
-    ViewData["Title"] = "Cấu Hình Website (CMS)";
+    ViewData["Title"] = "Cấu Hình Website & Bảng Giá (CMS)";
 }
 
   <section class="page-hero">
     <div class="container page-hero-inner">
       <div>
-        <span class="section-kicker" style="color:var(--color-volt);">Quản trị hệ thống</span>
-        <h1 class="page-hero-title">Cấu Hình Bảng Giá & Nội Dung Website (CMS)</h1>
-        <p class="page-hero-sub">Chỉnh sửa tiêu đề quảng bá, đơn giá thuê sân tiêu chuẩn, giờ đóng/mở cửa và thông tin CLB</p>
+        <span class="section-kicker" style="color:var(--color-volt);">Quản trị hệ thống (Chỉ Admin)</span>
+        <h1 class="page-hero-title">Cấu Hình Bảng Giá, Giờ Mở Cửa &amp; Nội Dung Website</h1>
+        <p class="page-hero-sub">Thay đổi tại đây cập nhật trực tiếp nguồn dữ liệu chuẩn máy chủ (PricingVersion) cho toàn bộ trang Đặt sân &amp; Báo giá</p>
       </div>
       <div style="display:flex;gap:0.65rem;flex-wrap:wrap">
         <a href="/Admin" class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#FFF;">Tổng quan Quản trị</a>
@@ -49,27 +49,37 @@
 
           <div class="card">
             <div class="card-header">
-              <span class="card-header-title">Đơn giá thuê sân cơ bản & Giờ vận hành</span>
+              <span class="card-header-title">Đơn giá thuê sân, Phụ thu Giờ vàng &amp; Giờ hoạt động</span>
             </div>
             <div class="card-body">
               <div class="form-row">
                 <div class="form-group">
-                  <label class="form-label" for="cmsCourtPrice">Giá thuê sân cơ bản (VNĐ / giờ)</label>
-                  <input class="form-input text-mono font-bold" type="number" id="cmsCourtPrice" step="10000" oninput="updateLivePreview()">
+                  <label class="form-label" for="cmsCourtPrice">Giá sân tiêu chuẩn (VNĐ / giờ)</label>
+                  <input class="form-input text-mono font-bold" type="number" id="cmsCourtPrice" step="10000" min="20000" oninput="updateLivePreview()">
                 </div>
                 <div class="form-group">
-                  <label class="form-label" for="cmsHotline">Hotline Ban Quản Lý</label>
-                  <input class="form-input text-mono" type="tel" id="cmsHotline">
+                  <label class="form-label" for="cmsPeakSurcharge">Phụ thu Giờ vàng (VNĐ / giờ)</label>
+                  <input class="form-input text-mono font-bold" type="number" id="cmsPeakSurcharge" step="5000" min="0" oninput="updateLivePreview()">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="cmsOpenTime">Giờ mở cửa</label>
+                  <input class="form-input text-mono" type="time" id="cmsOpenTime" oninput="updateLivePreview()">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="cmsCloseTime">Giờ đóng cửa</label>
+                  <input class="form-input text-mono" type="time" id="cmsCloseTime" oninput="updateLivePreview()">
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group" style="margin-bottom:0">
-                  <label class="form-label" for="cmsOpenTime">Giờ mở cửa</label>
-                  <input class="form-input text-mono" type="time" id="cmsOpenTime">
+                  <label class="form-label" for="cmsPeakStart">Bắt đầu Khung Giờ Vàng</label>
+                  <input class="form-input text-mono" type="time" id="cmsPeakStart" oninput="updateLivePreview()">
                 </div>
                 <div class="form-group" style="margin-bottom:0">
-                  <label class="form-label" for="cmsCloseTime">Giờ đóng cửa</label>
-                  <input class="form-input text-mono" type="time" id="cmsCloseTime">
+                  <label class="form-label" for="cmsHotline">Hotline Ban Quản Lý</label>
+                  <input class="form-input text-mono" type="tel" id="cmsHotline">
                 </div>
               </div>
             </div>
@@ -92,7 +102,7 @@
           </div>
 
           <div style="display:flex;gap:0.85rem;flex-wrap:wrap">
-            <button class="btn btn-primary btn-lg" style="flex:1" onclick="handleSaveCMS()">Lưu cấu hình & Áp dụng ngay</button>
+            <button class="btn btn-primary btn-lg" style="flex:1" onclick="handleSaveCMS()">Lưu cấu hình &amp; Áp dụng ngay</button>
             <button class="btn btn-outline btn-lg" onclick="handleResetCMS()">Khôi phục mặc định</button>
           </div>
         </div>
@@ -100,7 +110,7 @@
         <div class="card sticky-panel">
           <div class="card-header">
             <span class="card-header-title">Xem trước trực tiếp</span>
-            <span class="badge badge-success">Real-time</span>
+            <span class="badge badge-success">Server Sync</span>
           </div>
           <div class="card-body stack-sm">
             <div style="background:#0A0E17;border-radius:var(--radius-sm);padding:1.25rem;color:#fff;display:flex;flex-direction:column;gap:0.45rem">
@@ -110,11 +120,15 @@
               <p id="prevHeroSubtitle" style="font-size:0.78rem;color:#CBD5E1">Mô tả...</p>
             </div>
             <div style="background:#F8FAFC;border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:0.9rem;display:flex;justify-content:space-between;align-items:center">
-              <span class="text-xs font-semibold">Giá sân tiêu chuẩn:</span>
+              <span class="text-xs font-semibold">Giá tiêu chuẩn / Giờ vàng:</span>
               <span class="font-bold text-mono" id="prevPrice" style="color:var(--color-primary)">120.000 đ/h</span>
             </div>
+            <div style="background:#F8FAFC;border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:0.9rem;display:flex;justify-content:space-between;align-items:center">
+              <span class="text-xs font-semibold">Khung giờ mở cửa:</span>
+              <span class="font-bold text-mono" id="prevHours">06:00 – 22:00</span>
+            </div>
             <div style="background:#F8FAFC;border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:0.9rem;display:flex;flex-direction:column;gap:0.3rem">
-              <h5 id="prevClubTitle" style="font-size:0.88rem;font-weight:700">Hội viên VIP</h5>
+              <h5 id="prevClubTitle" style="font-size:0.88rem;font-weight:700">Hội viên CLB</h5>
               <p id="prevClubDesc" style="font-size:0.78rem;color:var(--text-secondary)">Quyền lợi...</p>
             </div>
           </div>
@@ -131,6 +145,8 @@
       document.getElementById('cmsHeroTitle').value = CMS_CONFIG.heroTitle || '';
       document.getElementById('cmsHeroSubtitle').value = CMS_CONFIG.heroSubtitle || '';
       document.getElementById('cmsCourtPrice').value = CMS_CONFIG.courtPrice || 120000;
+      document.getElementById('cmsPeakSurcharge').value = CMS_CONFIG.peakSurcharge ?? 30000;
+      document.getElementById('cmsPeakStart').value = CMS_CONFIG.peakStart || '17:00';
       document.getElementById('cmsHotline').value = CMS_CONFIG.hotline || '0901 234 567';
       document.getElementById('cmsOpenTime').value = CMS_CONFIG.openTime || '06:00';
       document.getElementById('cmsCloseTime').value = CMS_CONFIG.closeTime || '22:00';
@@ -146,36 +162,48 @@
     window.addEventListener('pickleball:db-synced', populateCmsForm);
 
     function updateLivePreview() {
-      document.getElementById('prevHeroTag').textContent = document.getElementById('cmsHeroTag').value || 'USAPA ARENA';
+      document.getElementById('prevHeroTag').textContent = document.getElementById('cmsHeroTag').value || 'PRO ARENA';
       document.getElementById('prevHeroSubtag').textContent = document.getElementById('cmsHeroSubtag').value || '';
       document.getElementById('prevHeroTitle').textContent = document.getElementById('cmsHeroTitle').value || '';
       document.getElementById('prevHeroSubtitle').textContent = document.getElementById('cmsHeroSubtitle').value || '';
       const price = parseInt(document.getElementById('cmsCourtPrice').value) || 120000;
-      document.getElementById('prevPrice').textContent = formatMoney(price) + ' / giờ';
+      const peakExtra = parseInt(document.getElementById('cmsPeakSurcharge').value) || 0;
+      document.getElementById('prevPrice').textContent = `${formatMoney(price)} / ${formatMoney(price + peakExtra)}`;
+      const openT = document.getElementById('cmsOpenTime').value || '06:00';
+      const closeT = document.getElementById('cmsCloseTime').value || '22:00';
+      const peakT = document.getElementById('cmsPeakStart').value || '17:00';
+      document.getElementById('prevHours').textContent = `${openT} – ${closeT} (Vàng từ ${peakT})`;
       document.getElementById('prevClubTitle').textContent = document.getElementById('cmsClubTitle').value || '';
       document.getElementById('prevClubDesc').textContent = document.getElementById('cmsClubDesc').value || '';
     }
 
-    function handleSaveCMS() {
-      saveCmsConfig({
+    async function handleSaveCMS() {
+      const res = await saveCmsConfig({
         heroTag: document.getElementById('cmsHeroTag').value.trim(),
         heroSubtag: document.getElementById('cmsHeroSubtag').value.trim(),
         heroTitle: document.getElementById('cmsHeroTitle').value.trim(),
         heroSubtitle: document.getElementById('cmsHeroSubtitle').value.trim(),
         courtPrice: parseInt(document.getElementById('cmsCourtPrice').value) || 120000,
+        peakSurcharge: parseInt(document.getElementById('cmsPeakSurcharge').value) || 0,
+        peakStart: document.getElementById('cmsPeakStart').value || '17:00',
         hotline: document.getElementById('cmsHotline').value.trim(),
-        openTime: document.getElementById('cmsOpenTime').value,
-        closeTime: document.getElementById('cmsCloseTime').value,
+        openTime: document.getElementById('cmsOpenTime').value || '06:00',
+        closeTime: document.getElementById('cmsCloseTime').value || '22:00',
         clubTitle: document.getElementById('cmsClubTitle').value.trim(),
         clubDesc: document.getElementById('cmsClubDesc').value.trim()
       });
-      showToast('Đã lưu cấu hình CMS!', 'Toàn bộ nội dung và bảng giá đã được cập nhật.', 'success');
+      if (res && res.ok) {
+        showToast('Đã lưu cấu hình CMS!', 'Bảng giá, giờ hoạt động và PricingVersion đã được cập nhật toàn hệ thống.', 'success');
+      }
     }
 
-    function handleResetCMS() {
+    async function handleResetCMS() {
       if (confirm('Khôi phục nội dung CMS về mặc định ban đầu?')) {
-        saveCmsConfig(DEFAULT_CMS);
-        location.reload();
+        const res = await saveCmsConfig(DEFAULT_CMS);
+        if (res && res.ok) {
+          populateCmsForm();
+          showToast('Đã khôi phục mặc định', 'Cấu hình CMS đã trở về giá trị chuẩn.', 'success');
+        }
       }
     }
   </script>

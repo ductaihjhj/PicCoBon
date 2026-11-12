@@ -1,4 +1,4 @@
-﻿@model IEnumerable<PickleballClub.Models.TbCourt>
+@model IEnumerable<PickleballClub.Models.TbCourt>
 @{
     ViewData["Title"] = "Đặt Sân Trực Tuyến — Spike Pickleball Club";
 }
@@ -8,11 +8,11 @@
         <div>
             <span class="section-kicker" style="color:var(--color-volt);">Đặt lịch trực tuyến 24/7</span>
             <h1 class="page-hero-title">Đặt Sân Thi Đấu Pickleball</h1>
-            <p class="page-hero-sub">Chọn ngày, sân thi đấu và khung giờ trống — Hỗ trợ tính năng chia tiền nhóm (Split-Bill) tự động</p>
+            <p class="page-hero-sub">Chọn ngày, sân thi đấu và khung giờ trống — Tự động tính giá bậc thang theo từng phân đoạn 30 phút</p>
         </div>
         <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
-            <span class="badge badge-success">Xác nhận mã QR tức thì</span>
-            <span class="badge" style="background:rgba(255,255,255,0.12);color:#FFF;">Giờ vàng: 17:00 – 21:00</span>
+            <span class="badge badge-success">Cấp mã vé QR định chuẩn</span>
+            <span class="badge" style="background:rgba(255,255,255,0.12);color:#FFF;" id="heroPeakBadge">Giờ vàng từ 17:00</span>
         </div>
     </div>
 </section>
@@ -21,15 +21,23 @@
     <div class="container stack">
         <!-- CHỌN NGÀY THI ĐẤU -->
         <div class="card">
-            <div class="card-header">
+            <div class="card-header" style="flex-wrap:wrap;gap:0.75rem;">
                 <span class="card-header-title">
                     <iconify-icon icon="lucide:calendar-days" width="18" style="color:var(--color-primary)"></iconify-icon>
                     <span>Ngày thi đấu</span>
                 </span>
-                <span class="text-sm font-bold" id="selectedDateLabel" style="color:var(--color-indigo)">Hôm nay</span>
+                <div style="display:flex;align-items:center;gap:0.65rem;flex-wrap:wrap;">
+                    <span class="text-sm font-bold" id="selectedDateLabel" style="color:var(--color-indigo)">Hôm nay</span>
+                    <label for="bookingDatePicker" class="sr-only">Chọn ngày trên lịch</label>
+                    <input type="date" id="bookingDatePicker" class="form-input text-mono" style="width:auto;padding:0.32rem 0.65rem;font-size:0.82rem;min-height:38px;" onchange="selectBookingDate(this.value)" aria-label="Chọn ngày thi đấu trên lịch" />
+                </div>
             </div>
             <div class="card-body">
-                <div class="date-strip" id="quickDateStrip"></div>
+                <div class="conflict-banner" id="bookingDateNotice" role="status" aria-live="polite" style="margin-bottom:0.75rem;">
+                    <iconify-icon icon="lucide:info" width="16"></iconify-icon>
+                    <span id="bookingDateNoticeText"></span>
+                </div>
+                <div class="date-strip" id="quickDateStrip" role="group" aria-label="Danh sách ngày đặt sân nhanh"></div>
             </div>
         </div>
 
@@ -43,10 +51,10 @@
                             <iconify-icon icon="lucide:map-pin" width="18" style="color:var(--color-indigo)"></iconify-icon>
                             <span>Sân thi đấu</span>
                         </span>
-                        <span class="text-xs text-muted">Sân Indoor VIP (+20.000đ/h) — Sân Outdoor (Tiêu chuẩn)</span>
+                        <span class="text-xs text-muted">Sân Indoor VIP (<span data-cms="vipSurchargeFormatted">+20.000 đ/h</span>) — Sân Outdoor (Tiêu chuẩn)</span>
                     </div>
                     <div class="card-body">
-                        <div class="court-options" id="courtOptions"></div>
+                        <div class="court-options" id="courtOptions" role="radiogroup" aria-label="Chọn sân thi đấu"></div>
                     </div>
                 </div>
 
@@ -71,9 +79,9 @@
                         </div>
 
                         <div>
-                            <div class="flex-between mb-sm">
-                                <span class="form-label">Biểu đồ lấp đầy sân trong ngày:</span>
-                                <div style="display:flex;gap:0.75rem;font-size:0.75rem;color:var(--text-secondary)">
+                            <div class="flex-between mb-sm" style="flex-wrap:wrap;gap:0.5rem;">
+                                <span class="form-label">Biểu đồ lấp đầy sân trong khung giờ mở cửa:</span>
+                                <div style="display:flex;gap:0.75rem;flex-wrap:wrap;font-size:0.75rem;color:var(--text-secondary)">
                                     <span><strong style="color:var(--color-success)">●</strong> Trống</span>
                                     <span><strong style="color:var(--color-indigo)">●</strong> Đã đặt</span>
                                     <span><strong style="color:var(--color-warning)">●</strong> Chờ duyệt</span>
@@ -87,8 +95,8 @@
                         </div>
 
                         <div>
-                            <div class="flex-between mb-sm">
-                                <span class="form-label">Chọn giờ bắt đầu (Các ô mờ đã kín lịch):</span>
+                            <div class="flex-between mb-sm" style="flex-wrap:wrap;gap:0.5rem;">
+                                <span class="form-label">Chọn giờ bắt đầu (Theo giờ hoạt động CLB):</span>
                                 <select class="form-select" id="bookingStart" style="width:auto;padding:0.3rem 0.75rem;font-size:0.8rem" onchange="selectStartTime(this.value)"></select>
                             </div>
                             <div class="slot-grid" id="timeSlotGrid"></div>
@@ -99,12 +107,14 @@
 
             <!-- CỘT PHẢI: PHIẾU XÁC NHẬN & CHIA TIỀN -->
             <div class="card sticky-panel">
-                <div class="card-header" style="background:#0B111E;color:#FFFFFF;">
+                <div class="card-header" style="background:#0B111E;color:#FFFFFF;flex-wrap:wrap;gap:0.5rem;">
                     <span class="card-header-title" style="color:#FFFFFF;">
                         <iconify-icon icon="lucide:receipt" width="18" style="color:var(--color-volt)"></iconify-icon>
                         <span id="bookingFormTitle">Phiếu đặt sân</span>
                     </span>
-                    <span class="badge" style="background:rgba(216,248,38,0.18);color:var(--color-volt);">Tự động tính giá</span>
+                    <button type="button" id="bookingQuoteSourceBadge" class="badge quote-source-badge" onclick="retryServerQuote()" style="background:rgba(216,248,38,0.18);color:var(--color-volt);border:1px solid rgba(216,248,38,0.35);cursor:pointer;" title="Trạng thái xác thực báo giá từ máy chủ">
+                        Đang đồng bộ giá...
+                    </button>
                 </div>
 
                 <div class="card-body">
@@ -114,14 +124,14 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="bookingPhone">Số điện thoại nhận mã QR *</label>
-                        <input class="form-input text-mono" type="tel" id="bookingPhone" placeholder="Nhập SĐT liên hệ">
+                        <label class="form-label" for="bookingPhone">Số điện thoại liên hệ *</label>
+                        <input class="form-input text-mono" type="tel" id="bookingPhone" placeholder="VD: 0901234567">
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label" for="bookingPlayers">Số người chơi</label>
-                            <select class="form-select" id="bookingPlayers" onchange="updatePriceBreakdown()">
+                            <select class="form-select" id="bookingPlayers" onchange="updatePriceBreakdown(false)">
                                 <option value="2">Đánh đơn (2 người)</option>
                                 <option value="4" selected>Đánh đôi (4 người)</option>
                                 <option value="6">Nhóm 6 người</option>
@@ -139,24 +149,8 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Dịch vụ đi kèm (Tùy chọn):</label>
-                        <div style="display:flex;flex-direction:column;gap:0.45rem;margin-top:0.2rem">
-                            <label class="custom-checkbox-label" style="justify-content:space-between;padding:0.55rem 0.75rem;background:#F8FAFC;border-radius:var(--radius-xs);border:1px solid var(--border-color)">
-                                <span style="display:inline-flex;align-items:center;gap:0.45rem;font-size:0.82rem;">
-                                    <input type="checkbox" id="extraPaddles" onchange="updatePriceBreakdown()">
-                                    <span>Thuê 2 Vợt Carbon Pro</span>
-                                </span>
-                                <span class="text-mono font-bold text-xs" style="color:var(--color-primary)">+80.000 đ</span>
-                            </label>
-                            <label class="custom-checkbox-label" style="justify-content:space-between;padding:0.55rem 0.75rem;background:#F8FAFC;border-radius:var(--radius-xs);border:1px solid var(--border-color)">
-                                <span style="display:inline-flex;align-items:center;gap:0.45rem;font-size:0.82rem;">
-                                    <input type="checkbox" id="extraBalls" onchange="updatePriceBreakdown()">
-                                    <span>Bóng thi đấu Franklin X-40 (3 quả)</span>
-                                </span>
-                                <span class="text-mono font-bold text-xs" style="color:var(--color-primary)">+50.000 đ</span>
-                            </label>
-                        </div>
+                    <div style="padding:0.65rem 0.85rem;background:#F8FAFC;border:1px solid var(--border-color);border-radius:var(--radius-xs);font-size:0.78rem;color:var(--text-secondary);">
+                        <strong style="color:var(--text-primary);">Dịch vụ thuê vợt, bóng &amp; nước uống:</strong> Đặt thêm tại <a href="/Product" style="color:var(--color-primary);font-weight:700;">Cửa hàng Pro Shop</a> (kiểm tra tồn kho thật) hoặc gọi trực tiếp tại quầy POS khi nhận sân.
                     </div>
 
                     <div class="payment-summary mt-sm">
@@ -165,25 +159,21 @@
                             <span class="font-bold text-mono" id="summaryDateTime">--</span>
                         </div>
                         <div class="payment-line">
-                            <span class="text-muted">Đơn giá sân:</span>
+                            <span class="text-muted">Phân đoạn giá:</span>
                             <span class="font-semibold text-mono" id="summaryHourlyRate">--</span>
                         </div>
                         <div class="payment-line">
-                            <span class="text-muted">Thành tiền thuê sân:</span>
+                            <span class="text-muted">Tiền sân (sau ưu đãi):</span>
                             <span class="font-semibold text-mono" id="summaryCourtFee">--</span>
                         </div>
-                        <div class="payment-line" id="summaryExtrasRow" style="display:none">
-                            <span class="text-muted">Phụ phí vợt / bóng:</span>
-                            <span class="font-semibold text-mono" id="summaryExtrasFee">0 đ</span>
-                        </div>
                         <div class="payment-line total">
-                            <span>Tổng thanh toán:</span>
+                            <span>Tổng phải thanh toán:</span>
                             <span class="text-mono" id="summaryTotal">0 đ</span>
                         </div>
                         <div class="payment-line split-bill-callout">
-                            <span style="font-weight:700;font-size:0.8rem;display:inline-flex;align-items:center;gap:0.35rem;">
+                            <span style="font-weight:700;font-size:0.78rem;display:inline-flex;align-items:center;gap:0.35rem;">
                                 <iconify-icon icon="lucide:users" width="14"></iconify-icon>
-                                <span>Chia đều mỗi người:</span>
+                                <span>Ước tính chia đều (tham khảo):</span>
                             </span>
                             <span class="font-bold text-mono" id="summarySplitPerPerson">0 đ / người</span>
                         </div>
@@ -194,7 +184,7 @@
                         <span id="conflictBannerText">Khung giờ này bị trùng lịch. Vui lòng chọn giờ khác!</span>
                     </div>
 
-                    <button class="btn btn-primary btn-block btn-lg mt-md" onclick="submitBooking()">
+                    <button class="btn btn-primary btn-block btn-lg mt-md" id="btnSubmitBooking" onclick="submitBooking()">
                         <iconify-icon icon="lucide:check-circle-2" width="18"></iconify-icon>
                         <span>Xác nhận đặt sân &amp; Nhận mã QR</span>
                     </button>
@@ -204,31 +194,32 @@
     </div>
 </main>
 
-<!-- MODAL MÃ QR THÀNH CÔNG -->
+<!-- MODAL MÃ QR THÀNH CÔNG — PREMIUM DIGITAL TICKET (V4-QR) -->
 <div class="modal-overlay" id="modalQR">
-    <div class="modal modal-sm">
-        <div class="modal-header">
-            <h3 class="modal-title" style="color:var(--color-primary)">Đặt sân thành công</h3>
+    <div class="modal" style="max-width:520px;width:94vw;">
+        <div class="modal-header no-print">
+            <h3 class="modal-title" style="color:var(--color-primary)">Vé Sân Điện Tử · Đặt Sân Thành Công</h3>
             <button class="modal-close" onclick="closeModal('modalQR')">✕</button>
         </div>
-        <div class="modal-body" style="text-align:center">
-            <div class="qr-placeholder">
-                <iconify-icon icon="lucide:qr-code" width="76"></iconify-icon>
-                <div class="text-xs font-bold text-mono" id="qrCodeBadge">PB-XXXXXX</div>
-            </div>
-            <p class="text-xs text-muted mt-sm">Vui lòng lưu lại mã QR này để xuất trình tại quầy lễ tân khi nhận sân</p>
+        <div class="modal-body" style="padding:1rem;">
+            <div id="bookingDigitalTicketHost"></div>
 
-            <div class="payment-summary mt-md" style="text-align:left">
-                <div class="payment-line"><span class="text-muted">Mã đặt sân</span><span class="font-bold text-mono" id="qrRef" style="color:var(--color-indigo)"></span></div>
-                <div class="payment-line"><span class="text-muted">Khách hàng</span><span class="font-semibold" id="qrName"></span></div>
-                <div class="payment-line"><span class="text-muted">Ngày thi đấu</span><span class="font-semibold" id="qrDate"></span></div>
-                <div class="payment-line"><span class="text-muted">Sân đấu</span><span class="font-semibold" id="qrCourt"></span></div>
-                <div class="payment-line"><span class="text-muted">Khung giờ</span><span class="font-semibold text-mono" id="qrTime"></span></div>
-                <div class="payment-line total"><span>Tổng chi phí</span><span class="font-bold text-mono" id="qrTotal"></span></div>
+            <!-- UI-C01: Giữ các trường text ẩn phục vụ kiểm thử tự động nhưng KHÔNG render trùng ảnh QR -->
+            <div style="display:none;" aria-hidden="true">
+                <div id="qrCodeBadge"></div>
+                <a id="qrDownloadPngBtn" href="#"></a>
+                <div id="guestAccessTokenBox"><code id="qrGuestTokenValue"></code></div>
+                <span id="qrRef"></span>
+                <span id="qrStatusText"></span>
+                <span id="qrName"></span>
+                <span id="qrDate"></span>
+                <span id="qrCourt"></span>
+                <span id="qrTime"></span>
+                <span id="qrTotal"></span>
             </div>
         </div>
-        <div class="modal-footer">
-            <a href="/Lookup" class="btn btn-outline" style="flex:1">Xem vé của tôi</a>
+        <div class="modal-footer no-print">
+            <a href="/Lookup" id="qrOpenLookupLink" class="btn btn-outline" style="flex:1">Mở trang Tra cứu</a>
             <button class="btn btn-primary" style="flex:1" onclick="closeModal('modalQR')">Hoàn tất</button>
         </div>
     </div>

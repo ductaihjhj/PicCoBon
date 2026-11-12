@@ -1,8 +1,10 @@
-﻿@model PickleballClub.Models.TbProduct
+@model PickleballClub.Models.TbProduct
+@using PickleballClub.Services
 
 @{
     ViewData["Title"] = "Xoá sản phẩm";
     Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var resolvedImg = ProductImageService.NormalizeProductImageUrl(Model.Image, Model.CategoryProduct?.Alias);
 }
 
 <div class="content-wrapper">
@@ -10,7 +12,7 @@
         <div class="container-fluid">
             <div class="row mb-2">
                 <div class="col-sm-6">
-                    <h1>Xoá sản phẩm</h1>
+                    <h1 class="m-0 font-weight-bold">Xoá sản phẩm #@Model.ProductId</h1>
                 </div>
             </div>
         </div>
@@ -18,16 +20,29 @@
 
     <section class="content">
         <div class="container-fluid">
-            <div class="card card-danger">
+            <div class="card card-danger shadow-sm">
                 <div class="card-header">
-                    <h3 class="card-title">Xác nhận xoá sản phẩm</h3>
+                    <h3 class="card-title font-weight-bold">Xác nhận xoá sản phẩm khỏi danh mục</h3>
                 </div>
                 <div class="card-body">
-                    <p><strong>Tên sản phẩm:</strong> @Model.Title</p>
-                    <p><strong>Đơn giá:</strong> @string.Format("{0:N0} đ", Model.Price)</p>
+                    <div class="d-flex align-items-center mb-3" style="gap: 16px;">
+                        <div style="width:84px;height:84px;border-radius:12px;background:#F8FAFC;border:1px solid #E2E8F0;padding:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <img src="@resolvedImg"
+                                 alt="@Model.Title"
+                                 width="68"
+                                 height="68"
+                                 style="width:100%;height:100%;object-fit:contain;"
+                                 onerror="this.onerror=null;this.src='/assets/products/placeholder-default.svg';" />
+                        </div>
+                        <div>
+                            <h5 class="font-weight-bold mb-1">@Model.Title</h5>
+                            <p class="mb-1 text-muted">Danh mục: <strong>@(Model.CategoryProduct?.Title ?? "Chưa phân loại")</strong></p>
+                            <p class="mb-0 text-danger font-weight-bold">Đơn giá: @string.Format("{0:N0} đ", Model.Price ?? 0) · Tồn kho: @(Model.UnitInStock ?? Model.Quantity ?? 0)</p>
+                        </div>
+                    </div>
                     <form asp-action="Delete">
                         <input type="hidden" asp-for="ProductId" />
-                        <input type="submit" value="Xoá" class="btn btn-danger" />
+                        <input type="submit" value="Xác nhận xoá" class="btn btn-danger font-weight-bold mr-2" />
                         <a asp-action="Index" class="btn btn-secondary">Quay lại</a>
                     </form>
                 </div>

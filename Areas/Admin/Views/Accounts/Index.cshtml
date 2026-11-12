@@ -1,13 +1,15 @@
-﻿@model IEnumerable<PickleballClub.Models.TbAccount>
+@model IEnumerable<PickleballClub.Models.TbAccount>
 @using PickleballClub.Models
+@using PickleballClub.Services
 @{
-    ViewData["Title"] = "Quản Lý Hội Viên & Vận Động Viên";
+    ViewData["Title"] = "Quản Lý Hội Viên & Nhân Sự";
     Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
-    var allBookings = ViewBag.AllBookings as List<TbBooking> ?? new List<TbBooking>();
+    var spendDict = ViewBag.VerifiedSpendByAccount as Dictionary<int, int> ?? new Dictionary<int, int>();
+    var countDict = ViewBag.BookingCountByAccount as Dictionary<int, int> ?? new Dictionary<int, int>();
     var list = Model.ToList();
     int totalAccounts = list.Count;
-    int vipMembers = list.Count(a => a.MemberTier == "Hội viên Vàng VIP");
-    int duprProfiles = list.Count(a => !string.IsNullOrWhiteSpace(a.SkillLevel));
+    int vipMembers = list.Count(a => a.MemberTier == "Hội viên Vàng VIP" || spendDict.GetValueOrDefault(a.AccountId) >= 5_000_000);
+    int staffCount = list.Count(a => a.RoleId == 3);
     int adminCount = list.Count(a => a.RoleId == 1);
 }
 
@@ -15,12 +17,12 @@
     <div class="container-fluid">
         <div class="row">
             <div>
-                <span class="section-kicker" style="color:var(--color-volt);">Quản trị CLB &amp; Cộng đồng VĐV</span>
-                <h1>Quản Lý Hội Viên &amp; Hồ Sơ Vận Động Viên</h1>
+                <span class="section-kicker" style="color:var(--color-volt);">Quản trị CLB &amp; Phân quyền RBAC</span>
+                <h1>Quản Lý Hội Viên, Nhân Sự &amp; Hồ Sơ VĐV</h1>
             </div>
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="/Admin">Trang chủ Admin</a></li>
-                <li class="breadcrumb-item active">Hội viên CLB</li>
+                <li class="breadcrumb-item active">Hội viên &amp; Nhân sự</li>
             </ol>
         </div>
     </div>
@@ -30,7 +32,7 @@
     <div class="container-fluid">
         @if (TempData["AdminAccountSuccess"] != null)
         {
-            <div style="background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;padding:0.9rem 1.2rem;border-radius:12px;margin-bottom:1.25rem;font-weight:600;font-size:0.88rem;">
+            <div style="background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;padding:0.95rem 1.2rem;border-radius:12px;margin-bottom:1.25rem;font-weight:600;font-size:0.88rem;word-break:break-word;">
                 ✓ @TempData["AdminAccountSuccess"]
             </div>
         }
@@ -41,7 +43,6 @@
             </div>
         }
 
-        <!-- 4 KPI THỐNG KÊ HỘI VIÊN -->
         <div class="stats-row" style="margin-bottom:1.5rem;">
             <div class="stat-widget">
                 <div class="stat-widget-top">
@@ -49,7 +50,7 @@
                     <div class="stat-icon" style="background:var(--color-primary-50);color:var(--color-primary)"><iconify-icon icon="lucide:users"></iconify-icon></div>
                 </div>
                 <div class="stat-value primary text-mono">@totalAccounts</div>
-                <div class="stat-detail">Hội viên &amp; Quản trị viên</div>
+                <div class="stat-detail">Hội viên &amp; Nhân sự vận hành</div>
             </div>
             <div class="stat-widget">
                 <div class="stat-widget-top">
@@ -61,11 +62,11 @@
             </div>
             <div class="stat-widget">
                 <div class="stat-widget-top">
-                    <span class="stat-label">Hồ sơ VĐV (DUPR)</span>
-                    <div class="stat-icon" style="background:var(--color-indigo-50);color:var(--color-indigo)"><iconify-icon icon="lucide:trophy"></iconify-icon></div>
+                    <span class="stat-label">Thu ngân / Vận hành</span>
+                    <div class="stat-icon" style="background:var(--color-indigo-50);color:var(--color-indigo)"><iconify-icon icon="lucide:user-check"></iconify-icon></div>
                 </div>
-                <div class="stat-value indigo text-mono">@duprProfiles</div>
-                <div class="stat-detail">Đã cập nhật trình độ thi đấu</div>
+                <div class="stat-value indigo text-mono">@staffCount</div>
+                <div class="stat-detail">Vai trò Staff (Quầy &amp; Soát vé)</div>
             </div>
             <div class="stat-widget">
                 <div class="stat-widget-top">
@@ -73,25 +74,25 @@
                     <div class="stat-icon" style="background:var(--color-success-light);color:var(--color-success)"><iconify-icon icon="lucide:shield-check"></iconify-icon></div>
                 </div>
                 <div class="stat-value accent text-mono">@adminCount</div>
-                <div class="stat-detail">Tài khoản điều hành hệ thống</div>
+                <div class="stat-detail">Vai trò Admin toàn quyền</div>
             </div>
         </div>
 
-        <!-- FORM THÊM HỘI VIÊN MỚI TẠI QUẦY -->
+        <!-- FORM TẠO TÀI KHOẢN HỘI VIÊN / NHÂN VIÊN (KHÔNG DÙNG MẬT KHẨU YẾU MẶC ĐỊNH) -->
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">
                     <iconify-icon icon="lucide:user-plus" width="18" style="color:var(--color-primary);"></iconify-icon>
-                    <span>Cấp thẻ Hội viên mới nhanh tại quầy lễ tân</span>
+                    <span>Cấp thẻ Hội viên hoặc Tài khoản Nhân sự tại quầy</span>
                 </h3>
-                <span class="badge badge-primary">Mật khẩu mặc định: 123456</span>
+                <span class="badge badge-primary">Tự động sinh mật khẩu tạm ngẫu nhiên 1 lần nếu để trống</span>
             </div>
             <div class="card-body">
                 <form asp-area="Admin" asp-controller="Accounts" asp-action="CreateMember" method="post">
                     @Html.AntiForgeryToken()
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0.85rem;align-items:end;">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:0.85rem;align-items:end;">
                         <div>
-                            <label class="control-label">Họ và tên hội viên *</label>
+                            <label class="control-label">Họ và tên *</label>
                             <input type="text" name="fullName" class="form-control" required placeholder="VD: Trần Minh Quân">
                         </div>
                         <div>
@@ -100,29 +101,32 @@
                         </div>
                         <div>
                             <label class="control-label">Email</label>
-                            <input type="email" name="email" class="form-control" placeholder="hui-vien@gmail.com">
+                            <input type="email" name="email" class="form-control" placeholder="hoi-vien@gmail.com">
                         </div>
                         <div>
-                            <label class="control-label">Trình độ DUPR</label>
-                            <select name="skillLevel" class="form-control">
-                                <option value="Newbie / Cơ bản">Newbie / Cơ bản</option>
-                                <option value="Giao lưu (DUPR 3.0)" selected>Giao lưu (DUPR 3.0)</option>
-                                <option value="Khá (DUPR 3.5+)">Khá (DUPR 3.5+)</option>
-                                <option value="Bán chuyên (DUPR 4.0+)">Bán chuyên (DUPR 4.0+)</option>
+                            <label class="control-label">Mật khẩu (để trống = tự sinh)</label>
+                            <input type="password" name="password" class="form-control" minlength="8" placeholder="Tự sinh MK tạm nếu trống">
+                        </div>
+                        <div>
+                            <label class="control-label">Hạng thẻ</label>
+                            <select name="memberTier" class="form-control">
+                                <option value="Hội viên Tiêu chuẩn">Hội viên Tiêu chuẩn</option>
+                                <option value="Hội viên Bạc">Hội viên Bạc (-5%)</option>
+                                <option value="Hội viên Vàng VIP">Hội viên Vàng VIP (-15%)</option>
                             </select>
                         </div>
                         <div>
-                            <label class="control-label">Hạng thẻ ban đầu</label>
-                            <select name="memberTier" class="form-control">
-                                <option value="Hội viên Tiêu chuẩn">Hội viên Tiêu chuẩn</option>
-                                <option value="Hội viên Bạc">Hội viên Bạc</option>
-                                <option value="Hội viên Vàng VIP">Hội viên Vàng VIP</option>
+                            <label class="control-label">Vai trò hệ thống</label>
+                            <select name="roleId" class="form-control">
+                                <option value="2">Hội viên (Customer)</option>
+                                <option value="3">Nhân viên vận hành (Staff)</option>
+                                <option value="1">Quản trị viên (Admin)</option>
                             </select>
                         </div>
                         <div>
                             <button type="submit" class="btn btn-primary" style="width:100%;height:42px;">
                                 <iconify-icon icon="lucide:plus" width="16"></iconify-icon>
-                                <span>Tạo thẻ Hội viên</span>
+                                <span>Tạo tài khoản</span>
                             </button>
                         </div>
                     </div>
@@ -130,24 +134,24 @@
             </div>
         </div>
 
-        <!-- BẢNG DANH SÁCH HỘI VIÊN & VĐV -->
+        <!-- BẢNG DANH SÁCH TÀI KHOẢN -->
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">
                     <iconify-icon icon="lucide:award" width="18" style="color:var(--color-indigo);"></iconify-icon>
-                    <span>Danh sách Tài khoản &amp; Hồ sơ Vận động viên (@totalAccounts thành viên)</span>
+                    <span>Danh sách Tài khoản &amp; Chi tiêu Sổ quỹ xác thực (@totalAccounts tài khoản)</span>
                 </h3>
             </div>
             <div class="card-body p-0">
-                <div class="table-wrap">
+                <div class="table-wrap" style="overflow-x:auto;">
                     <table class="table">
                         <thead>
                             <tr>
                                 <th>Mã thẻ</th>
-                                <th>Hội viên</th>
+                                <th>Thành viên</th>
                                 <th>Liên hệ</th>
-                                <th>Thông số VĐV (DUPR / Vợt)</th>
-                                <th>Lượt đặt sân</th>
+                                <th>Trình độ DUPR</th>
+                                <th>Thực chi Sổ quỹ</th>
                                 <th>Hạng thẻ &amp; Phân quyền</th>
                                 <th>Trạng thái</th>
                                 <th>Thao tác</th>
@@ -156,30 +160,19 @@
                         <tbody>
                             @foreach (var acc in list)
                             {
-                                int matchCount = allBookings.Count(b => b.AccountId == acc.AccountId || (!string.IsNullOrEmpty(acc.Phone) && b.Phone == acc.Phone));
-                                int spentSum = allBookings
-                                    .Where(b => b.AccountId == acc.AccountId || (!string.IsNullOrEmpty(acc.Phone) && b.Phone == acc.Phone))
-                                    .Sum(b => b.TotalPaid > 0 ? b.TotalPaid : b.CourtFee);
-                                string curTier = !string.IsNullOrWhiteSpace(acc.MemberTier)
-                                    ? acc.MemberTier
-                                    : (matchCount >= 10 ? "Hội viên Vàng VIP" : matchCount >= 3 ? "Hội viên Bạc" : "Hội viên Tiêu chuẩn");
-                                string avatarUrl = !string.IsNullOrWhiteSpace(acc.Avatar)
-                                    ? acc.Avatar
-                                    : "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80";
+                                int matchCount = countDict.GetValueOrDefault(acc.AccountId);
+                                int verifiedSpent = Math.Max(0, spendDict.GetValueOrDefault(acc.AccountId));
+                                var (resolvedTier, _) = PricingService.ResolveMemberTier(verifiedSpent, acc.MemberTier);
+                                string curTier = !string.IsNullOrWhiteSpace(acc.MemberTier) ? acc.MemberTier : resolvedTier;
 
                                 <tr>
                                     <td>
                                         <span class="text-mono font-weight-bold" style="color:var(--color-indigo);">#SPK-@acc.AccountId.ToString("D4")</span>
                                     </td>
                                     <td>
-                                        <div style="display:flex;align-items:center;gap:0.65rem;">
-                                            <img src="@avatarUrl" alt="@acc.FullName" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid #E2E8F0;">
-                                            <div>
-                                                <div class="font-weight-bold">@(string.IsNullOrEmpty(acc.FullName) ? acc.Username : acc.FullName)</div>
-                                                <div class="text-xs text-muted">
-                                                    @(acc.Gender ?? "Chưa rõ") @(string.IsNullOrEmpty(acc.Address) ? "" : $"· {acc.Address}")
-                                                </div>
-                                            </div>
+                                        <div class="font-weight-bold">@(string.IsNullOrEmpty(acc.FullName) ? acc.Username : acc.FullName)</div>
+                                        <div class="text-xs text-muted">
+                                            @@@acc.Username @(acc.MustChangePassword ? "· Cần đổi MK tạm" : "")
                                         </div>
                                     </td>
                                     <td>
@@ -188,14 +181,10 @@
                                     </td>
                                     <td>
                                         <span class="badge badge-primary">@(string.IsNullOrEmpty(acc.SkillLevel) ? "Giao lưu (DUPR 3.0)" : acc.SkillLevel)</span>
-                                        <div class="text-xs text-muted" style="margin-top:4px;">
-                                            @(string.IsNullOrEmpty(acc.DominantHand) ? "Tay phải" : acc.DominantHand)
-                                            @(!string.IsNullOrEmpty(acc.PaddleBrand) ? $" · {acc.PaddleBrand}" : "")
-                                        </div>
                                     </td>
                                     <td>
                                         <div class="text-mono font-weight-bold">@matchCount ca</div>
-                                        <div class="text-xs text-mono" style="color:var(--color-primary);">@spentSum.ToString("N0") đ</div>
+                                        <div class="text-xs text-mono" style="color:var(--color-primary);">@verifiedSpent.ToString("N0") đ</div>
                                     </td>
                                     <td>
                                         <form asp-area="Admin" asp-controller="Accounts" asp-action="UpdateMemberTier" method="post" style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap;">
@@ -208,8 +197,9 @@
                                                 <option value="Hội viên Vàng VIP" selected="@(curTier == "Hội viên Vàng VIP")">Hạng Vàng VIP</option>
                                             </select>
                                             <select name="roleId" class="form-control" style="width:auto;padding:0.25rem 0.5rem;font-size:0.78rem;">
-                                                <option value="2" selected="@(acc.RoleId != 1)">Hội viên</option>
-                                                <option value="1" selected="@(acc.RoleId == 1)">Quản trị (Admin)</option>
+                                                <option value="2" selected="@(acc.RoleId == 2 || acc.RoleId == null)">Hội viên</option>
+                                                <option value="3" selected="@(acc.RoleId == 3)">Staff (Thu ngân)</option>
+                                                <option value="1" selected="@(acc.RoleId == 1)">Admin</option>
                                             </select>
                                             <button type="submit" class="btn btn-primary btn-xs">Lưu</button>
                                         </form>

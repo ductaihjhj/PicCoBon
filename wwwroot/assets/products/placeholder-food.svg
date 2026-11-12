@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" fill="none">
+  <defs>
+    <radialGradient id="pedestalFood" cx="50%" cy="82%" r="38%">
+      <stop offset="0%" stop-color="#0B111E" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#0B111E" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="packWrap" x1="150" y1="180" x2="450" y2="440" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="55%" stop-color="#EA580C"/>
+      <stop offset="100%" stop-color="#C2410C"/>
+    </linearGradient>
+    <linearGradient id="breadTop" x1="180" y1="175" x2="420" y2="305" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="300" cy="492" rx="165" ry="28" fill="url(#pedestalFood)"/>
+  <circle cx="300" cy="300" r="185" stroke="#F59E0B" stroke-opacity="0.16" stroke-width="2" stroke-dasharray="8 8"/>
+  <!-- Athletic Fuel Box / Sandwich Club Pack -->
+  <path d="M168 272C168 205 224 166 300 166C376 166 432 205 432 272H168Z" fill="url(#breadTop)" stroke="#0B111E" stroke-width="6" stroke-linejoin="round"/>
+  <!-- Fresh Greens & Protein Layer -->
+  <path d="M156 286C174 270 196 298 216 284C236 270 258 298 278 284C298 270 320 298 340 284C360 270 382 298 402 284C418 272 432 282 444 288" stroke="#10B981" stroke-width="18" stroke-linecap="round"/>
+  <rect x="172" y="300" width="256" height="24" rx="12" fill="#FF5520" stroke="#0B111E" stroke-width="5"/>
+  <!-- Kraft Deli Wrapper Base -->
+  <path d="M174 326H426L406 456C403 472 389 484 372 484H228C211 484 197 472 194 456L174 326Z" fill="url(#packWrap)" stroke="#0B111E" stroke-width="6" stroke-linejoin="round"/>
+  <rect x="218" y="362" width="164" height="76" rx="12" fill="#0B111E"/>
+  <rect x="234" y="378" width="84" height="12" rx="6" fill="#D8F826"/>
+  <rect x="234" y="402" width="132" height="10" rx="5" fill="#FFFFFF" fill-opacity="0.8"/>
+</svg>

@@ -1,7 +1,7 @@
 @model PickleballClub.Models.TbAccount
-@using PickleballClub.Utilities
 @{
     Layout = null;
+    var authError = TempData["AuthError"] as string;
 }
 <!DOCTYPE html>
 <html lang="vi">
@@ -71,9 +71,10 @@
             <p class="admin-auth-sub">Đăng nhập hệ thống điều hành Spike Pickleball Club</p>
         </div>
 
-        <form asp-controller="Login" asp-action="Index" method="post">
+        <form asp-area="Admin" asp-controller="Login" asp-action="Index" method="post">
+            @Html.AntiForgeryToken()
             <div class="form-group">
-                <label class="form-label">Tài khoản / Email</label>
+                <label class="form-label">Tài khoản / Email / SĐT</label>
                 <input type="text" asp-for="Username" class="form-input" placeholder="Nhập tên đăng nhập hoặc Email" required>
             </div>
             <div class="form-group">
@@ -81,10 +82,10 @@
                 <input type="password" asp-for="Password" class="form-input" placeholder="Nhập mật khẩu" required>
             </div>
 
-            @if (!string.IsNullOrEmpty(Function._Message))
+            @if (!string.IsNullOrEmpty(authError))
             {
                 <div style="background:#FEE2E2;color:#DC2626;padding:0.65rem 0.9rem;border-radius:10px;font-size:0.82rem;font-weight:600;margin-bottom:1rem;">
-                    @Function._Message
+                    @authError
                 </div>
             }
 

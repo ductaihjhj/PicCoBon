@@ -1,26 +1,29 @@
 @{
     Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
-    ViewData["Title"] = "Báo Cáo Doanh Thu";
+    ViewData["Title"] = "Báo Cáo Sổ Cái Doanh Thu & Công Nợ";
 }
 
   <section class="page-hero">
     <div class="container page-hero-inner">
       <div>
-        <span class="section-kicker" style="color:var(--color-volt);">Phân tích tài chính</span>
-        <h1 class="page-hero-title">Báo Cáo Doanh Thu & Hiệu Suất Cụm Sân</h1>
-        <p class="page-hero-sub">Tổng hợp tự động theo thời gian thực từ các đơn đặt sân và hóa đơn dịch vụ POS</p>
+        <span class="section-kicker" style="color:var(--color-volt);">Phân tích tài chính chuẩn sổ cái</span>
+        <h1 class="page-hero-title">Báo Cáo Doanh Thu Thực Thu &amp; Công Nợ</h1>
+        <p class="page-hero-sub">Tổng hợp trực tiếp từ bút toán Sổ cái (Payment Ledger) theo đúng ngày thu/hoàn tiền thực tế</p>
       </div>
       <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
-        <input class="form-input text-mono" type="date" id="reportFrom" style="width:auto">
-        <span style="color:#CBD5E1">→</span>
-        <input class="form-input text-mono" type="date" id="reportTo" style="width:auto">
-        <button class="btn btn-primary" onclick="filterReport()">Lọc dữ liệu</button>
+        <label for="reportFrom" class="sr-only">Từ ngày</label>
+        <input class="form-input text-mono" type="date" id="reportFrom" aria-label="Từ ngày" style="width:auto;background:#FFFFFF;color:#0F172A;color-scheme:light;">
+        <span style="color:#CBD5E1" aria-hidden="true">→</span>
+        <label for="reportTo" class="sr-only">Đến ngày</label>
+        <input class="form-input text-mono" type="date" id="reportTo" aria-label="Đến ngày" style="width:auto;background:#FFFFFF;color:#0F172A;color-scheme:light;">
+        <button type="button" class="btn btn-primary" id="btnFilterReport" onclick="filterReport()">Lọc sổ cái</button>
       </div>
     </div>
   </section>
 
   <main class="page-main">
     <div class="container stack">
+      <div id="reportStatusBanner" style="display:none;"></div>
       <div class="stats-row" id="reportStats"></div>
 
       <div class="col-main-aside">
@@ -28,9 +31,9 @@
           <div class="card-header">
             <span class="card-header-title">
               <iconify-icon icon="lucide:bar-chart-2" width="18" style="color:var(--color-primary)"></iconify-icon>
-              <span>Phân bổ doanh thu theo từng sân thi đấu</span>
+              <span>Thực thu ròng &amp; Công nợ theo từng sân</span>
             </span>
-            <span class="badge badge-success">Thời gian thực</span>
+            <span class="badge badge-success">Sổ cái SQL</span>
           </div>
           <div class="card-body">
             <div class="chart-bars" id="reportChart"></div>
@@ -41,7 +44,7 @@
           <div class="card-header">
             <span class="card-header-title">
               <iconify-icon icon="lucide:crown" width="18" style="color:#F59E0B"></iconify-icon>
-              <span>Top Khách Hàng Chi Tiêu Cao Nhất</span>
+              <span>Top Hội Viên (Thực Thu Xác Thực)</span>
             </span>
           </div>
           <div class="card-body" style="padding:0.75rem 1.35rem">
@@ -49,9 +52,36 @@
           </div>
         </div>
       </div>
+
+      <!-- Nhật ký giao dịch sổ cái -->
+      <div class="card card--flush">
+        <div class="card-header">
+          <span class="card-header-title">
+            <iconify-icon icon="lucide:receipt" width="18" style="color:var(--color-indigo)"></iconify-icon>
+            <span>Nhật Ký Bút Toán Thu &amp; Hoàn Tiền Trong Kỳ</span>
+          </span>
+          <span class="badge badge-neutral" id="reportTxCountBadge">0 bút toán</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Thời điểm ghi sổ</th>
+                <th>Loại bút toán</th>
+                <th>Mã đơn / Vé</th>
+                <th>Khách hàng</th>
+                <th>Phương thức &amp; Tham chiếu</th>
+                <th>Số tiền</th>
+                <th>Người lập</th>
+              </tr>
+            </thead>
+            <tbody id="reportLedgerTableBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </main>
 
 @section Scripts {
-  <script src="~/js/reports.js"></script>
+  <script src="~/js/reports.js" asp-append-version="true"></script>
 }
