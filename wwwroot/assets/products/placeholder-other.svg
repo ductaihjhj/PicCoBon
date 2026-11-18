@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" fill="none">
+  <defs>
+    <radialGradient id="pedestalGear" cx="50%" cy="84%" r="38%">
+      <stop offset="0%" stop-color="#0B111E" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#0B111E" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="paddleFace" x1="175" y1="100" x2="395" y2="365" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0B111E"/>
+    </linearGradient>
+    <linearGradient id="ballGrad" x1="340" y1="310" x2="465" y2="435" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E6FF4D"/>
+      <stop offset="100%" stop-color="#B8D800"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="300" cy="495" rx="165" ry="28" fill="url(#pedestalGear)"/>
+  <circle cx="300" cy="295" r="188" stroke="#FF5520" stroke-opacity="0.16" stroke-width="2" stroke-dasharray="8 8"/>
+  <!-- Carbon Pickleball Paddle -->
+  <g transform="rotate(-14 285 275)">
+    <rect x="175" y="96" width="216" height="264" rx="68" fill="url(#paddleFace)" stroke="#FF5520" stroke-width="10"/>
+    <rect x="191" y="112" width="184" height="232" rx="54" stroke="#334155" stroke-width="2" stroke-dasharray="6 6"/>
+    <!-- Brand X-Strike on Paddle -->
+    <path d="M225 180L340 265M340 180L225 265" stroke="#D8F826" stroke-width="14" stroke-linecap="round"/>
+    <!-- Paddle Throat & Grip -->
+    <path d="M252 360H314L304 476C303 485 295 492 286 492H280C271 492 263 485 262 476L252 360Z" fill="#0F172A" stroke="#0B111E" stroke-width="6"/>
+    <path d="M258 386L308 398M260 416L306 428M262 446L304 458" stroke="#FF5520" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <!-- Tournament Pickleball -->
+  <circle cx="404" cy="382" r="66" fill="url(#ballGrad)" stroke="#0B111E" stroke-width="6"/>
+  <circle cx="382" cy="358" r="9" fill="#0B111E" fill-opacity="0.72"/>
+  <circle cx="424" cy="352" r="9" fill="#0B111E" fill-opacity="0.72"/>
+  <circle cx="372" cy="396" r="9" fill="#0B111E" fill-opacity="0.72"/>
+  <circle cx="412" cy="392" r="10" fill="#0B111E" fill-opacity="0.72"/>
+  <circle cx="442" cy="380" r="8" fill="#0B111E" fill-opacity="0.72"/>
+  <circle cx="398" cy="424" r="8.5" fill="#0B111E" fill-opacity="0.72"/>
+</svg>

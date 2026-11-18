@@ -1,13 +1,21 @@
+@using Microsoft.EntityFrameworkCore
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject PickleballClub.Models.PickleballContext SsrDb
 @{
     Layout = null;
+    var csrfTokens = Antiforgery.GetAndStoreTokens(Context);
+    var serverAuthError = TempData["AuthError"] as string;
+    int activeCourtCount = await SsrDb.TbCourts.AsNoTracking().CountAsync(c => c.IsActive);
 }
 <!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Đăng nhập & Đăng ký — Spike Pickleball Club</title>
-  <link rel="stylesheet" href="/css/styles.css">
+  <meta name="csrf-token" content="@csrfTokens.RequestToken">
+  <title>Đăng nhập &amp; Đăng ký — Spike Pickleball Club</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23FF5520'/%3E%3Ccircle cx='16' cy='16' r='8' fill='%23D8F826'/%3E%3C/svg%3E">
+  @await Html.PartialAsync("_DesignSystemCss")
   <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
   <style>
     /* ==========================================================================
@@ -943,6 +951,68 @@
         width: 100%;
       }
     }
+
+    /* Spike x Notion Clean Auth Refinement */
+    .ambient-orb, #loginArenaCanvas { display: none !important; }
+    body.animated-auth-body {
+      background: var(--surface-secondary, #F6F5F4) !important;
+      color: var(--text-primary, #111827) !important;
+    }
+    .auth-floating-topbar a { color: var(--text-primary, #111827) !important; }
+    .auth-floating-topbar .auth-top-sub { color: var(--text-secondary, #615D59) !important; }
+    .auth-topbar-btn {
+      background: var(--surface, #FFFFFF) !important;
+      border: 1px solid var(--border-strong, #D1D5DB) !important;
+      color: var(--text-primary, #111827) !important;
+    }
+    .auth-stage-box {
+      background: var(--surface, #FFFFFF) !important;
+      border: 1px solid var(--border-default, #E5E7EB) !important;
+      box-shadow: var(--shadow-overlay) !important;
+    }
+    .form-panel {
+      --auth-neon-volt: #B8320A;
+      background: var(--surface, #FFFFFF) !important;
+      color: var(--text-primary, #111827) !important;
+    }
+    .form-panel .anim-options-row { color: var(--text-secondary, #615D59) !important; }
+    .form-panel .mascot-chip { --auth-neon-volt: #B8320A; }
+    .mascot-chip {
+      background: var(--brand-primary-tint, #FFF1EB) !important;
+      color: var(--brand-primary-ink, #B8320A) !important;
+      border-color: var(--brand-primary-border, #FFD4C4) !important;
+    }
+    .mascot-status-dot { background: var(--brand-primary, #FF5520) !important; }
+    .mascot-title {
+      color: var(--text-primary, #111827) !important;
+      font-family: var(--font-display) !important;
+      text-transform: none !important;
+      letter-spacing: -0.025em !important;
+    }
+    .mascot-speech { color: var(--text-secondary, #615D59) !important; }
+    .anim-input-wrap {
+      background: var(--surface, #FFFFFF) !important;
+      border: 1px solid var(--border-strong, #D1D5DB) !important;
+      border-radius: 8px !important;
+    }
+    .anim-input-wrap:focus-within {
+      border-color: var(--brand-primary, #FF5520) !important;
+      background: var(--surface, #FFFFFF) !important;
+      box-shadow: 0 0 0 3px var(--brand-primary-tint, #FFF1EB) !important;
+    }
+    .anim-input { color: var(--text-primary, #111827) !important; }
+    .anim-label { color: var(--text-secondary, #615D59) !important; }
+    .anim-input:focus ~ .anim-label,
+    .anim-input:not(:placeholder-shown) ~ .anim-label {
+      color: var(--brand-primary-ink, #B8320A) !important;
+    }
+    .anim-input-laser { background: var(--brand-primary, #FF5520) !important; }
+    .mobile-mode-tabs {
+      background: var(--surface, #FFFFFF) !important;
+      border: 1px solid var(--border-default, #E5E7EB) !important;
+    }
+    .mobile-mode-btn { color: var(--text-secondary, #615D59) !important; }
+    .mobile-mode-btn.active { background: var(--brand-primary, #FF5520) !important; color: #FFFFFF !important; }
   </style>
 </head>
 <body class="animated-auth-body">
@@ -1076,9 +1146,9 @@
       </div>
 
       <!-- Báo lỗi xác thực -->
-      <div id="loginErrorAlert" class="anim-alert danger">
+      <div id="loginErrorAlert" class="anim-alert danger" style="@(!string.IsNullOrEmpty(serverAuthError) ? "display:flex;" : "")">
         <iconify-icon icon="lucide:alert-triangle" width="17"></iconify-icon>
-        <span id="loginErrorText">Thông tin đăng nhập chưa chính xác.</span>
+        <span id="loginErrorText">@(serverAuthError ?? "Thông tin đăng nhập chưa chính xác.")</span>
       </div>
 
       <!-- FORM ĐĂNG NHẬP -->
@@ -1129,7 +1199,7 @@
             <input type="checkbox" id="rememberMe" checked style="accent-color:var(--auth-neon-orange);">
             <span>Lưu phiên đăng nhập 30 ngày</span>
           </label>
-          <a href="javascript:void(0)" onclick="openModal('forgotPasswordModal')" style="color:var(--auth-neon-volt);text-decoration:none;font-weight:700;">Quên mật khẩu?</a>
+          <a href="javascript:void(0)" onclick="openModal('forgotPasswordModal')" style="color:var(--brand-primary-ink, #B8320A);text-decoration:none;font-weight:700;">Quên mật khẩu?</a>
         </div>
 
         <button type="submit" id="btnSubmitLogin" class="btn-anim-submit">
@@ -1137,20 +1207,7 @@
           <span id="btnSubmitLoginText">Đăng nhập vào Sân Đấu</span>
         </button>
 
-        <div class="social-row">
-          <button type="button" class="social-chip" onclick="handleSocialLogin('Google')">
-            <iconify-icon icon="logos:google-icon" width="15"></iconify-icon>
-            <span>Google</span>
-          </button>
-          <button type="button" class="social-chip" onclick="handleSocialLogin('Zalo')">
-            <iconify-icon icon="lucide:message-circle" width="15" style="color:#38BDF8;"></iconify-icon>
-            <span>Zalo ID</span>
-          </button>
-          <button type="button" class="social-chip" onclick="handleSocialLogin('Apple')">
-            <iconify-icon icon="lucide:apple" width="15"></iconify-icon>
-            <span>Apple</span>
-          </button>
-        </div>
+        <div style="margin-top:0.85rem;text-align:center;font-size:0.74rem;color:#94A3B8;">Bảo mật xác thực Cookie HttpOnly · Spike Pickleball Club</div>
       </form>
     </div>
 
@@ -1159,10 +1216,10 @@
       <div style="margin-bottom:1rem;">
         <div class="mascot-status-tag">
           <span class="mascot-status-dot"></span>
-          <span>THẺ THÀNH VIÊN ĐIỆN TỬ USAPA</span>
+          <span>THẺ HỘI VIÊN ĐIỆN TỬ SPIKE CLUB</span>
         </div>
         <h2 class="mascot-title" style="font-size:1.5rem;">Tạo Tài Khoản Hội Viên</h2>
-        <p class="mascot-speech">Nhận ngay mã QR định danh, giảm 15% giá sân giờ vàng và tích điểm DUPR.</p>
+        <p class="mascot-speech">Nhận ngay mã QR định danh, ưu đãi chiết khấu đến 15% theo hạng thẻ hội viên và tích điểm DUPR.</p>
       </div>
 
       <!-- Báo lỗi xác thực bên form Đăng ký -->
@@ -1252,7 +1309,7 @@
 
         <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.76rem;color:#CBD5E1;margin-bottom:0.95rem;cursor:pointer;">
           <input type="checkbox" id="regAgreeTerms" checked style="accent-color:var(--auth-neon-orange);">
-          <span>Tôi đồng ý với <strong style="color:var(--auth-neon-volt);">Quy chế Sân đấu USAPA</strong> & Chính sách CLB</span>
+          <span>Tôi đồng ý với <strong style="color:var(--auth-neon-volt);">Nội quy Sân đấu</strong> &amp; Chính sách CLB</span>
         </label>
 
         <button type="submit" class="btn-anim-submit">
@@ -1276,7 +1333,7 @@
           <div>
             <h2 class="overlay-headline">Sẵn Sàng Trở Lại <em>Sân Đấu</em> Ngay Hôm Nay!</h2>
             <p class="overlay-desc">
-              Đăng nhập bằng tài khoản của bạn để kiểm tra lịch trống 4 sân trực tiếp, mở mã QR Check-in tại quầy và chia tiền sân tự động cùng đồng đội.
+              Đăng nhập bằng tài khoản của bạn để kiểm tra lịch trống @activeCourtCount sân trực tiếp, mở mã QR Check-in tại quầy và chia tiền sân tự động cùng đồng đội.
             </p>
           </div>
 
@@ -1293,13 +1350,13 @@
         <div class="overlay-panel overlay-right">
           <div class="floating-ball-badge">
             <div class="spinning-pickleball"></div>
-            <span style="font-size:0.74rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#FFF;">4 Sân Chuẩn USAPA · LED 1000 Lux</span>
+            <span style="font-size:0.74rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#FFF;">@activeCourtCount Sân Trong Nhà &amp; Ngoài Trời · LED 1000 Lux</span>
           </div>
 
           <div>
             <h2 class="overlay-headline">Bùng Nổ Năng Lượng Cùng <em>Spike Arena</em></h2>
             <p class="overlay-desc">
-              Gia nhập cộng đồng hơn 1,250+ tay vợt Pickleball. Đặt lịch trong 15 giây, tự động giữ sân không lo trùng giờ và hưởng đặc quyền Hội viên Vàng.
+              Đặt lịch trực tuyến nhanh chóng, tự động giữ sân chống trùng giờ, nhận vé QR ký số và tích lũy quyền lợi Hội viên CLB.
             </p>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.65rem;">
               <div style="background:rgba(9,13,22,0.68);border:1px solid rgba(255,255,255,0.14);padding:0.65rem;border-radius:12px;">
@@ -1331,23 +1388,25 @@
 
   </div>
 
-  <!-- MODAL KHÔI PHỤC MẬT KHẨU -->
+  <!-- MODAL HỖ TRỢ KHÔI PHỤC MẬT KHẨU (P1-02: KHÔNG GIẢ LẬP OTP) -->
   <div class="modal-backdrop" id="forgotPasswordModal">
-    <div class="modal" style="max-width: 420px; color: #0F172A;">
+    <div class="modal" style="max-width: 440px; color: #0F172A;">
       <div class="modal-header">
-        <h3 class="modal-title">Khôi phục mật khẩu</h3>
+        <h3 class="modal-title">Hỗ trợ khôi phục mật khẩu</h3>
         <button class="modal-close" onclick="closeModal('forgotPasswordModal')">✕</button>
       </div>
       <div class="modal-body flex-col gap-3">
-        <p class="text-xs text-muted">Nhập Email hoặc Số điện thoại đã đăng ký. Hệ thống sẽ gửi mã OTP 6 chữ số để đặt lại mật khẩu mới.</p>
-        <div class="form-group">
-          <label class="form-label">Email hoặc Số điện thoại</label>
-          <input type="text" id="resetEmailInput" class="form-input" placeholder="VD: khachhang@@pickleball.vn">
+        <div style="background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;padding:0.75rem 0.9rem;border-radius:10px;font-size:0.8rem;line-height:1.5;">
+          <strong>Thông báo minh bạch:</strong> Hệ thống hiện chưa kích hoạt cổng gửi SMS/Email OTP tự động. CLB không tự động đặt lại mật khẩu qua biểu mẫu công khai.
         </div>
+        <p class="text-xs text-muted" style="line-height:1.6;">
+          Vui lòng liên hệ trực tiếp <strong>Quầy lễ tân CLB</strong> hoặc gọi <strong>Hotline <span data-cms="hotline">0901 234 567</span></strong> để xác minh thông tin chính chủ và nhận mật khẩu tạm thời dùng 1 lần.
+        </p>
+        <div id="forgotStatusBox" style="display:none;background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;padding:0.65rem 0.85rem;border-radius:10px;font-size:0.78rem;font-weight:600;"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('forgotPasswordModal')">Đóng</button>
-        <button class="btn btn-primary" onclick="handleResetPassword()">Gửi mã OTP</button>
+        <button class="btn btn-secondary" onclick="closeModal('forgotPasswordModal')">Đã hiểu &amp; Đóng</button>
+        <button class="btn btn-primary" onclick="handleResetPassword()">Kiểm tra cổng OTP</button>
       </div>
     </div>
   </div>
@@ -1674,11 +1733,7 @@
       triggerAnimatedLogin(emailVal, passVal);
     }
 
-    function handleSocialLogin(provider) {
-      setMascotState('idle', `Vui lòng hoàn tất thông tin Hội viên lần đầu khi liên kết với ${provider}!`, `ACE BOT · LIÊN KẾT ${provider.toUpperCase()}`);
-      showToast(`Liên kết ${provider}`, `Vui lòng nhập Họ tên & Số điện thoại để hoàn tất đăng ký qua ${provider}.`, 'info');
-      switchAuthMode('register');
-    }
+    // P1-03: Social login removed until real OAuth credentials are configured
 
     async function handleFormRegister(event) {
       event.preventDefault();
@@ -1724,7 +1779,7 @@
       }
 
       if (!agreeTerms) {
-        showLoginError('Vui lòng đồng ý với Quy chế Sân đấu & Chính sách CLB.', true);
+        showLoginError('Vui lòng đồng ý với Nội quy Sân đấu & Chính sách CLB.', true);
         return;
       }
 
@@ -1734,14 +1789,24 @@
       }
     }
 
-    function handleResetPassword() {
-      const val = document.getElementById('resetEmailInput').value.trim();
-      if (!val) {
-        showToast('Thiếu thông tin', 'Vui lòng nhập Email hoặc SĐT cần khôi phục.', 'warning');
-        return;
+    async function handleResetPassword() {
+      const box = document.getElementById('forgotStatusBox');
+      try {
+        const res = await apiFetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const data = await res.json().catch(() => ({}));
+        const msg = data.error || 'Cổng OTP tự động chưa kích hoạt. Vui lòng liên hệ Hotline CLB để được cấp mật khẩu tạm.';
+        if (box) {
+          box.textContent = msg;
+          box.style.display = 'block';
+        }
+        showToast('Chưa kích hoạt cổng OTP', msg, 'warning');
+      } catch (_) {
+        showToast('Thông báo', 'Vui lòng liên hệ Quầy lễ tân CLB để được hỗ trợ đặt lại mật khẩu.', 'warning');
       }
-      closeModal('forgotPasswordModal');
-      showToast('Đã gửi mã OTP', `Hướng dẫn đặt lại mật khẩu đã được gửi tới ${val}.`, 'success');
     }
   </script>
 </body>

@@ -1,62 +1,88 @@
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using PickleballClub.Models;
+using PickleballClub.Services;
 using PickleballClub.Utilities;
 
-namespace PickleballClub.Areas.Admin.Controllers
+namespace PickleballClub.Areas.Admin.Controllers;
+
+[Area("Admin")]
+public class LoginController : Controller
 {
-    [Area("Admin")]
-    public class LoginController : Controller
+    private readonly PickleballContext _context;
+    private readonly PasswordService _passwordService;
+
+    public LoginController(PickleballContext context, PasswordService passwordService)
     {
-        private readonly PickleballContext _context;
+        _context = context;
+        _passwordService = passwordService;
+    }
 
-        public LoginController(PickleballContext context)
+    public IActionResult Index()
+    {
+        if (Function.IsStaffOrAdmin())
         {
-            _context = context;
-        }
-
-        public IActionResult Index()
-        {
-            return View();
-        }
-
-        [HttpPost]
-        public IActionResult Index(TbAccount account)
-        {
-            if (account == null)
-            {
-                return NotFound();
-            }
-
-            string inputUser = (account.Username ?? string.Empty).Trim();
-            string rawPass = account.Password ?? string.Empty;
-            string md5Pass = HashMD5.GetMD5(rawPass);
-
-            var check = _context.TbAccounts.FirstOrDefault(m =>
-                (m.Username == inputUser || m.Email == inputUser || m.Phone == inputUser) &&
-                (m.Password == md5Pass || m.Password == rawPass));
-
-            if (check == null)
-            {
-                Function._Message = "Tài khoản hoặc mật khẩu không chính xác!";
-                return RedirectToAction("Index", "Login", new { area = "Admin" });
-            }
-
-            Function._Message = string.Empty;
-            Function._AccountId = check.AccountId;
-            Function._Username = check.Username ?? check.Email ?? string.Empty;
-            Function._FullName = check.FullName ?? "Ban Quản Trị CLB";
-            Function._Email = check.Email ?? string.Empty;
-            Function._Phone = check.Phone ?? string.Empty;
-            Function._RoleId = check.RoleId ?? 1;
-
-            Response.Cookies.Append("pb_admin_uid", check.AccountId.ToString(), new CookieOptions
-            {
-                HttpOnly = false,
-                Expires = DateTimeOffset.UtcNow.AddDays(7),
-                Path = "/"
-            });
-
             return RedirectToAction("Index", "Home", new { area = "Admin" });
         }
+        return View();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("AuthAndLookup")]
+    public async Task<IActionResult> Index(TbAccount account)
+    {
+        if (account == null || string.IsNullOrWhiteSpace(account.Username) || string.IsNullOrEmpty(account.Password))
+        {
+            TempData["AuthError"] = "Vui lòng nhập đầy đủ tài khoản và mật khẩu quản trị!";
+            return RedirectToAction("Index", "Login", new { area = "Admin" });
+        }
+
+        string inputUser = account.Username.Trim();
+        string normPhone = BookingService.NormalizePhone(inputUser);
+        string rawPass = account.Password;
+
+        var check = await _context.TbAccounts.FirstOrDefaultAsync(m =>
+            m.IsActive &&
+            (m.Username == inputUser || m.Email == inputUser || m.Phone == inputUser || (!string.IsNullOrEmpty(normPhone) && m.Phone == normPhone)));
+
+        if (check == null)
+        {
+            TempData["AuthError"] = "Tài khoản hoặc mật khẩu không chính xác!";
+            return RedirectToAction("Index", "Login", new { area = "Admin" });
+        }
+
+        var verify = _passwordService.VerifyPassword(check, check.Password, rawPass, out string? upgradedHash);
+        if (verify == PasswordVerificationResult.Failed)
+        {
+            TempData["AuthError"] = "Tài khoản hoặc mật khẩu không chính xác!";
+            return RedirectToAction("Index", "Login", new { area = "Admin" });
+        }
+
+        if (check.RoleId != 1 && check.RoleId != 3)
+        {
+            TempData["AuthError"] = "Tài khoản này không có quyền truy cập khu vực Quản trị / Điều hành!";
+            return RedirectToAction("Index", "Login", new { area = "Admin" });
+        }
+
+        if (verify == PasswordVerificationResult.SuccessRehashNeeded && !string.IsNullOrEmpty(upgradedHash))
+        {
+            check.Password = upgradedHash;
+        }
+
+        if (string.IsNullOrEmpty(check.SecurityStamp))
+        {
+            check.SecurityStamp = Function.GenerateSecurityStamp();
+        }
+
+        check.LastLogin = BookingService.GetVietnamNow().ToString("yyyy-MM-dd");
+        await _context.SaveChangesAsync();
+
+        await Function.SignInAccountAsync(HttpContext, check);
+
+        return RedirectToAction("Index", "Home", new { area = "Admin" });
     }
 }

@@ -1,72 +1,67 @@
 @model IEnumerable<PickleballClub.Models.TbMenu>
-
 @{
     ViewData["Title"] = "Quản lý Menu";
     Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
 }
 
-<div class="content-wrapper">
-    <section class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1>Quản lý Menu Điều Hướng</h1>
-                </div>
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="/Admin">Quản trị</a></li>
-                        <li class="breadcrumb-item active">Quản lý Menu</li>
-                    </ol>
-                </div>
-            </div>
-        </div>
-    </section>
+<div class="sn-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;padding-bottom:18px;margin-bottom:22px;border-bottom:1px solid var(--border-default);">
+    <div>
+        <h1 class="sn-h1" style="margin:0;font-size:1.65rem;font-weight:700;">Quản lý Thanh Menu Điều Hướng</h1>
+        <p style="margin:5px 0 0;color:var(--text-secondary);font-size:0.9rem;">Cấu hình liên kết hiển thị trên thanh điều hướng trang chủ khách hàng.</p>
+    </div>
+    <a asp-action="Create" class="btn btn-primary btn-sm">
+        <iconify-icon icon="lucide:plus" width="15"></iconify-icon>
+        <span>Thêm menu mới</span>
+    </a>
+</div>
 
-    <section class="content">
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title"><a asp-action="Create" class="btn btn-success btn-sm">+ Thêm mới menu</a></h3>
-                        </div>
-                        <div class="card-body table-responsive p-0">
-                            <table class="table table-hover text-nowrap">
-                                <thead>
-                                    <tr>
-                                        <th>STT</th>
-                                        <th>Tiêu đề</th>
-                                        <th>Alias (Đường dẫn)</th>
-                                        <th>Cấp</th>
-                                        <th>Vị trí</th>
-                                        <th>Hiện</th>
-                                        <th>Thao tác</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @{ int i = 1; }
-                                    @foreach (var item in Model)
-                                    {
-                                        <tr>
-                                            <td>@(i++)</td>
-                                            <td>@Html.DisplayFor(modelItem => item.Title)</td>
-                                            <td>@Html.DisplayFor(modelItem => item.Alias)</td>
-                                            <td>@Html.DisplayFor(modelItem => item.Levels)</td>
-                                            <td>@Html.DisplayFor(modelItem => item.Position)</td>
-                                            <td>@Html.DisplayFor(modelItem => item.IsActive)</td>
-                                            <td>
-                                                <a asp-action="Edit" asp-route-id="@item.MenuId" class="btn btn-primary btn-sm">Sửa</a>
-                                                <a asp-action="Details" asp-route-id="@item.MenuId" class="btn btn-info btn-sm">Chi tiết</a>
-                                                <a asp-action="Delete" asp-route-id="@item.MenuId" class="btn btn-danger btn-sm">Xoá</a>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Danh sách mục điều hướng (@Model.Count() mục)</h3>
+    </div>
+    <div class="sn-table-wrap">
+        <table class="sn-table">
+            <thead>
+                <tr>
+                    <th>STT</th>
+                    <th>Tiêu đề</th>
+                    <th>Alias (Đường dẫn)</th>
+                    <th>Cấp</th>
+                    <th>Vị trí</th>
+                    <th>Hiển thị</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{ int i = 1; }
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td class="text-mono">@(i++)</td>
+                        <td style="font-weight:600;">@Html.DisplayFor(modelItem => item.Title)</td>
+                        <td><code class="text-mono">@Html.DisplayFor(modelItem => item.Alias)</code></td>
+                        <td class="text-mono">@Html.DisplayFor(modelItem => item.Levels)</td>
+                        <td class="text-mono">@Html.DisplayFor(modelItem => item.Position)</td>
+                        <td>
+                            @if (item.IsActive)
+                            {
+                                <span class="badge badge-success">● Hiển thị</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-neutral">Ẩn</span>
+                            }
+                        </td>
+                        <td>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                <a asp-action="Edit" asp-route-id="@item.MenuId" class="btn btn-primary btn-xs">Sửa</a>
+                                <a asp-action="Details" asp-route-id="@item.MenuId" class="btn btn-secondary btn-xs">Chi tiết</a>
+                                <a asp-action="Delete" asp-route-id="@item.MenuId" class="btn btn-danger btn-xs">Xoá</a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 </div>

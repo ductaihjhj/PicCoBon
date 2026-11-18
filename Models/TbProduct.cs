@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace PickleballClub.Models;
@@ -23,6 +23,8 @@ public partial class TbProduct
 
     public int? Price { get; set; } = 0;
 
+    public decimal PriceDec { get; set; }
+
     public int? PriceSale { get; set; } = 0;
 
     public int? Quantity { get; set; } = 100;
@@ -45,7 +47,11 @@ public partial class TbProduct
 
     public int? Star { get; set; } = 5;
 
+    public byte[]? RowVersion { get; set; }
+
     public virtual TbProductCategory? CategoryProduct { get; set; }
 
     public virtual ICollection<TbOrderDetail> TbOrderDetails { get; set; } = new List<TbOrderDetail>();
+
+    public virtual ICollection<TbInventoryMovement> TbInventoryMovements { get; set; } = new List<TbInventoryMovement>();
 }

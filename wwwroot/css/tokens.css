@@ -1,0 +1,199 @@
+/* ==========================================================================
+   SPIKE x NOTION PRODUCTIVITY — DESIGN TOKENS
+   Reference: www.notion.com-DESIGN.md adapted with Spike Orange (#FF5520)
+   ========================================================================== */
+
+:root {
+  /* Brand Accent (Single Primary CTA) */
+  --brand-primary: #FF5520;
+  --brand-primary-hover: #E94A16;
+  --brand-primary-tint: #FFF1EB;
+  --brand-primary-border: #FFD4C4;
+  --brand-primary-ink: #B8320A;
+
+  /* Notion Informational Blue (Info badges, inline links, calendar states ONLY) */
+  --notion-blue: #0075DE;
+  --notion-blue-hover: #005BAB;
+  --notion-blue-tint: #EFF6FF;
+  --notion-blue-border: #BFDBFE;
+  --notion-blue-ink: #1D4ED8;
+
+  /* Surfaces & Backgrounds */
+  --background: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-secondary: #F6F5F4;
+  --surface-subtle: #FAFAFA;
+  --surface-elevated: #FFFFFF;
+
+  /* Text & Ink Hierarchy */
+  --text-primary: #111827;
+  --text-secondary: #615D59;
+  --text-muted: #716D69;
+  --text-subtle: #8C8781;
+
+  /* Hairline Borders & Dividers */
+  --border-default: #E5E7EB;
+  --border-strong: #D1D5DB;
+  --border-subtle: rgba(17, 24, 39, 0.06);
+  --border-focus: #FF5520;
+
+  /* Semantic States (Dual-coded high contrast >= 4.5:1) */
+  --status-success-bg: #F0FDF4;
+  --status-success-text: #166534;
+  --status-success-border: #BBF7D0;
+
+  --status-info-bg: #EFF6FF;
+  --status-info-text: #1D4ED8;
+  --status-info-border: #BFDBFE;
+
+  --status-warning-bg: #FFFBEB;
+  --status-warning-text: #92400E;
+  --status-warning-border: #FDE68A;
+
+  --status-danger-bg: #FEF2F2;
+  --status-danger-text: #991B1B;
+  --status-danger-border: #FECACA;
+
+  --status-neutral-bg: #F3F4F6;
+  --status-neutral-text: #4B5563;
+  --status-neutral-border: #E5E7EB;
+
+  /* Typography */
+  --font-sans: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Shape & Elevation */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  --shadow-xs: 0 1px 2px rgba(17, 24, 39, 0.04);
+  --shadow-card: 0 1px 2px rgba(17, 24, 39, 0.04);
+  --shadow-float: 0 4px 18px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-overlay: 0 16px 40px -8px rgba(17, 24, 39, 0.16), 0 4px 12px rgba(17, 24, 39, 0.06);
+
+  /* Spacing Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 240ms;
+  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px rgba(255, 85, 32, 0.42);
+
+  /* Layout Dimensions */
+  --topbar-height: 64px;
+  --container-max: 1200px;
+  --admin-sidebar-w: 240px;
+  --admin-sidebar-collapsed-w: 64px;
+  --admin-topbar-h: 56px;
+
+  /* Legacy Alias Bridge (Keeps styles.css utilities coherent) */
+  --bg: var(--background);
+  --bg-page: var(--background);
+  --card: var(--surface);
+  --surface-card: var(--surface);
+  --surface-muted: var(--surface-secondary);
+  --border: var(--border-default);
+  --border-light: var(--border-default);
+  --ink: var(--text-primary);
+  --ink-muted: var(--text-secondary);
+  --color-orange: var(--brand-primary);
+  --color-orange-dark: var(--brand-primary-hover);
+  --color-primary: var(--brand-primary);
+  --color-primary-hover: var(--brand-primary-hover);
+  --color-navy: #111827;
+  --color-slate: #1F2937;
+  --color-volt: #D8F826;
+  --primary: var(--brand-primary);
+  --sidebar-bg: #F6F5F4;
+  --sidebar-fg: #111827;
+  --sidebar-muted: #615D59;
+  --sidebar-border: #E5E7EB;
+  --sidebar-accent: #FFFFFF;
+  --color-success: #16A34A;
+  --color-warning: #D97706;
+  --color-danger: #DC2626;
+  --color-info: #0075DE;
+}
+
+/* ==========================================================================
+   DARK MODE ADAPTATION (Notion Dark Surfaces + Spike Accent)
+   ========================================================================== */
+html[data-theme="dark"] {
+  --background: #0B1117;
+  --surface: #131A22;
+  --surface-secondary: #181F28;
+  --surface-subtle: #1D2530;
+  --surface-elevated: #19222D;
+
+  --text-primary: #F3F4F6;
+  --text-secondary: #B0B7C3;
+  --text-muted: #8B949E;
+  --text-subtle: #6E7681;
+
+  --border-default: #26303D;
+  --border-strong: #364354;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+
+  --brand-primary-tint: rgba(255, 85, 32, 0.16);
+  --brand-primary-border: rgba(255, 85, 32, 0.36);
+  --brand-primary-ink: #FF8A65;
+
+  --notion-blue-tint: rgba(56, 189, 248, 0.14);
+  --notion-blue-border: rgba(56, 189, 248, 0.34);
+  --notion-blue-ink: #7DD3FC;
+
+  --status-success-bg: rgba(34, 197, 94, 0.15);
+  --status-success-text: #86EFAC;
+  --status-success-border: rgba(34, 197, 94, 0.35);
+
+  --status-info-bg: rgba(59, 130, 246, 0.16);
+  --status-info-text: #93C5FD;
+  --status-info-border: rgba(59, 130, 246, 0.36);
+
+  --status-warning-bg: rgba(245, 158, 11, 0.16);
+  --status-warning-text: #FCD34D;
+  --status-warning-border: rgba(245, 158, 11, 0.36);
+
+  --status-danger-bg: rgba(239, 68, 68, 0.16);
+  --status-danger-text: #FCA5A5;
+  --status-danger-border: rgba(239, 68, 68, 0.36);
+
+  --status-neutral-bg: #1E2733;
+  --status-neutral-text: #CBD5E1;
+  --status-neutral-border: #303B4A;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.28);
+  --shadow-float: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --shadow-overlay: 0 20px 48px rgba(0, 0, 0, 0.58);
+
+  --sidebar-bg: #141B23;
+  --sidebar-fg: #F3F4F6;
+  --sidebar-muted: #9CA3AF;
+  --sidebar-border: #26303D;
+  --sidebar-accent: #1E2733;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

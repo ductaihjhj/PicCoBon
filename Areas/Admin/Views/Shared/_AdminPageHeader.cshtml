@@ -1,0 +1,26 @@
+@* Shared Notion-style Admin PageHeader (optional usage in Razor views)
+   Usage via ViewData keys: AdminHeaderTitle, AdminHeaderSubtitle, AdminHeaderBackUrl, AdminHeaderBackLabel *@
+@{
+    var hdrTitle = ViewData["AdminHeaderTitle"] as string ?? ViewData["Title"] as string ?? "Quản trị CLB";
+    var hdrSub = ViewData["AdminHeaderSubtitle"] as string;
+    var backUrl = ViewData["AdminHeaderBackUrl"] as string;
+    var backLabel = ViewData["AdminHeaderBackLabel"] as string ?? "Quay lại";
+}
+<div class="sn-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border-default);">
+    <div>
+        <h1 class="sn-h1" style="margin:0;font-size:1.6rem;font-weight:700;line-height:1.2;">@hdrTitle</h1>
+        @if (!string.IsNullOrWhiteSpace(hdrSub))
+        {
+            <p style="margin:5px 0 0;color:var(--text-secondary);font-size:0.9rem;">@hdrSub</p>
+        }
+    </div>
+    @if (!string.IsNullOrWhiteSpace(backUrl))
+    {
+        <div style="display:flex;align-items:center;gap:8px;">
+            <a href="@backUrl" class="btn btn-secondary btn-sm">
+                <iconify-icon icon="lucide:arrow-left" width="15"></iconify-icon>
+                <span>@backLabel</span>
+            </a>
+        </div>
+    }
+</div>

@@ -1,0 +1,548 @@
+/* ==========================================================================
+   SPIKE x NOTION PRODUCTIVITY — SHELL LAYOUTS (PUBLIC TOPBAR + ADMIN WORKSPACE)
+   ========================================================================== */
+
+/* 1. PUBLIC TOP NAVIGATION (Notion Crisp 64px Header) */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 900;
+  height: var(--topbar-height);
+  background-color: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-default);
+  box-shadow: none;
+  color: var(--text-primary);
+}
+html[data-theme="dark"] .site-header {
+  background-color: rgba(11, 17, 23, 0.92);
+  border-bottom-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.site-header-inner {
+  max-width: var(--container-max);
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.site-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.site-brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background-color: var(--brand-primary);
+  color: #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.site-brand-name {
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+.site-brand-name span { color: var(--brand-primary); }
+.site-brand-tag {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  display: block;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.site-nav a, .site-nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 550;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  white-space: nowrap;
+}
+.site-nav a:hover, .site-nav-link:hover,
+.site-nav a.active, .site-nav-link.active {
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+}
+.site-nav a.active {
+  font-weight: 650;
+}
+
+.site-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sn-nav-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 5px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-default);
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.sn-nav-user:hover {
+  border-color: var(--border-strong);
+  background-color: var(--surface);
+}
+.sn-nav-user-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  background-color: var(--brand-primary);
+  color: #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.sn-nav-admin-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--brand-primary-border);
+  background-color: var(--brand-primary-tint);
+  color: var(--brand-primary-ink) !important;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+.sn-nav-admin-link:hover {
+  border-color: var(--brand-primary);
+}
+
+.sh-site-theme-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background-color: var(--surface);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.sh-site-theme-btn:hover {
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+.sn-mobile-menu-btn {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background-color: var(--surface);
+  color: var(--text-primary);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Public Responsive Nav */
+@media (max-width: 960px) {
+  .site-header-inner { padding: 0 16px; }
+  .sn-mobile-menu-btn { display: inline-flex; }
+  .site-nav {
+    position: fixed;
+    top: var(--topbar-height);
+    left: 0;
+    right: 0;
+    background-color: var(--surface);
+    border-bottom: 1px solid var(--border-default);
+    box-shadow: var(--shadow-float);
+    padding: 12px 16px 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    display: none;
+    z-index: 899;
+  }
+  .site-nav.is-open { display: flex; }
+  .site-nav a { padding: 10px 12px; font-size: 0.9375rem; }
+  .sn-nav-admin-link span, .sn-nav-user-text { display: none; }
+  .header-cta-book { padding: 0 12px; font-size: 0.8125rem; }
+}
+@media (max-width: 520px) {
+  .site-brand-tag { display: none; }
+  .header-cta-book { display: none; }
+  .site-header-inner { gap: 8px; }
+}
+
+/* 2. PUBLIC FOOTER (Warm Notion Stone Band) */
+.site-footer {
+  background-color: var(--surface-secondary);
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-default);
+  padding: 48px 0 28px;
+  margin-top: 64px;
+}
+.site-footer-grid {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: 1.5fr repeat(3, 1fr);
+  gap: 32px;
+}
+.site-footer-col h4 {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+  letter-spacing: 0.01em;
+}
+.site-footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+.site-footer-links a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+.site-footer-links a:hover {
+  color: var(--brand-primary);
+  text-decoration: underline;
+}
+.site-footer-bottom {
+  max-width: var(--container-max);
+  margin: 28px auto 0;
+  padding: 18px 24px 0;
+  border-top: 1px solid var(--border-default);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+@media (max-width: 900px) {
+  .site-footer-grid { grid-template-columns: 1fr 1fr; padding: 0 16px; }
+}
+@media (max-width: 560px) {
+  .site-footer-grid { grid-template-columns: 1fr; gap: 24px; }
+}
+
+/* 3. ADMIN WORKSPACE APPSHELL (Notion Workspace Sidebar + Breadcrumb Topbar) */
+.sh-admin-body {
+  background-color: var(--background);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.sh-admin-shell {
+  min-height: 100vh;
+  display: flex;
+  background-color: var(--background);
+}
+
+.sh-sidebar {
+  width: var(--admin-sidebar-w);
+  flex-shrink: 0;
+  background-color: var(--sidebar-bg) !important;
+  color: var(--sidebar-fg) !important;
+  border-right: 1px solid var(--sidebar-border) !important;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 950;
+  transition: width var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+}
+
+.sh-sidebar-header {
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+
+.sh-team-switcher {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.sh-team-switcher:hover {
+  background-color: rgba(17, 24, 39, 0.05);
+}
+html[data-theme="dark"] .sh-team-switcher:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.sh-team-logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background-color: var(--brand-primary);
+  color: #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.sh-team-name {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.sh-team-plan {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.sh-sidebar-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sh-nav-group-label {
+  padding: 4px 10px 6px;
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.sh-nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sh-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  color: var(--text-secondary) !important;
+  font-size: 0.84375rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.sh-nav-item:hover {
+  background-color: rgba(17, 24, 39, 0.05) !important;
+  color: var(--text-primary) !important;
+}
+html[data-theme="dark"] .sh-nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+.sh-nav-item.active {
+  background-color: var(--surface) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-primary) !important;
+  font-weight: 650 !important;
+  box-shadow: var(--shadow-xs);
+}
+.sh-nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background-color: var(--brand-primary);
+}
+.sh-nav-item.active .sh-nav-icon {
+  color: var(--brand-primary);
+}
+
+.sh-sidebar-footer {
+  padding: 10px 12px 14px;
+  border-top: 1px solid var(--sidebar-border);
+}
+.sh-nav-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  background-color: var(--surface);
+  border: 1px solid var(--border-default);
+}
+.sh-nav-user-name {
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+.sh-nav-user-role {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Admin Topbar */
+.sh-sidebar-inset {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background);
+}
+
+.sh-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 800;
+  height: var(--admin-topbar-h);
+  padding: 0 24px;
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-default) !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+html[data-theme="dark"] .sh-topbar {
+  background-color: rgba(11, 17, 23, 0.92) !important;
+}
+
+.sh-admin-main {
+  flex: 1 1 auto;
+  padding: 24px 28px 40px;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Remove heavy marketing banners inside Admin */
+.sh-admin-shell .page-hero {
+  background: transparent !important;
+  background-image: none !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-default) !important;
+  padding: 0 0 18px 0 !important;
+  margin-bottom: 20px !important;
+  min-height: 0 !important;
+}
+.sh-admin-shell .page-hero::before,
+.sh-admin-shell .page-hero::after {
+  display: none !important;
+}
+.sh-admin-shell .page-hero-inner {
+  padding: 0 !important;
+  max-width: 100% !important;
+}
+.sh-admin-shell .page-hero-title {
+  color: var(--text-primary) !important;
+  font-size: 1.65rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.025em !important;
+}
+.sh-admin-shell .page-hero-sub {
+  color: var(--text-secondary) !important;
+  font-size: 0.9rem !important;
+  margin-top: 4px !important;
+}
+.sh-admin-shell .page-hero .section-kicker {
+  color: var(--brand-primary-ink) !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  margin-bottom: 4px !important;
+}
+
+.sh-admin-shell .page-main {
+  padding: 0 !important;
+}
+.sh-admin-shell .page-main > .container {
+  max-width: 100% !important;
+  padding-inline: 0 !important;
+}
+
+/* Responsive Admin Drawer (< 1024px) */
+@media (max-width: 1023px) {
+  .sh-admin-main { padding: 16px 14px 32px; }
+  .sh-topbar { padding: 0 12px; gap: 6px; }
+  .sh-topbar-left { min-width: 0; flex: 1 1 auto; overflow: hidden; }
+  .sh-topbar-breadcrumb { min-width: 0; overflow: hidden; }
+  .sh-topbar-bc-page { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+  .sh-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    transform: translateX(-100%);
+    box-shadow: var(--shadow-overlay);
+  }
+  .sh-admin-shell[data-sidebar-mobile-open="true"] .sh-sidebar {
+    transform: translateX(0);
+  }
+}
+@media (max-width: 640px) {
+  .sh-topbar-divider,
+  .sh-topbar-bc-root,
+  .sh-topbar-bc-sep,
+  .sh-search-trigger-text,
+  .sh-kbd,
+  .sh-topbar-quick-link span,
+  .sh-topbar-user-name { display: none !important; }
+  .sh-search-trigger { padding: 0 9px !important; min-width: 34px; justify-content: center; }
+  .sh-topbar-user-pill { padding: 3px 6px !important; gap: 4px !important; }
+  .sh-topbar-right { gap: 5px !important; flex-shrink: 0; }
+}
+
+.sh-admin-footer {
+  border-top: 1px solid var(--border-default);
+  background-color: var(--background);
+  padding: 14px 28px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}

@@ -1,14 +1,25 @@
 ﻿@model IEnumerable<PickleballClub.Models.TbMenu>
 @{
     var currentPath = Context.Request.Path.Value?.Trim('/').ToLower() ?? "";
+    var topMenus = Model?.Where(i => i.Levels == 1).ToList() ?? new List<PickleballClub.Models.TbMenu>();
 }
-@foreach (var item in Model.Where(i => i.Levels == 1))
+@if (topMenus.Any())
 {
-    var alias = (item.Alias ?? "").Trim('/');
-    var href = string.IsNullOrEmpty(alias) ? "/" : $"/{alias}";
-    var isActive = (string.IsNullOrEmpty(alias) && (currentPath == "" || currentPath == "home" || currentPath == "index.html"))
-                   || (!string.IsNullOrEmpty(alias) && currentPath.StartsWith(alias.ToLower()));
-    <a href="@href" class="site-nav-link @(isActive ? "active" : "")">
-        @item.Title
-    </a>
+    foreach (var item in topMenus)
+    {
+        var alias = (item.Alias ?? "").Trim('/');
+        var href = string.IsNullOrEmpty(alias) ? "/" : $"/{alias}";
+        var isActive = (string.IsNullOrEmpty(alias) && (currentPath == "" || currentPath == "home" || currentPath == "index.html"))
+                       || (!string.IsNullOrEmpty(alias) && currentPath.StartsWith(alias.ToLower()));
+        <a href="@href" class="site-nav-link @(isActive ? "active" : "")">
+            @item.Title
+        </a>
+    }
+}
+else
+{
+    <a href="/" class="site-nav-link @(currentPath == "" || currentPath == "home" ? "active" : "")">Trang chủ</a>
+    <a href="/Booking" class="site-nav-link @(currentPath.StartsWith("booking") ? "active" : "")">Đặt sân</a>
+    <a href="/Product" class="site-nav-link @(currentPath.StartsWith("product") ? "active" : "")">Pro Shop</a>
+    <a href="/Lookup" class="site-nav-link @(currentPath.StartsWith("lookup") ? "active" : "")">Tra cứu vé</a>
 }

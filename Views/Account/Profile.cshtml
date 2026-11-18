@@ -1,4 +1,4 @@
-﻿@model PickleballClub.Models.TbAccount
+@model PickleballClub.Models.TbAccount
 @using PickleballClub.Models
 @using PickleballClub.Utilities
 @{
@@ -19,109 +19,129 @@
 <style>
     .profile-layout {
         display: grid;
-        grid-template-columns: 360px 1fr;
+        grid-template-columns: 360px minmax(0, 1fr);
         gap: 1.75rem;
         align-items: start;
     }
+    .profile-layout > * {
+        min-width: 0;
+    }
     @@media (max-width: 992px) {
         .profile-layout {
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+    @@media (max-width: 480px) {
+        .member-passport-banner {
+            padding: 0.75rem 1rem;
+            height: auto;
+            min-height: 76px;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+        }
+        .member-passport-body {
+            padding: 0 1rem 1.25rem;
+        }
+        .member-sub {
+            overflow-wrap: anywhere;
+        }
+        .profile-tab-btn {
+            padding: 0.6rem 0.75rem;
+            font-size: 0.8rem;
         }
     }
     .member-passport {
-        background: linear-gradient(155deg, #0A0E17 0%, #162038 100%);
-        border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #FFFFFF;
+        max-width: 100%;
+        background: var(--surface);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-default);
+        color: var(--text-primary);
         overflow: hidden;
-        box-shadow: 0 20px 45px rgba(10, 14, 23, 0.22);
+        box-shadow: var(--shadow-card);
         position: sticky;
-        top: calc(var(--header-h) + 1.5rem);
+        top: calc(var(--topbar-height, 64px) + 20px);
     }
     .member-passport-banner {
-        height: 92px;
-        background: linear-gradient(120deg, #FF5520 0%, #FF8040 55%, #D4FF00 100%);
+        height: 86px;
+        background: linear-gradient(125deg, #FF5520 0%, #FB7D48 100%);
         position: relative;
-        padding: 1rem 1.25rem;
+        padding: 14px 18px;
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
     }
     .member-passport-code {
-        background: rgba(10, 14, 23, 0.8);
-        color: var(--color-volt);
+        background: rgba(17, 24, 39, 0.86);
+        color: #FFFFFF;
         font-family: var(--font-mono);
         font-size: 0.74rem;
         font-weight: 700;
-        padding: 0.25rem 0.65rem;
+        padding: 4px 10px;
         border-radius: 999px;
-        letter-spacing: 0.06em;
-        backdrop-filter: blur(6px);
     }
     .member-passport-tier {
-        background: rgba(255, 255, 255, 0.92);
-        color: #0A0E17;
+        background: #FFFFFF;
+        color: #111827;
         font-size: 0.72rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        padding: 0.25rem 0.7rem;
+        font-weight: 700;
+        padding: 4px 10px;
         border-radius: 999px;
     }
     .member-passport-body {
-        padding: 0 1.5rem 1.6rem;
+        padding: 0 20px 22px;
         text-align: center;
     }
     .member-avatar-wrap {
-        width: 96px;
-        height: 96px;
-        margin: -48px auto 0.85rem;
+        width: 92px;
+        height: 92px;
+        margin: -46px auto 12px;
         border-radius: 50%;
-        padding: 4px;
-        background: linear-gradient(135deg, var(--color-volt), var(--color-primary));
+        padding: 3px;
+        background: var(--surface);
+        border: 2px solid var(--brand-primary);
         position: relative;
-        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+        box-shadow: var(--shadow-xs);
     }
     .member-avatar-wrap img {
         width: 100%;
         height: 100%;
         object-fit: cover;
         border-radius: 50%;
-        background: #0A0E17;
+        background: var(--surface-secondary);
     }
     .member-name {
         font-family: var(--font-display);
-        font-size: 1.75rem;
+        font-size: 1.45rem;
         font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.02em;
-        color: #FFFFFF;
-        margin-bottom: 0.15rem;
+        letter-spacing: -0.02em;
+        color: var(--text-primary);
+        margin-bottom: 2px;
     }
     .member-sub {
         font-size: 0.82rem;
-        color: #94A3B8;
-        margin-bottom: 1.1rem;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
     }
     .member-kpi-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 0.55rem;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 0.85rem 0.5rem;
-        margin-bottom: 1.2rem;
+        gap: 8px;
+        background: var(--surface-secondary);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        padding: 12px 8px;
+        margin-bottom: 16px;
     }
     .member-kpi-val {
         font-family: var(--font-mono);
-        font-size: 1.05rem;
-        font-weight: 800;
-        color: var(--color-volt);
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--brand-primary-ink);
         display: block;
     }
     .member-kpi-lbl {
-        font-size: 0.7rem;
-        color: #94A3B8;
+        font-size: 0.72rem;
+        color: var(--text-secondary);
         margin-top: 2px;
         display: block;
     }
@@ -129,25 +149,25 @@
         text-align: left;
         display: flex;
         flex-direction: column;
-        gap: 0.6rem;
-        padding-top: 0.9rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
-        font-size: 0.82rem;
+        gap: 9px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border-default);
+        font-size: 0.84rem;
     }
     .member-spec-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 0.5rem;
+        gap: 8px;
     }
     .member-spec-row span:first-child {
-        color: #94A3B8;
+        color: var(--text-secondary);
         display: inline-flex;
         align-items: center;
-        gap: 0.4rem;
+        gap: 6px;
     }
     .member-spec-row strong {
-        color: #F8FAFC;
+        color: var(--text-primary);
         text-align: right;
     }
     .profile-tabs {
@@ -219,12 +239,13 @@
         margin-top: 0.45rem;
     }
     .paddle-chip {
+        font-family: inherit;
         font-size: 0.74rem;
         padding: 0.22rem 0.6rem;
         border-radius: 999px;
-        background: #F1F5F9;
-        color: #475569;
-        border: 1px solid #E2E8F0;
+        background: var(--bg-subtle);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-color);
         cursor: pointer;
         transition: all 0.15s ease;
     }
@@ -238,7 +259,7 @@
 <section class="page-hero">
     <div class="container page-hero-inner">
         <div>
-            <span class="section-kicker" style="color:var(--color-volt);">Thẻ Hội Viên &amp; Hồ Sơ VĐV</span>
+            <span class="section-kicker">Thẻ Hội Viên &amp; Hồ Sơ VĐV</span>
             <h1 class="page-hero-title">Hồ Sơ Cá Nhân — @Model.FullName</h1>
             <p class="page-hero-sub">Cập nhật thông tin liên hệ, thông số vận động viên Pickleball (DUPR, tay thuận, dòng vợt) và quản lý lịch đặt sân</p>
         </div>
@@ -259,15 +280,15 @@
     <div class="container">
         @if (TempData["ProfileSuccess"] != null)
         {
-            <div style="background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;padding:0.95rem 1.25rem;border-radius:12px;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.65rem;font-weight:600;font-size:0.9rem;">
-                <iconify-icon icon="lucide:check-circle-2" width="20" style="color:#059669;flex-shrink:0;"></iconify-icon>
+            <div class="sh-alert-success" style="display:flex;align-items:center;gap:0.65rem;">
+                <iconify-icon icon="lucide:check-circle-2" width="20" style="color:var(--color-success);flex-shrink:0;"></iconify-icon>
                 <span>@TempData["ProfileSuccess"]</span>
             </div>
         }
         @if (TempData["ProfileError"] != null)
         {
-            <div style="background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;padding:0.95rem 1.25rem;border-radius:12px;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.65rem;font-weight:600;font-size:0.9rem;">
-                <iconify-icon icon="lucide:alert-circle" width="20" style="color:#DC2626;flex-shrink:0;"></iconify-icon>
+            <div class="sh-alert-danger" style="display:flex;align-items:center;gap:0.65rem;">
+                <iconify-icon icon="lucide:alert-circle" width="20" style="color:var(--color-danger);flex-shrink:0;"></iconify-icon>
                 <span>@TempData["ProfileError"]</span>
             </div>
         }
@@ -495,10 +516,10 @@
                                         <label class="form-label" for="profPaddle">Dòng vợt Pickleball đang sử dụng</label>
                                         <input type="text" id="profPaddle" name="paddleBrand" class="form-input" value="@Model.PaddleBrand" placeholder="VD: Joola Perseus 16mm Carbon" oninput="document.getElementById('livePaddlePreview').textContent = this.value || 'Chưa cập nhật'">
                                         <div class="paddle-chips">
-                                            <span class="paddle-chip" onclick="setPaddleBrand('Joola Perseus 16mm')">Joola Perseus 16mm</span>
-                                            <span class="paddle-chip" onclick="setPaddleBrand('Selkirk Vanguard Control')">Selkirk Vanguard</span>
-                                            <span class="paddle-chip" onclick="setPaddleBrand('Six Zero DBD 16mm')">Six Zero DBD 16mm</span>
-                                            <span class="paddle-chip" onclick="setPaddleBrand('CRBN 1X Power')">CRBN 1X Power</span>
+                                            <button type="button" class="paddle-chip" onclick="setPaddleBrand('Joola Perseus 16mm')">Joola Perseus 16mm</button>
+                                            <button type="button" class="paddle-chip" onclick="setPaddleBrand('Selkirk Vanguard Control')">Selkirk Vanguard</button>
+                                            <button type="button" class="paddle-chip" onclick="setPaddleBrand('Six Zero DBD 16mm')">Six Zero DBD 16mm</button>
+                                            <button type="button" class="paddle-chip" onclick="setPaddleBrand('CRBN 1X Power')">CRBN 1X Power</button>
                                         </div>
                                     </div>
 

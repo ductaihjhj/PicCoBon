@@ -1,306 +1,379 @@
-﻿@using PickleballClub.Utilities
+@using PickleballClub.Utilities
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
-    var currentPath = Context.Request.Path.Value?.ToLower() ?? "";
+    var currentPath = Context.Request.Path.Value?.ToLowerInvariant() ?? "";
+    var csrfTokens = Antiforgery.GetAndStoreTokens(Context);
+    bool isAdminOnly = Function.IsAdmin();
+    string pageTitle = ViewData["Title"] as string ?? "Bảng điều khiển Quản trị";
+
+    bool IsRouteActive(params string[] patterns)
+    {
+        foreach (var p in patterns)
+        {
+            if (p == "/admin")
+            {
+                if (currentPath == "/admin" || currentPath == "/admin/" || currentPath == "/admin/home" || currentPath == "/admin/home/index")
+                    return true;
+            }
+            else if (currentPath.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 }
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@(ViewData["Title"] ?? "Quản Trị Hệ Thống") — Spike Pickleball Club</title>
-    <link rel="stylesheet" href="~/css/styles.css" asp-append-version="true">
+    <meta name="csrf-token" content="@csrfTokens.RequestToken">
+    <title>@pageTitle — Spike Pickleball Workspace</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23FF5520'/%3E%3Ccircle cx='16' cy='16' r='8' fill='%23FFFFFF'/%3E%3C/svg%3E">
+    <script>
+        (function () {
+            try {
+                var savedTheme = localStorage.getItem('spike_theme');
+                if (savedTheme === 'dark' || savedTheme === 'light') {
+                    document.documentElement.setAttribute('data-theme', savedTheme);
+                    document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+                }
+            } catch (_) {}
+        })();
+    </script>
+    @await Html.PartialAsync("~/Views/Shared/_DesignSystemCss.cshtml")
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
-    <style>
-        /* Đồng bộ toàn bộ trang Admin theo ngôn ngữ thiết kế Spike Pickleball Club */
-        .admin-page-shell {
-            min-height: calc(100vh - 280px);
-            padding-bottom: 3.5rem;
-        }
-        .content-wrapper {
-            background: transparent !important;
-        }
-        .content-header {
-            background: linear-gradient(135deg, #0A0E17 0%, #131B2E 100%);
-            color: #FFFFFF;
-            padding: 2.2rem 0;
-            margin-bottom: 2rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .content-header .container-fluid,
-        .content .container-fluid {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 0 1.5rem;
-        }
-        .content-header .row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        .content-header h1 {
-            font-family: var(--font-display, 'Oswald', sans-serif);
-            font-size: 2.1rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.02em;
-            color: #FFFFFF;
-            margin: 0;
-            line-height: 1.15;
-        }
-        .breadcrumb {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            list-style: none;
-            margin: 0;
-            padding: 0.4rem 0.85rem;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 999px;
-            font-size: 0.8rem;
-            color: #94A3B8;
-        }
-        .breadcrumb-item + .breadcrumb-item::before {
-            content: "/";
-            margin-right: 0.5rem;
-            color: #64748B;
-        }
-        .breadcrumb a {
-            color: var(--color-volt, #D4FF00);
-            text-decoration: none;
-            font-weight: 600;
-        }
-        .breadcrumb-item.active {
-            color: #E2E8F0;
-        }
-        .content .card {
-            background: #FFFFFF;
-            border-radius: var(--radius-md, 14px);
-            border: 1px solid var(--border-color, #E2E8F0);
-            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
-            overflow: hidden;
-            margin-bottom: 1.5rem;
-        }
-        .content .card-header {
-            padding: 1.1rem 1.4rem;
-            background: #F8FAFC;
-            border-bottom: 1px solid var(--border-color, #E2E8F0);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-        }
-        .content .card-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #0F172A;
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .content .card-body {
-            padding: 1.4rem;
-        }
-        .content .card-body.p-0 {
-            padding: 0 !important;
-        }
-        .content .table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .content .table th {
-            background: #F8FAFC;
-            color: #475569;
-            font-size: 0.76rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            padding: 0.85rem 1.2rem;
-            text-align: left;
-            border-bottom: 1px solid #E2E8F0;
-        }
-        .content .table td {
-            padding: 0.9rem 1.2rem;
-            border-bottom: 1px solid #F1F5F9;
-            font-size: 0.88rem;
-            color: #1E293B;
-            vertical-align: middle;
-        }
-        .content .table tbody tr:hover {
-            background: #F8FAFC;
-        }
-        .content .form-group {
-            margin-bottom: 1.1rem;
-        }
-        .content .form-group label,
-        .content .control-label {
-            display: block;
-            font-size: 0.83rem;
-            font-weight: 700;
-            color: #334155;
-            margin-bottom: 0.4rem;
-        }
-        .content .form-control {
-            width: 100%;
-            padding: 0.65rem 0.9rem;
-            font-size: 0.9rem;
-            font-family: inherit;
-            color: #0F172A;
-            background: #F8FAFC;
-            border: 1.5px solid #CBD5E1;
-            border-radius: 10px;
-            transition: all 0.2s ease;
-        }
-        .content .form-control:focus {
-            outline: none;
-            background: #FFFFFF;
-            border-color: var(--color-primary, #FF5520);
-            box-shadow: 0 0 0 3px rgba(255, 85, 32, 0.14);
-        }
-        .content .form-check {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .content .form-check-label {
-            display: inline-flex !important;
-            align-items: center;
-            gap: 0.5rem;
-            cursor: pointer;
-            margin: 0 !important;
-        }
-        .btn-info {
-            background: #0EA5E9;
-            color: #FFFFFF;
-            border: 1px solid #0EA5E9;
-        }
-        .btn-info:hover {
-            background: #0284C7;
-            color: #FFFFFF;
-        }
-        .btn-xs {
-            padding: 0.25rem 0.6rem;
-            font-size: 0.75rem;
-            border-radius: 6px;
-        }
-        .text-success { color: #059669 !important; }
-        .text-danger { color: #DC2626 !important; }
-        .text-muted { color: #64748B !important; }
-        .font-weight-bold { font-weight: 700 !important; }
-        .d-flex { display: flex !important; }
-        .d-inline { display: inline-block !important; }
-        .justify-content-between { justify-content: space-between !important; }
-        .align-items-center { align-items: center !important; }
-        .text-center { text-align: center !important; }
-        .py-4 { padding-top: 2rem !important; padding-bottom: 2rem !important; }
-    </style>
 </head>
-<body>
+<body class="sh-admin-body">
+    <a href="#shAdminMainContent" class="sr-only">Chuyển tới nội dung chính</a>
 
-    <header class="site-header">
-        <div class="site-header-inner">
-            <a href="/" class="site-brand">
-                <div class="site-brand-mark">
-                    <iconify-icon icon="mdi:racquetball" width="24"></iconify-icon>
+    <div class="sh-admin-shell" id="shAdminShell" data-sidebar-collapsed="false" data-sidebar-mobile-open="false">
+        <script>
+            (function () {
+                try {
+                    if (window.innerWidth >= 1024 && localStorage.getItem('spike_sidebar_collapsed') === 'true') {
+                        document.getElementById('shAdminShell').setAttribute('data-sidebar-collapsed', 'true');
+                    }
+                } catch (_) {}
+            })();
+        </script>
+
+        <div class="sh-sidebar-backdrop" id="shSidebarBackdrop" onclick="closeMobileAdminSidebar()" aria-hidden="true"></div>
+
+        <aside class="sh-sidebar" id="shAdminSidebar" aria-label="Điều hướng Quản trị CLB">
+            <div class="sh-sidebar-header">
+                <a href="/Admin" class="sh-team-switcher" title="Spike Pickleball Workspace">
+                    <div class="sh-team-logo">
+                        <iconify-icon icon="mdi:racquetball" width="18"></iconify-icon>
+                    </div>
+                    <div class="sh-team-meta">
+                        <span class="sh-team-name">Spike Pickleball</span>
+                        <span class="sh-team-plan">@(isAdminOnly ? "Không gian Quản trị" : "Bàn điều phối Sân")</span>
+                    </div>
+                    <iconify-icon icon="lucide:chevrons-up-down" width="14" class="sh-team-caret"></iconify-icon>
+                </a>
+            </div>
+
+            <div class="sh-sidebar-content">
+                <div class="sh-nav-group">
+                    <div class="sh-nav-group-label">Vận hành &amp; Điều phối</div>
+                    <nav class="sh-nav-menu" aria-label="Vận hành và Điều phối">
+                        <a href="/Admin"
+                           class="sh-nav-item @(IsRouteActive("/admin") ? "active" : "")"
+                           data-nav-title="Tổng quan Dashboard"
+                           title="Tổng quan Quản trị">
+                            <iconify-icon icon="lucide:layout-dashboard" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Tổng quan</span>
+                        </a>
+                        <a href="/Management"
+                           class="sh-nav-item @(IsRouteActive("/management", "/admin/home/management") ? "active" : "")"
+                           data-nav-title="Điều phối Sân &amp; POS"
+                           title="Điều phối Sân &amp; POS">
+                            <iconify-icon icon="lucide:calendar-range" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Điều phối &amp; POS</span>
+                        </a>
+                        <a href="/Admin/Bookings"
+                           class="sh-nav-item @(IsRouteActive("/admin/bookings") ? "active" : "")"
+                           data-nav-title="Đơn đặt sân"
+                           title="Danh sách Đơn đặt sân">
+                            <iconify-icon icon="lucide:calendar-check-2" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Đơn đặt sân</span>
+                        </a>
+                        <a href="/Checkin"
+                           class="sh-nav-item @(IsRouteActive("/checkin", "/admin/home/checkin") ? "active" : "")"
+                           data-nav-title="Soát vé QR"
+                           title="Trạm Soát vé QR">
+                            <iconify-icon icon="lucide:qr-code" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Soát vé QR</span>
+                        </a>
+                        <a href="/Reports"
+                           class="sh-nav-item @(IsRouteActive("/reports", "/admin/home/reports") ? "active" : "")"
+                           data-nav-title="Sổ quỹ &amp; Báo cáo"
+                           title="Báo cáo Doanh thu &amp; Sổ cái">
+                            <iconify-icon icon="lucide:bar-chart-3" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Sổ quỹ &amp; Báo cáo</span>
+                        </a>
+                    </nav>
                 </div>
-                <div class="site-brand-text">
-                    <span class="site-brand-name">SPIKE<span>.</span></span>
-                    <span class="site-brand-tag">Pickleball Club</span>
+
+                @if (isAdminOnly)
+                {
+                    <div class="sh-nav-group" data-testid="sh-nav-group-admin-only">
+                        <div class="sh-nav-group-label">Quản trị Hệ thống</div>
+                        <nav class="sh-nav-menu" aria-label="Quản trị Hệ thống">
+                            <a href="/Admin/Courts"
+                               class="sh-nav-item @(IsRouteActive("/admin/courts") ? "active" : "")"
+                               title="Quản lý Cụm sân">
+                                <iconify-icon icon="lucide:map-pin" width="17" class="sh-nav-icon"></iconify-icon>
+                                <span class="sh-nav-text">Quản lý sân</span>
+                            </a>
+                            <a href="/Admin/Products"
+                               class="sh-nav-item @(IsRouteActive("/admin/products") ? "active" : "")"
+                               title="Sản phẩm Pro Shop &amp; POS">
+                                <iconify-icon icon="lucide:shopping-bag" width="17" class="sh-nav-icon"></iconify-icon>
+                                <span class="sh-nav-text">Sản phẩm POS</span>
+                            </a>
+                            <a href="/Admin/Accounts"
+                               class="sh-nav-item @(IsRouteActive("/admin/accounts") ? "active" : "")"
+                               title="Hội viên &amp; Phân quyền">
+                                <iconify-icon icon="lucide:users" width="17" class="sh-nav-icon"></iconify-icon>
+                                <span class="sh-nav-text">Hội viên CLB</span>
+                            </a>
+                            <a href="/Admin/Menus"
+                               class="sh-nav-item @(IsRouteActive("/admin/menus") ? "active" : "")"
+                               title="Thanh Menu điều hướng">
+                                <iconify-icon icon="lucide:list-tree" width="17" class="sh-nav-icon"></iconify-icon>
+                                <span class="sh-nav-text">Thanh Menu</span>
+                            </a>
+                            <a href="/Cms"
+                               class="sh-nav-item @(IsRouteActive("/cms", "/admin/home/cms") ? "active" : "")"
+                               title="Cấu hình Website &amp; Bảng giá">
+                                <iconify-icon icon="lucide:settings-2" width="17" class="sh-nav-icon"></iconify-icon>
+                                <span class="sh-nav-text">Cấu hình Website</span>
+                            </a>
+                        </nav>
+                    </div>
+                }
+
+                <div class="sh-nav-group">
+                    <div class="sh-nav-group-label">Cổng Khách hàng</div>
+                    <nav class="sh-nav-menu" aria-label="Cổng Khách hàng">
+                        <a href="/" class="sh-nav-item" title="Mở Trang chủ CLB">
+                            <iconify-icon icon="lucide:globe" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Trang chủ CLB</span>
+                        </a>
+                        <a href="/Booking" class="sh-nav-item" title="Đặt sân trực tuyến">
+                            <iconify-icon icon="lucide:calendar-plus" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Đặt sân trực tuyến</span>
+                        </a>
+                        <a href="/Product" class="sh-nav-item" title="Cửa hàng Pro Shop">
+                            <iconify-icon icon="lucide:store" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Cửa hàng Pro Shop</span>
+                        </a>
+                        <a href="/Lookup" class="sh-nav-item" title="Tra cứu vé QR">
+                            <iconify-icon icon="lucide:ticket" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Tra cứu vé QR</span>
+                        </a>
+                    </nav>
                 </div>
-            </a>
+            </div>
 
-            <nav class="site-nav" id="siteMainNav">
-                @await Component.InvokeAsync("MenuTop")
-            </nav>
-
-            <div class="site-header-actions">
-                <div class="user-pill">
-                    <a href="/Account/Profile" style="display:inline-flex;align-items:center;gap:0.45rem;color:#FFF;text-decoration:none;" title="Hồ sơ cá nhân">
-                        <iconify-icon icon="lucide:shield-check" width="16" style="color:var(--color-volt);"></iconify-icon>
-                        <span>@(string.IsNullOrEmpty(Function._FullName) ? "Ban Quản Trị CLB" : Function._FullName)</span>
+            <div class="sh-sidebar-footer">
+                <div class="sh-nav-user">
+                    <a href="/Account/Profile" class="sh-nav-user-info" title="Hồ sơ cá nhân">
+                        <div class="sh-nav-user-avatar">
+                            <iconify-icon icon="lucide:shield-check" width="15"></iconify-icon>
+                        </div>
+                        <div class="sh-nav-user-text">
+                            <span class="sh-nav-user-name">@(string.IsNullOrEmpty(Function._FullName) ? "Điều hành CLB" : Function._FullName)</span>
+                            <span class="sh-nav-user-role">@(isAdminOnly ? "Administrator" : "Staff Operator")</span>
+                        </div>
                     </a>
-                    <a href="/Admin/Home/Logout" class="btn btn-xs btn-ghost" style="color:#FCA5A5;">Thoát</a>
+                    <a href="/Admin/Home/Logout" class="sh-nav-user-logout" title="Đăng xuất" aria-label="Đăng xuất">
+                        <iconify-icon icon="lucide:log-out" width="15"></iconify-icon>
+                    </a>
                 </div>
-                <a href="/" class="btn btn-outline btn-sm btn-pill" style="border-color:rgba(255,255,255,0.2);color:#FFF;">Xem Trang Chủ</a>
-                <button type="button" class="mobile-menu-btn" onclick="toggleMobileNav()" aria-label="Mở menu điều hướng">
-                    <iconify-icon icon="lucide:menu" width="20"></iconify-icon>
-                </button>
             </div>
-        </div>
-    </header>
+        </aside>
 
-    <!-- THANH ĐIỀU HƯỚNG QUẢN TRỊ ĐỒNG BỘ STYLE TRANG CHỦ -->
-    <div class="admin-subbar">
-        <div class="admin-subbar-inner">
-            <span style="display:inline-flex;align-items:center;gap:0.45rem;font-weight:700;color:var(--color-volt);">
-                <iconify-icon icon="lucide:shield-check" width="16"></iconify-icon>
-                <span>Trung Tâm Quản Trị CLB</span>
-            </span>
-            <div class="admin-subbar-links">
-                <a href="/Admin" class="admin-subbar-link @(currentPath == "/admin" || currentPath == "/admin/home" || currentPath == "/admin/home/index" ? "active" : "")">
-                    <iconify-icon icon="lucide:layout-dashboard" width="14"></iconify-icon>
-                    <span>Tổng quan</span>
+        <div class="sh-sidebar-inset" id="shSidebarInset">
+            <header class="sh-topbar" id="shAdminTopbar">
+                <div class="sh-topbar-left">
+                    <button type="button"
+                            class="sh-sidebar-trigger"
+                            id="shSidebarToggleBtn"
+                            onclick="toggleAdminSidebar()"
+                            aria-label="Thu gọn hoặc mở rộng thanh điều hướng"
+                            aria-controls="shAdminSidebar"
+                            aria-expanded="true">
+                        <iconify-icon icon="lucide:panel-left" width="17"></iconify-icon>
+                    </button>
+                    <span class="sh-topbar-divider" aria-hidden="true"></span>
+                    <nav class="sh-topbar-breadcrumb" aria-label="Breadcrumb">
+                        <a href="/Admin" class="sh-topbar-bc-root">@(isAdminOnly ? "Quản trị" : "Điều phối")</a>
+                        <iconify-icon icon="lucide:chevron-right" width="14" class="sh-topbar-bc-sep"></iconify-icon>
+                        <span class="sh-topbar-bc-page">@pageTitle</span>
+                    </nav>
+                </div>
+
+                <div class="sh-topbar-right">
+                    <button type="button"
+                            class="sh-search-trigger"
+                            id="shCmdTriggerBtn"
+                            onclick="openCommandPalette()"
+                            aria-label="Tìm nhanh phân hệ (Ctrl+K)">
+                        <iconify-icon icon="lucide:search" width="14"></iconify-icon>
+                        <span class="sh-search-trigger-text">Tìm nhanh phân hệ...</span>
+                        <kbd class="sh-kbd">Ctrl K</kbd>
+                    </button>
+                    <button type="button"
+                            class="sh-icon-action-btn"
+                            id="shThemeToggleBtn"
+                            onclick="toggleSpikeTheme()"
+                            aria-label="Chuyển đổi giao diện Sáng / Tối"
+                            title="Chuyển đổi giao diện Sáng / Tối">
+                        <iconify-icon icon="lucide:sun" width="16" class="sh-theme-icon-sun"></iconify-icon>
+                        <iconify-icon icon="lucide:moon" width="16" class="sh-theme-icon-moon"></iconify-icon>
+                    </button>
+                    <a href="/Checkin" class="btn btn-outline btn-xs sh-topbar-quick-link" title="Soát vé QR">
+                        <iconify-icon icon="lucide:qr-code" width="14"></iconify-icon>
+                        <span>Soát vé QR</span>
+                    </a>
+                    <div class="sh-topbar-user-pill">
+                        <a href="/Account/Profile" style="display:inline-flex;align-items:center;gap:6px;color:inherit;text-decoration:none;" title="Hồ sơ cá nhân">
+                            <iconify-icon icon="lucide:user-check" width="14" style="color:var(--brand-primary);"></iconify-icon>
+                            <span class="sh-topbar-user-name">@(string.IsNullOrEmpty(Function._FullName) ? "Ban Quản Trị" : Function._FullName)</span>
+                        </a>
+                        <a href="/Admin/Home/Logout" class="btn btn-xs btn-ghost" style="color:var(--status-danger-text);">Thoát</a>
+                    </div>
+                </div>
+            </header>
+
+            <main class="sh-admin-main admin-page-shell" id="shAdminMainContent">
+                @RenderBody()
+            </main>
+
+            <footer class="sh-admin-footer">
+                <div class="sh-admin-footer-inner">
+                    <span>© 2026 Spike Pickleball Club — Hệ thống Quản trị &amp; Điều phối</span>
+                    <span>Sổ cái thời gian thực &amp; Kiểm soát phân quyền RBAC</span>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="shCommandModal" role="dialog" aria-modal="true" aria-labelledby="shCommandModalTitle">
+        <div class="modal sh-cmd-dialog">
+            <div class="sh-cmd-search-bar">
+                <iconify-icon icon="lucide:search" width="17" class="sh-cmd-search-icon"></iconify-icon>
+                <input type="text"
+                       id="shCommandSearchInput"
+                       class="sh-cmd-input"
+                       placeholder="Gõ tên phân hệ, chức năng (VD: sân, POS, báo cáo, QR)..."
+                       oninput="filterCommandPalette(this.value)"
+                       autocomplete="off" />
+                <span id="shCommandModalTitle" class="sr-only">Tìm kiếm nhanh điều hướng hệ thống</span>
+                <button type="button" class="sh-cmd-esc-btn" onclick="closeModal('shCommandModal')">ESC</button>
+            </div>
+            <div class="sh-cmd-list" id="shCommandList">
+                <div class="sh-cmd-group-title">Vận hành &amp; Điều phối</div>
+                <a href="/Admin" class="sh-cmd-item" data-cmd-keywords="tong quan dashboard admin">
+                    <iconify-icon icon="lucide:layout-dashboard" width="16"></iconify-icon>
+                    <span>Tổng quan Điều hành CLB</span>
+                    <span class="sh-cmd-shortcut">/Admin</span>
                 </a>
-                <a href="/Management" class="admin-subbar-link @(currentPath.Contains("management") ? "active" : "")">
-                    <span>Điều phối &amp; POS</span>
+                <a href="/Management" class="sh-cmd-item" data-cmd-keywords="dieu phoi san pos thu ngan khoa san timeline">
+                    <iconify-icon icon="lucide:calendar-range" width="16"></iconify-icon>
+                    <span>Điều phối Sân, Timeline &amp; Sổ cái POS</span>
+                    <span class="sh-cmd-shortcut">/Management</span>
                 </a>
-                <a href="/Admin/Bookings" class="admin-subbar-link @(currentPath.Contains("/admin/bookings") ? "active" : "")">
-                    <span>Đơn đặt sân</span>
+                <a href="/Admin/Bookings" class="sh-cmd-item" data-cmd-keywords="don dat san walkin duyet ve">
+                    <iconify-icon icon="lucide:calendar-check-2" width="16"></iconify-icon>
+                    <span>Quản lý Danh sách Đơn đặt sân</span>
+                    <span class="sh-cmd-shortcut">/Admin/Bookings</span>
                 </a>
-                <a href="/Admin/Courts" class="admin-subbar-link @(currentPath.Contains("/admin/courts") ? "active" : "")">
-                    <span>Quản lý sân</span>
+                <a href="/Checkin" class="sh-cmd-item" data-cmd-keywords="soat ve checkin qr camera zxing">
+                    <iconify-icon icon="lucide:qr-code" width="16"></iconify-icon>
+                    <span>Trạm Soát vé Check-in QR</span>
+                    <span class="sh-cmd-shortcut">/Checkin</span>
                 </a>
-                <a href="/Admin/Accounts" class="admin-subbar-link @(currentPath.Contains("/admin/accounts") ? "active" : "")">
-                    <span>Hội viên CLB</span>
+                <a href="/Reports" class="sh-cmd-item" data-cmd-keywords="bao cao doanh thu so cai cong no ledger">
+                    <iconify-icon icon="lucide:bar-chart-3" width="16"></iconify-icon>
+                    <span>Báo cáo Doanh thu &amp; Sổ cái</span>
+                    <span class="sh-cmd-shortcut">/Reports</span>
                 </a>
-                <a href="/Admin/Products" class="admin-subbar-link @(currentPath.Contains("/admin/products") ? "active" : "")">
-                    <span>Sản phẩm POS</span>
+
+                @if (isAdminOnly)
+                {
+                    <div class="sh-cmd-group-title">Quản trị Hệ thống</div>
+                    <a href="/Admin/Courts" class="sh-cmd-item" data-cmd-keywords="quan ly san gia san vip indoor outdoor">
+                        <iconify-icon icon="lucide:map-pin" width="16"></iconify-icon>
+                        <span>Quản lý Cụm sân thi đấu</span>
+                        <span class="sh-cmd-shortcut">/Admin/Courts</span>
+                    </a>
+                    <a href="/Admin/Products" class="sh-cmd-item" data-cmd-keywords="san pham pro shop pos ton kho upload anh">
+                        <iconify-icon icon="lucide:shopping-bag" width="16"></iconify-icon>
+                        <span>Quản lý Sản phẩm Pro Shop</span>
+                        <span class="sh-cmd-shortcut">/Admin/Products</span>
+                    </a>
+                    <a href="/Admin/Accounts" class="sh-cmd-item" data-cmd-keywords="hoi vien tai khoan nhan su rbac phan quyen">
+                        <iconify-icon icon="lucide:users" width="16"></iconify-icon>
+                        <span>Quản lý Hội viên &amp; Phân quyền</span>
+                        <span class="sh-cmd-shortcut">/Admin/Accounts</span>
+                    </a>
+                    <a href="/Admin/Menus" class="sh-cmd-item" data-cmd-keywords="menu dieu huong">
+                        <iconify-icon icon="lucide:list-tree" width="16"></iconify-icon>
+                        <span>Quản lý Thanh Menu điều hướng</span>
+                        <span class="sh-cmd-shortcut">/Admin/Menus</span>
+                    </a>
+                    <a href="/Cms" class="sh-cmd-item" data-cmd-keywords="cau hinh website bang gia gio mo cua cms">
+                        <iconify-icon icon="lucide:settings-2" width="16"></iconify-icon>
+                        <span>Cấu hình Website &amp; Bảng giá (CMS)</span>
+                        <span class="sh-cmd-shortcut">/Cms</span>
+                    </a>
+                }
+
+                <div class="sh-cmd-group-title">Cổng Khách hàng</div>
+                <a href="/" class="sh-cmd-item" data-cmd-keywords="trang chu khach hang lich trong">
+                    <iconify-icon icon="lucide:globe" width="16"></iconify-icon>
+                    <span>Trang chủ Spike Pickleball Club</span>
+                    <span class="sh-cmd-shortcut">/</span>
                 </a>
-                <a href="/Admin/Menus" class="admin-subbar-link @(currentPath.Contains("/admin/menus") ? "active" : "")">
-                    <span>Thanh Menu</span>
+                <a href="/Booking" class="sh-cmd-item" data-cmd-keywords="dat san truc tuyen bao gia">
+                    <iconify-icon icon="lucide:calendar-plus" width="16"></iconify-icon>
+                    <span>Đặt sân trực tuyến</span>
+                    <span class="sh-cmd-shortcut">/Booking</span>
                 </a>
-                <a href="/Checkin" class="admin-subbar-link @(currentPath.Contains("checkin") ? "active" : "")">
-                    <span>Soát vé QR</span>
+                <a href="/Product" class="sh-cmd-item" data-cmd-keywords="cua hang pro shop nuoc uong thue vot">
+                    <iconify-icon icon="lucide:store" width="16"></iconify-icon>
+                    <span>Cửa hàng Pro Shop</span>
+                    <span class="sh-cmd-shortcut">/Product</span>
                 </a>
-                <a href="/Reports" class="admin-subbar-link @(currentPath.Contains("reports") ? "active" : "")">
-                    <span>Báo cáo doanh thu</span>
-                </a>
-                <a href="/Cms" class="admin-subbar-link @(currentPath.Contains("cms") ? "active" : "")">
-                    <span>Cấu hình Website</span>
+                <a href="/Lookup" class="sh-cmd-item" data-cmd-keywords="tra cuu ve qr ma dat san">
+                    <iconify-icon icon="lucide:ticket" width="16"></iconify-icon>
+                    <span>Tra cứu vé điện tử QR</span>
+                    <span class="sh-cmd-shortcut">/Lookup</span>
                 </a>
             </div>
         </div>
     </div>
-
-    <div class="admin-page-shell">
-        @RenderBody()
-    </div>
-
-    <footer class="site-footer">
-        <div class="container">
-            <div class="site-footer-bottom" style="border-top:none;padding-top:0;">
-                <span>© 2026 Spike Pickleball Club — Hệ thống Quản trị &amp; Điều hành Cụm sân.</span>
-                <span>Tổ hợp sân đạt chuẩn thi đấu quốc tế USAPA</span>
-            </div>
-        </div>
-    </footer>
 
     @if (Function.IsLogin())
     {
+        var roleKey = Function._RoleId == 1 ? "admin" : (Function._RoleId == 3 ? "staff" : "user");
+        var roleLabel = Function._RoleId == 1 ? "Ban Quản Trị CLB" : (Function._RoleId == 3 ? "Nhân viên Vận hành" : "Hội viên CLB");
         <script>
-            localStorage.setItem('pb_auth_user', JSON.stringify({
+            window.SERVER_AUTH_USER = {
                 id: @Function._AccountId,
                 name: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(string.IsNullOrEmpty(Function._FullName) ? "Ban Quản Trị CLB" : Function._FullName)),
                 email: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._Email)),
                 phone: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._Phone)),
-                role: '@(Function._RoleId == 1 ? "admin" : "user")',
-                roleLabel: '@(Function._RoleId == 1 ? "Ban Quản Trị CLB" : "Hội viên CLB")',
-                avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=120&q=80'
-            }));
+                role: '@roleKey',
+                roleLabel: '@Html.Raw(roleLabel)',
+                avatar: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Function._Avatar))
+            };
+            try { localStorage.removeItem('pb_auth_user'); } catch (_) {}
         </script>
     }
     <script src="~/js/shared.js" asp-append-version="true"></script>

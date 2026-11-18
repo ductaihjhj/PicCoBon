@@ -1,37 +1,27 @@
 ﻿@model PickleballClub.Models.TbMenu
-
 @{
     ViewData["Title"] = "Chi tiết Menu";
     Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    ViewData["AdminHeaderTitle"] = $"Chi tiết Menu: {Model.Title}";
+    ViewData["AdminHeaderBackUrl"] = "/Admin/Menus";
 }
+@await Html.PartialAsync("~/Areas/Admin/Views/Shared/_AdminPageHeader.cshtml")
 
-<div class="content-wrapper">
-    <section class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1>Chi tiết Menu</h1>
-                </div>
-            </div>
+<div class="card" style="max-width:600px;">
+    <div class="card-header">
+        <h3 class="card-title">Thông tin mục điều hướng</h3>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+        <div class="payment-summary" style="border-radius:var(--radius-md);">
+            <div class="payment-line"><span>Tiêu đề</span><strong>@Model.Title</strong></div>
+            <div class="payment-line"><span>Alias</span><code class="text-mono">@Model.Alias</code></div>
+            <div class="payment-line"><span>Cấp</span><strong class="text-mono">@Model.Levels</strong></div>
+            <div class="payment-line"><span>Vị trí</span><strong class="text-mono">@Model.Position</strong></div>
+            <div class="payment-line"><span>Trạng thái</span><strong>@(Model.IsActive ? "Hiển thị" : "Ẩn")</strong></div>
         </div>
-    </section>
-
-    <section class="content">
-        <div class="container-fluid">
-            <div class="card card-info">
-                <div class="card-header">
-                    <h3 class="card-title">Thông tin chi tiết</h3>
-                </div>
-                <div class="card-body">
-                    <p><strong>Tiêu đề:</strong> @Model.Title</p>
-                    <p><strong>Alias:</strong> @Model.Alias</p>
-                    <p><strong>Cấp:</strong> @Model.Levels</p>
-                    <p><strong>Vị trí:</strong> @Model.Position</p>
-                    <p><strong>Trạng thái:</strong> @(Model.IsActive ? "Hiển thị" : "Ẩn")</p>
-                    <a asp-action="Edit" asp-route-id="@Model.MenuId" class="btn btn-primary">Sửa</a>
-                    <a asp-action="Index" class="btn btn-secondary">Quay lại</a>
-                </div>
-            </div>
+        <div style="display:flex;gap:8px;">
+            <a asp-action="Edit" asp-route-id="@Model.MenuId" class="btn btn-primary">Sửa</a>
+            <a asp-action="Index" class="btn btn-secondary">Quay lại</a>
         </div>
-    </section>
+    </div>
 </div>

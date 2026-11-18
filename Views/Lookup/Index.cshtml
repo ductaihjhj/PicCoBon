@@ -6,47 +6,54 @@
 <section class="page-hero">
     <div class="container page-hero-inner">
         <div>
-            <span class="section-kicker" style="color:var(--color-volt);">Quản lý vé điện tử</span>
-            <h1 class="page-hero-title">Tra Cứu Vé Sân &amp; Lịch Sử Đặt Lịch</h1>
-            <p class="page-hero-sub">Nhập Số điện thoại, Mã vé (PB-...) hoặc Họ tên để xem mã QR nhận sân</p>
+            <h1 class="page-hero-title">Tra cứu vé điện tử &amp; lịch đặt sân</h1>
+            <p class="page-hero-sub">Hội viên đã đăng nhập xem trực tiếp vé cá nhân. Khách vãng lai nhập Mã đặt sân (PB-...) kèm Mã bảo mật vé (bk_...).</p>
         </div>
-        <a href="/Booking" class="btn btn-primary">
+        <a href="/Booking" class="btn btn-primary btn-sm">
             <iconify-icon icon="lucide:calendar-plus" width="16"></iconify-icon>
             <span>Đặt thêm sân mới</span>
         </a>
     </div>
 </section>
 
-<main class="page-main">
+<main class="page-main" style="padding:28px 0 56px;">
     <div class="container stack">
         <div class="card">
             <div class="card-body">
-                <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
-                    <div class="input-icon-wrap" style="flex:1;min-width:240px">
-                        <iconify-icon icon="lucide:search" class="input-icon-left"></iconify-icon>
-                        <input class="form-input text-mono" type="text" id="lookupPhone" placeholder="Nhập Số điện thoại, Mã vé (PB-...) hoặc Họ tên người đặt..." onkeydown="if(event.key==='Enter')searchLookup()">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                    <div class="sn-search-field" style="flex:1;min-width:210px;">
+                        <iconify-icon icon="lucide:ticket" width="16" class="sn-search-field-icon"></iconify-icon>
+                        <input class="form-input text-mono" type="text" id="lookupCode" placeholder="Mã đặt sân (VD: PB-2611A9)" onkeydown="if(event.key==='Enter')searchLookup()">
                     </div>
-                    <button class="btn btn-primary" onclick="searchLookup()">
+                    <div class="sn-search-field" style="flex:1.25;min-width:230px;" id="lookupAccessTokenWrap">
+                        <iconify-icon icon="lucide:key-round" width="16" class="sn-search-field-icon"></iconify-icon>
+                        <input class="form-input text-mono" type="text" id="lookupAccessToken" placeholder="Mã bảo mật vé (bk_...) hoặc chuỗi QR SPK1." onkeydown="if(event.key==='Enter')searchLookup()">
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="searchLookup()">
                         <iconify-icon icon="lucide:search" width="16"></iconify-icon>
-                        <span>Tra cứu ngay</span>
+                        <span>Tra cứu bảo mật</span>
                     </button>
-                    <button class="btn btn-outline" onclick="showAllLookup()">
+                    <button type="button" class="btn btn-secondary" id="lookupShowAllBtn" style="display:none" onclick="showAllLookup()">
                         <iconify-icon icon="lucide:list" width="16"></iconify-icon>
-                        <span>Xem lịch đặt gần đây</span>
+                        <span>Xem vé của tôi</span>
                     </button>
+                </div>
+                <div class="sn-alert sn-alert-info" style="margin-top:12px;font-size:0.8125rem;padding:10px 14px;" id="lookupSecurityHint">
+                    <iconify-icon icon="lucide:shield-check" width="16" style="flex-shrink:0;margin-top:2px;"></iconify-icon>
+                    <span>Chính sách bảo mật: Không hỗ trợ tra cứu công khai qua số điện thoại. Khách chưa đăng nhập vui lòng nhập đúng <strong>Mã bảo mật vé (bk_...)</strong> được cấp khi đặt sân.</span>
                 </div>
             </div>
         </div>
 
-        <div class="card card--flush" id="lookupResultCard" style="display:none">
+        <div class="card" id="lookupResultCard" style="display:none">
             <div class="card-header">
                 <span class="card-header-title">
-                    <iconify-icon icon="lucide:ticket" width="18" style="color:var(--color-primary)"></iconify-icon>
+                    <iconify-icon icon="lucide:ticket" width="17" style="color:var(--brand-primary)"></iconify-icon>
                     <span id="lookupTitle">Kết quả tra cứu</span>
                 </span>
             </div>
-            <div class="table-wrap">
-                <table>
+            <div class="sn-table-wrap">
+                <table class="sn-table">
                     <thead>
                         <tr>
                             <th>Mã vé</th>
@@ -54,7 +61,7 @@
                             <th>Ngày thi đấu</th>
                             <th>Sân thi đấu</th>
                             <th>Khung giờ</th>
-                            <th>Chi phí</th>
+                            <th>Chi phí &amp; Thanh toán</th>
                             <th>Trạng thái</th>
                             <th>Thao tác</th>
                         </tr>
@@ -64,39 +71,35 @@
             </div>
         </div>
 
-        <div class="card empty-state" id="lookupEmpty" style="display:none">
-            <div class="empty-state-icon">
-                <iconify-icon icon="lucide:search-x" width="28"></iconify-icon>
-            </div>
-            <div class="empty-state-title">Chưa có đơn đặt sân nào khớp từ khóa</div>
-            <div class="empty-state-text">Vui lòng đặt sân mới hoặc kiểm tra lại số điện thoại / mã vé.</div>
+        <div class="sn-empty-state" id="lookupEmpty" style="display:none">
+            <iconify-icon icon="lucide:shield-alert" width="28" style="color:var(--text-muted);"></iconify-icon>
+            <div style="font-weight:650;font-size:1rem;color:var(--text-primary);">Không tìm thấy vé hoặc chưa xác thực quyền sở hữu</div>
+            <div style="font-size:0.875rem;color:var(--text-secondary);max-width:480px;">Hãy kiểm tra lại Mã đặt sân (PB-...) kèm Mã bảo mật vé (bk_...), hoặc đăng nhập bằng tài khoản hội viên đã đặt lịch.</div>
         </div>
     </div>
 </main>
 
-<!-- MODAL XEM VÉ ĐIỆN TỬ QR -->
+<!-- DIGITAL TICKET QR MODAL (PRESERVED SACRED CONTRACT) -->
 <div class="modal-overlay" id="modalTicketQR">
-    <div class="modal modal-sm">
-        <div class="modal-header">
-            <h3 class="modal-title" style="color:var(--color-primary)">Vé Sân Điện Tử (E-Ticket)</h3>
-            <button class="modal-close" onclick="closeModal('modalTicketQR')">✕</button>
+    <div class="modal" style="max-width:520px;width:94vw;">
+        <div class="modal-header no-print">
+            <h3 class="modal-title">Vé sân điện tử QR</h3>
+            <button type="button" class="modal-close" onclick="closeModal('modalTicketQR')" aria-label="Đóng">✕</button>
         </div>
-        <div class="modal-body" style="text-align:center">
-            <div class="qr-placeholder">
-                <iconify-icon icon="lucide:qr-code" width="76"></iconify-icon>
-                <div class="text-xs font-bold text-mono" id="ticketQrCode"></div>
-            </div>
-            <p class="text-xs text-muted mt-sm">Xuất trình mã QR này tại quầy lễ tân để nhận sân</p>
-            <div class="payment-summary mt-md" style="text-align:left">
-                <div class="payment-line"><span class="text-muted">Khách hàng</span><span class="font-bold" id="ticketQrName"></span></div>
-                <div class="payment-line"><span class="text-muted">Ngày thi đấu</span><span class="font-semibold" id="ticketQrDate"></span></div>
-                <div class="payment-line"><span class="text-muted">Sân đấu</span><span class="font-semibold" id="ticketQrCourt"></span></div>
-                <div class="payment-line"><span class="text-muted">Khung giờ</span><span class="font-semibold text-mono" id="ticketQrTime"></span></div>
-                <div class="payment-line total"><span>Tổng thanh toán</span><span class="font-bold text-mono" id="ticketQrTotal"></span></div>
+        <div class="modal-body" style="padding:16px;">
+            <div id="lookupDigitalTicketHost"></div>
+            <div style="display:none;" aria-hidden="true">
+                <span id="ticketQrCode"></span>
+                <a id="ticketQrDownloadPngBtn" href="#"></a>
+                <span id="ticketQrName"></span>
+                <span id="ticketQrDate"></span>
+                <span id="ticketQrCourt"></span>
+                <span id="ticketQrTime"></span>
+                <span id="ticketQrTotal"></span>
             </div>
         </div>
-        <div class="modal-footer">
-            <button class="btn btn-primary btn-block" onclick="closeModal('modalTicketQR')">Đóng</button>
+        <div class="modal-footer no-print" style="padding:12px 16px;">
+            <button type="button" class="btn btn-primary btn-block" onclick="closeModal('modalTicketQR')">Đóng</button>
         </div>
     </div>
 </div>

@@ -1,0 +1,577 @@
+/* ==========================================================================
+   SPIKE x NOTION PRODUCTIVITY — PAGE EXPERIENCES & INTERACTIVE GRIDS
+   ========================================================================== */
+
+/* Shared Public Inner Page Header (Replaces heavy dark .page-hero banners) */
+body:not(.sh-admin-body) .page-hero {
+  background: var(--surface-secondary) !important;
+  background-image: none !important;
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-primary);
+  padding: 32px 0 28px;
+}
+body:not(.sh-admin-body) .page-hero::before,
+body:not(.sh-admin-body) .page-hero::after {
+  display: none !important;
+}
+body:not(.sh-admin-body) .page-hero-title {
+  color: var(--text-primary) !important;
+  font-size: clamp(1.65rem, 3vw, 2.25rem) !important;
+  font-weight: 750 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.15 !important;
+}
+body:not(.sh-admin-body) .page-hero-sub {
+  color: var(--text-secondary) !important;
+  font-size: 0.975rem !important;
+  max-width: 660px;
+}
+body:not(.sh-admin-body) .page-hero .badge {
+  background-color: var(--surface) !important;
+  border: 1px solid var(--border-default) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* ==========================================================================
+   1. HOME LANDING — BRIGHT NOTION EDITORIAL + SPORTS ENERGY
+   ========================================================================== */
+.sn-home-hero {
+  background-color: var(--background);
+  border-bottom: 1px solid var(--border-default);
+  padding: 40px 0 48px;
+}
+.sn-home-hero-grid {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: 1.12fr 0.88fr;
+  gap: 36px;
+  align-items: center;
+}
+.sn-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--brand-primary-border);
+  background-color: var(--brand-primary-tint);
+  color: var(--brand-primary-ink);
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+.sn-hero-title {
+  margin: 0 0 14px 0;
+  font-size: clamp(1.9rem, 3.5vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.032em;
+  color: var(--text-primary);
+}
+.sn-hero-title span { color: var(--brand-primary); }
+.sn-hero-desc {
+  margin: 0 0 22px 0;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  max-width: 540px;
+}
+.sn-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+/* Right Framed Athletic Media + Live Status Card */
+.sn-hero-visual-panel {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  background-color: var(--surface);
+  box-shadow: var(--shadow-float);
+  overflow: hidden;
+}
+.sn-hero-media-frame {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-default);
+}
+.sn-hero-media-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.sn-hero-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-default);
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+.sn-hero-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  padding: 14px 16px;
+}
+.sn-mini-court-item {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background-color: var(--surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* Integrated Quick Search Bar */
+.sn-quick-search-wrap {
+  max-width: var(--container-max);
+  margin: 28px auto 0;
+  padding: 0 24px;
+}
+.quick-book-bar {
+  margin-top: 0 !important;
+  background-color: var(--surface) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-float) !important;
+  padding: 16px 20px !important;
+}
+
+@media (max-width: 960px) {
+  .sn-home-hero { padding: 24px 0 32px; }
+  .sn-home-hero-grid { grid-template-columns: 1fr; padding: 0 16px; gap: 22px; }
+  .sn-home-hero-grid > * { min-width: 0; }
+  .sn-quick-search-wrap { padding: 0 16px; margin-top: 18px; }
+  .quick-book-bar { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 560px) {
+  .sn-hero-mini-grid { grid-template-columns: 1fr; }
+}
+
+/* ==========================================================================
+   2. COURT BOOKING — COURT x TIME MATRIX + STICKY SUMMARY
+   ========================================================================== */
+.sn-matrix-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.78rem;
+}
+.sn-matrix-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background-color: var(--surface);
+  font-weight: 600;
+}
+
+.sn-booking-matrix-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+.sn-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 620px;
+}
+.sn-matrix-table th, .sn-matrix-table td {
+  border-bottom: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
+  padding: 6px;
+  text-align: center;
+  font-size: 0.78rem;
+}
+.sn-matrix-table th:last-child, .sn-matrix-table td:last-child { border-right: none; }
+.sn-matrix-table tr:last-child td { border-bottom: none; }
+.sn-matrix-table th {
+  background-color: var(--surface-secondary);
+  font-weight: 650;
+  color: var(--text-primary);
+  padding: 9px 10px;
+}
+.sn-matrix-time-col {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background-color: var(--surface-secondary);
+  font-family: var(--font-mono);
+  font-weight: 650;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.sn-matrix-cell-btn {
+  width: 100%;
+  min-height: 34px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.sn-matrix-cell-btn.is-free {
+  background-color: var(--status-success-bg);
+  border-color: var(--status-success-border);
+  color: var(--status-success-text);
+}
+.sn-matrix-cell-btn.is-free:hover {
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-tint);
+  color: var(--brand-primary-ink);
+}
+.sn-matrix-cell-btn.is-selected {
+  background-color: var(--brand-primary) !important;
+  border-color: var(--brand-primary-hover) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 6px rgba(255, 85, 32, 0.25);
+}
+.sn-matrix-cell-btn.is-booked {
+  background-color: var(--status-info-bg);
+  border-color: var(--status-info-border);
+  color: var(--status-info-text);
+  cursor: not-allowed;
+}
+.sn-matrix-cell-btn.is-pending {
+  background-color: var(--status-warning-bg);
+  border-color: var(--status-warning-border);
+  color: var(--status-warning-text);
+  cursor: not-allowed;
+}
+.sn-matrix-cell-btn.is-locked {
+  background-color: var(--status-danger-bg);
+  border-color: var(--status-danger-border);
+  color: var(--status-danger-text);
+  cursor: not-allowed;
+}
+.sn-matrix-cell-btn.is-past {
+  background-color: var(--status-neutral-bg);
+  border-color: var(--status-neutral-border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* Mobile Sticky Summary Bar on /Booking */
+.sn-mobile-booking-bar {
+  display: none;
+}
+@media (max-width: 1023px) {
+  .sn-mobile-booking-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 880;
+    background-color: var(--surface);
+    border-top: 1px solid var(--border-default);
+    box-shadow: var(--shadow-float);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+}
+
+/* ==========================================================================
+   3. PRO SHOP — CARD HOVER LIFT & MOBILE CART BOTTOM SHEET
+   ========================================================================== */
+.menu-item {
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-lg) !important;
+  background-color: var(--surface) !important;
+  box-shadow: none !important;
+  transition: transform var(--dur-base) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out) !important;
+}
+.menu-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong) !important;
+  box-shadow: var(--shadow-float) !important;
+}
+.menu-item.is-selected {
+  border-color: var(--brand-primary) !important;
+  box-shadow: 0 0 0 2px var(--brand-primary-tint) !important;
+}
+.menu-item-cat-pill {
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-default) !important;
+  box-shadow: var(--shadow-xs) !important;
+  font-weight: 600 !important;
+}
+html[data-theme="dark"] .menu-item-cat-pill {
+  background: rgba(19, 26, 34, 0.92) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-strong) !important;
+}
+.menu-item-cta {
+  background-color: var(--surface) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-strong) !important;
+  box-shadow: none !important;
+}
+.menu-item:not(.is-out-of-stock) .menu-item-cta:hover:not(:disabled) {
+  background-color: var(--brand-primary) !important;
+  border-color: var(--brand-primary) !important;
+  color: #FFFFFF !important;
+}
+.menu-item-cta.is-added {
+  background-color: var(--brand-primary) !important;
+  border-color: var(--brand-primary) !important;
+  color: #FFFFFF !important;
+}
+
+/* ==========================================================================
+   4. ADMIN MANAGEMENT — COURT x TIME SCHEDULING TIMELINE
+   ========================================================================== */
+.sn-ops-timeline-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background-color: var(--surface);
+}
+.sn-ops-timeline-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+.sn-ops-timeline-table th, .sn-ops-timeline-table td {
+  border-bottom: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
+  padding: 5px 6px;
+  vertical-align: middle;
+}
+.sn-ops-timeline-table th {
+  background-color: var(--surface-secondary);
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--text-primary);
+  padding: 10px;
+  text-align: left;
+}
+.sn-ops-timeline-hour {
+  width: 68px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--text-secondary);
+  background-color: var(--surface-subtle);
+  text-align: center;
+  white-space: nowrap;
+}
+.sn-ops-slot-pill {
+  width: 100%;
+  text-align: left;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  transition: filter var(--dur-fast) var(--ease-out);
+}
+.sn-ops-slot-pill:hover { filter: brightness(0.96); }
+.sn-ops-slot-pill.state-playing {
+  background-color: var(--status-info-bg);
+  border-color: var(--status-info-border);
+  color: var(--status-info-text);
+}
+.sn-ops-slot-pill.state-approved {
+  background-color: var(--brand-primary-tint);
+  border-color: var(--brand-primary-border);
+  color: var(--brand-primary-ink);
+}
+.sn-ops-slot-pill.state-pending {
+  background-color: var(--status-warning-bg);
+  border-color: var(--status-warning-border);
+  color: var(--status-warning-text);
+}
+.sn-ops-slot-pill.state-locked {
+  background-color: var(--status-danger-bg);
+  border-color: var(--status-danger-border);
+  color: var(--status-danger-text);
+}
+.sn-ops-slot-empty {
+  color: var(--text-subtle);
+  font-size: 0.72rem;
+  padding: 4px 6px;
+}
+
+/* Protect QR Well Unconditionally Across Any Dark/Light Combination */
+.spk-ticket-qr-well,
+html[data-theme="dark"] .spk-ticket-qr-well {
+  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
+}
+
+/* ==========================================================================
+   5. PUBLIC SECTIONS, PRICING CARDS & COURT CARDS (Notion Cleanliness)
+   ========================================================================== */
+.web-section {
+  padding: 52px 0;
+  background-color: var(--background);
+}
+.web-section-alt {
+  background-color: var(--surface-secondary);
+  border-top: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-default);
+}
+.section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.section-kicker {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--brand-primary-ink);
+  margin-bottom: 4px;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+.section-heading {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+  text-transform: none !important;
+}
+.section-sub {
+  margin: 4px 0 0;
+  font-size: 0.925rem;
+  color: var(--text-secondary);
+}
+
+.pricing-card {
+  background-color: var(--surface) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-lg) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+.pricing-card.featured {
+  background-color: var(--surface) !important;
+  border: 2px solid var(--brand-primary) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-float) !important;
+}
+.pricing-card.featured .pricing-tag {
+  background-color: var(--brand-primary-tint);
+  color: var(--brand-primary-ink);
+  border: 1px solid var(--brand-primary-border);
+}
+.pricing-card.featured .pricing-price,
+.pricing-card.featured .pricing-price span {
+  color: var(--text-primary) !important;
+}
+
+.match-card {
+  background-color: var(--surface) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-card) !important;
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.match-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong) !important;
+  box-shadow: var(--shadow-float) !important;
+}
+.match-card-media h3 {
+  font-family: var(--font-display) !important;
+  font-size: 1.35rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em;
+  text-transform: none !important;
+}
+
+/* Booking Controls Notion Refresh */
+.date-pill {
+  background-color: var(--surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+}
+.date-pill.active {
+  background-color: var(--brand-primary) !important;
+  border-color: var(--brand-primary-hover) !important;
+  color: #FFFFFF !important;
+}
+.date-pill.active * { color: #FFFFFF !important; }
+.date-pill-num { font-family: var(--font-display) !important; }
+
+.court-option {
+  background-color: var(--surface) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-md) !important;
+}
+.court-option.active, .court-option.selected {
+  border-color: var(--brand-primary) !important;
+  background-color: var(--brand-primary-tint) !important;
+  box-shadow: 0 0 0 1px var(--brand-primary);
+}
+.court-option-name {
+  font-family: var(--font-display) !important;
+  font-size: 1rem !important;
+  text-transform: none !important;
+}
+
+.duration-pill.active {
+  background-color: var(--text-primary) !important;
+  border-color: var(--text-primary) !important;
+  color: var(--surface) !important;
+}
+.slot-btn {
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--border-default) !important;
+  background-color: var(--surface) !important;
+}
+.slot-btn.selected {
+  background-color: var(--brand-primary) !important;
+  border-color: var(--brand-primary-hover) !important;
+  color: #FFFFFF !important;
+}
+.slot-btn.selected span { color: #FFFFFF !important; }
+
+/* Summary Panel Header Override */
+.sn-summary-header {
+  background-color: var(--surface-secondary) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-default) !important;
+}
+

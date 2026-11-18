@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PickleballClub.Models;
@@ -14,6 +14,10 @@ namespace PickleballClub.Controllers
             _context = context;
         }
 
+        [HttpGet("/")]
+        [HttpGet("/Home")]
+        [HttpGet("/Home/Index")]
+        [HttpGet("/Dashboard")]
         public async Task<IActionResult> Index()
         {
             ViewBag.Courts = await _context.TbCourts.Where(c => c.IsActive).OrderBy(c => c.CourtId).ToListAsync();

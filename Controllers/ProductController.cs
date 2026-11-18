@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PickleballClub.Models;
 
@@ -16,8 +16,9 @@ namespace PickleballClub.Controllers
         public async Task<IActionResult> Index()
         {
             var products = await _context.TbProducts
+                .AsNoTracking()
                 .Include(p => p.CategoryProduct)
-                .Where(p => p.IsActive)
+                .Where(p => p.IsActive && p.Title != null && p.Title.Trim().ToLower() != "slot")
                 .OrderBy(p => p.ProductId)
                 .ToListAsync();
             return View(products);

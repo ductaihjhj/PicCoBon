@@ -1,0 +1,118 @@
+{
+  "timestamp": "2026-11-10T05:53:55.744Z",
+  "baseUrl": "http://127.0.0.1:5299",
+  "consoleErrors": [],
+  "pageErrors": [],
+  "brokenImages": [],
+  "breakpoints": [
+    {
+      "breakpoint": 320,
+      "overflowPx": 0,
+      "brokenCount": 0,
+      "pass": true
+    },
+    {
+      "breakpoint": 375,
+      "overflowPx": 0,
+      "brokenCount": 0,
+      "pass": true
+    },
+    {
+      "breakpoint": 390,
+      "overflowPx": 0,
+      "brokenCount": 0,
+      "pass": true
+    },
+    {
+      "breakpoint": 768,
+      "overflowPx": 0,
+      "brokenCount": 0,
+      "pass": true
+    },
+    {
+      "breakpoint": 1024,
+      "overflowPx": 0,
+      "brokenCount": 0,
+      "pass": true
+    },
+    {
+      "breakpoint": 1440,
+      "overflowPx": 0,
+      "brokenCount": 0,
+      "pass": true
+    },
+    {
+      "breakpoint": 1920,
+      "overflowPx": 0,
+      "brokenCount": 0,
+      "pass": true
+    }
+  ],
+  "checks": {
+    "V6-01_StudioPackshotImagesOnProShop": {
+      "pass": true,
+      "cardCount": 10,
+      "menuCountText": "10",
+      "allLoaded": true,
+      "legacyIconsCount": 0,
+      "allSquare": true,
+      "sampleSrcs": [
+        "/uploads/products/d487101fa7ac489584d8c0922d289d24.webp",
+        "/uploads/products/sku-03-pocari.png",
+        "/uploads/products/sku-02-aquafina.png",
+        "/uploads/products/sku-06-heineken-silver.png"
+      ]
+    },
+    "V6-02_KeyedDomPreservationAndSelectState": {
+      "pass": true,
+      "sameCardNode": true,
+      "sameButtonNode": true,
+      "focusPreserved": true,
+      "isSelected": true,
+      "selectedBadgeVisible": true,
+      "stepperVisible": true,
+      "ctaText": "Đã chọn (1)",
+      "cartBadgeText": "1 món",
+      "cartBadgeAriaLive": "polite",
+      "cartThumbLoaded": true
+    },
+    "V6-03_RapidMultiClickAndFlyCloneCleanup": {
+      "pass": true,
+      "qtyText": "6",
+      "cartBadgeText": "6 món",
+      "orphanClones": 0
+    },
+    "V6-04_BrokenImageOnErrorFallback": {
+      "pass": true,
+      "fallbackApplied": true
+    },
+    "V6-05_PrefersReducedMotionSupport": {
+      "pass": true,
+      "rmActive": true,
+      "clonesDuringClick": 0,
+      "isSelected": true
+    },
+    "V6-06_ResponsiveBreakpoints320To1920": {
+      "pass": true,
+      "testedCount": 7,
+      "failures": []
+    },
+    "V6-07_AdminProductsIndexThumbnails": {
+      "pass": true,
+      "thumbCount": 10,
+      "allLoaded": true
+    },
+    "V6-08_AdminImageUploadE2eAndApiSync": {
+      "hasSuccessAlert": true,
+      "thumbSrc": "/uploads/products/2f545e25dbed44fea3ef3102d1eabeff.webp",
+      "apiImageUrl": "/uploads/products/2f545e25dbed44fea3ef3102d1eabeff.webp",
+      "pass": true,
+      "previewUpdatedBeforeSubmit": true
+    },
+    "V6-09_PosModalProductThumbnails": {
+      "pass": true,
+      "thumbCount": 10,
+      "allLoaded": true
+    }
+  }
+}
