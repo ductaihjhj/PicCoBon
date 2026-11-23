@@ -167,6 +167,7 @@
     const actions = [...document.querySelectorAll("[data-action]")];
     const autoToggle = document.querySelector("#auto-motion");
     const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+    const canHover = matchMedia("(hover: hover)");
 
     function drawCourt() {
       function rect(color, x, y, w, h) {
@@ -242,6 +243,7 @@
     let opener;
     function openProfile(event) {
       opener = event.currentTarget;
+      selectAction("idle");
       profile.hidden = false;
       maya.setAttribute("aria-expanded", "true");
       member.setAttribute("aria-expanded", "true");
@@ -254,29 +256,44 @@
       profile.hidden = true;
       maya.setAttribute("aria-expanded", "false");
       member.setAttribute("aria-expanded", "false");
+      nextAutomatic = performance.now() + 1800;
       opener?.focus();
     }
 
     const atlas = new Image();
     const duration = sequence => sequence.reduce((sum, frame) => sum + frame.ms, 0);
+    const courtSize = { width: 640, height: 374 };
+    const wanderZone = { left: 126, right: 274, top: 155, bottom: 280 };
+    const between = (min, max) => min + Math.random() * (max - min);
+    const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
     let action = "idle";
     let started = performance.now();
     let facing = 1;
-    let position = 36;
-    let walkFrom = position;
-    let walkTo = position;
+    let position = { x: courtSize.width * .36, y: courtSize.height * .70 };
+    let walk;
     let painted = -1;
     let paintedFacing = 0;
-    let nextAutomatic = started + 3800;
-    let automaticStep = 0;
-    const ambientActions = ["walk", "wave", "walk", "swing"];
+    let nextAutomatic = started + 1350;
+    let lastAutomatic = "idle";
     autoToggle.setAttribute("aria-pressed", String(!reduceMotion.matches));
+
+    function chooseDestination(origin) {
+      const { left, right, top, bottom } = wanderZone;
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        const point = { x: between(left, right), y: between(top, bottom) };
+        if (distance(origin, point) >= 37) return point;
+      }
+      return {
+        x: origin.x < (left + right) / 2 ? right : left,
+        y: origin.y < (top + bottom) / 2 ? bottom : top,
+      };
+    }
 
     function selectAction(name, now = performance.now()) {
       if (name === "walk") {
-        walkFrom = position;
-        walkTo = position < 35 ? 45 : 23;
-        facing = walkTo > position ? 1 : -1;
+        const to = chooseDestination(position);
+        walk = { from: position, to, ms: Math.max(780, distance(position, to) / .057) };
+        facing = to.x >= position.x ? 1 : -1;
       }
       action = name;
       started = now;
@@ -294,17 +311,23 @@
 
     function render(now) {
       if (action === "idle" && profile.hidden && !reduceMotion.matches &&
+          !maya.matches(":focus-visible") && !(canHover.matches && maya.matches(":hover")) &&
           autoToggle.getAttribute("aria-pressed") === "true" && now >= nextAutomatic) {
-        selectAction(ambientActions[automaticStep % ambientActions.length], now);
-        automaticStep += 1;
-        nextAutomatic = now + 5400;
+        lastAutomatic = lastAutomatic === "walk" && Math.random() < .32
+          ? (Math.random() < .5 ? "wave" : "swing")
+          : "walk";
+        selectAction(lastAutomatic, now);
+        const actionTime = action === "walk" ? walk.ms : duration(assets.actions[action]);
+        nextAutomatic = now + actionTime + between(1400, 3300);
       }
       const elapsed = now - started;
       if (action === "walk") {
-        const progress = Math.min(1, elapsed / 1850);
+        const { from, to, ms } = walk;
+        const progress = Math.min(1, elapsed / ms);
         if (!reduceMotion.matches) {
-          position = walkFrom + (walkTo - walkFrom) * progress;
-          maya.style.left = position + "%";
+          position = { x: from.x + (to.x - from.x) * progress, y: from.y + (to.y - from.y) * progress };
+          maya.style.left = (100 * position.x / courtSize.width) + "%";
+          maya.style.top = (100 * position.y / courtSize.height) + "%";
         }
         if (progress === 1) selectAction("idle", now);
       } else if (action !== "idle" && elapsed >= duration(assets.actions[action])) {
@@ -354,6 +377,12 @@
       autoToggle.setAttribute("aria-pressed", String(!reduceMotion.matches));
       selectAction("idle");
       nextAutomatic = performance.now() + 3800;
+    });
+    maya.addEventListener("pointerenter", event => {
+      if (event.pointerType === "mouse" && action === "walk") selectAction("idle");
+    });
+    maya.addEventListener("focus", () => {
+      if (action === "walk") selectAction("idle");
     });
     maya.addEventListener("click", openProfile);
     member.addEventListener("click", openProfile);

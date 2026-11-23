@@ -1,6 +1,6 @@
 # Sân giao lưu · Bản thử Maya
 
-Mở `San_Giao_Luu_Maya.html` bằng trình duyệt. File tự chứa ảnh và chạy offline. Maya tự diễn hoạt hoặc có thể thử lần lượt bốn nút dưới sân. Chạm vào nhân vật hoặc chọn Maya trong danh sách để mở hồ sơ mẫu.
+Mở `San_Giao_Luu_Maya.html` bằng trình duyệt. File tự chứa ảnh và chạy offline. Maya tự chọn vị trí ngẫu nhiên theo cả hai trục trong nửa sân bên trái, nghỉ một lát rồi tiếp tục đi, vẫy tay hoặc vung vợt. Nút **Tự hoạt động** bật hoặc tắt nhịp này. Chạm vào nhân vật hoặc chọn Maya trong danh sách để mở hồ sơ mẫu. Maya đứng lại khi mở hồ sơ.
 
 ## Asset bàn giao
 
@@ -19,5 +19,6 @@ Tạo mẫu toàn thân và sáu tư thế trung gian bằng sinh ảnh từ tha
 
 - Duyệt Maya ở kích thước hiển thị trong sân. Xem búi tóc, mặt, vợt và chân có đủ dễ nhận ra khi xem trên điện thoại.
 - Kiểm tra chạm trực tiếp vào nhân vật, mở thẻ hồ sơ từ danh sách và đóng bằng nút hoặc phím Escape.
+- Theo dõi nhiều lượt đi để xác nhận Maya chọn các điểm khác nhau, dừng ở đúng vị trí và giữ khoảng cách với lưới, vạch sân.
 - Khi chốt tạo hình, dùng Maya làm chuẩn tỉ lệ cho Sunny, Ace, Mochi, Coco, Leo, Kiko và Kai. Tạo từng sprite cạnh mẫu Maya và so chúng trên cùng mặt đất.
 - Giữ nguyên phạm vi bảng mẫu trong bản thử. Phân quyền hội viên và nội dung hồ sơ chia sẻ sẽ dùng dữ liệu thật khi tích hợp.
