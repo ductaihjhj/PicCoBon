@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sân giao lưu · Đủ 8 nhân vật | Spike Pickleball</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f4f7f2;
+      --surface: #ffffff;
+      --surface-soft: #f7faf5;
+      --ink: #17251d;
+      --muted: #4a5950;
+      --line: #dce6dc;
+      --brand: #226b48;
+      --brand-ink: #164e34;
+      --wash: #eaf7ee;
+      --lime: #d4ef92;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); }
+    header { background: #183b2c; color: #fff; }
+    .top {
+      max-width: 1280px; margin: auto; min-height: 64px; padding: 12px 28px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    .brand { display: flex; align-items: center; gap: 11px; font-size: .88rem; font-weight: 800; }
+    .mark {
+      width: 34px; height: 34px; background: var(--lime); color: #173b2b;
+      display: grid; place-items: center; border-radius: 8px 8px 8px 2px;
+      line-height: 1; font-weight: 950; font-size: 1.15rem; font-style: italic;
+    }
+    .preview-label { font-size: .78rem; color: #e2efd8; border: 1px solid #5e806e; border-radius: 99px; padding: 5px 11px; }
+    main { max-width: 1280px; margin: auto; padding: 28px 28px 36px; }
+    .hero-row {
+      display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+      flex-wrap: wrap; margin-bottom: 20px;
+    }
+    h1 { font-size: clamp(2rem, 4.2vw, 3.25rem); letter-spacing: -.045em; line-height: 1.05; margin: 0; }
+    .lead { margin: 8px 0 0; color: var(--muted); line-height: 1.55; max-width: 66ch; }
+    .hero-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      min-height: 40px; padding: 8px 14px; border-radius: 9px; font-weight: 700; font-size: .84rem;
+      border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer;
+      display: inline-flex; align-items: center; gap: 7px; text-decoration: none;
+    }
+    .btn:hover { background: var(--wash); border-color: #b7e4c7; }
+    .btn-primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .btn-primary:hover { background: var(--brand-ink); border-color: var(--brand-ink); color: #fff; }
+    .btn:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #186242; outline-offset: 2px; }
+
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+    .world { border-radius: 16px; overflow: hidden; border: 1px solid #284d3e; background: #254d3d; box-shadow: 0 12px 30px -14px rgba(23,37,29,.28); }
+    .scene { position: relative; isolation: isolate; overflow: hidden; }
+    #map { width: 100%; height: auto; display: block; image-rendering: pixelated; }
+    .actors-layer { position: absolute; inset: 0; pointer-events: none; }
+    .map-note {
+      position: absolute; top: 12px; left: 12px; padding: 5px 9px; z-index: 420;
+      font-size: .71rem; font-weight: 750; letter-spacing: .04em; color: #ecf9e5;
+      background: #18392df2; border: 1px solid #547d61; border-radius: 6px;
+    }
+
+    .sgl-actor {
+      position: absolute; transform: translate(-50%, -100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px;
+      min-width: 56px; min-height: 62px; padding: 2px 4px 0; border: 0; background: none;
+      cursor: pointer; pointer-events: auto; -webkit-tap-highlight-color: transparent;
+    }
+    .sgl-actor:focus-visible { outline: 2px solid #effbdb; border-radius: 7px; }
+    .sgl-actor::before {
+      content: ""; position: absolute; bottom: -2px; width: 34px; height: 9px; border-radius: 50%;
+      background: #132b3185; z-index: -1; transition: outline-color .15s ease;
+    }
+    .sgl-actor:hover::before, .sgl-actor.is-selected::before { outline: 2px solid #dbfca1; }
+    .sgl-actor.is-highlighted::before { outline: 3px solid #facc15; background: rgba(250, 204, 21, 0.35); }
+    .sgl-sprite { display: block; width: auto; height: clamp(46px, 7.2vw, 72px); image-rendering: pixelated; }
+    .sgl-nameplate {
+      background: #14362ae8; color: #fff; padding: 2px 6px; border-radius: 4px;
+      border: 1px solid #96c57a; white-space: nowrap; font-size: .68rem; font-weight: 800;
+      line-height: 1.25;
+    }
+    .sgl-actor.is-highlighted .sgl-nameplate { border-color: #fde047; background: #264d1f; }
+    .sgl-dot {
+      display: inline-block; width: .42rem; height: .42rem; border-radius: 50%;
+      background: #a6e271; vertical-align: .05em; margin-right: 4px;
+    }
+
+    .controls {
+      display: flex; flex-wrap: wrap; gap: 7px; padding: 10px 12px;
+      border-top: 1px solid #39664f; background: #193c2e; color: #fff; align-items: center;
+    }
+    .controls button {
+      min-height: 38px; padding: 4px 11px; border: 1px solid #638574; border-radius: 7px;
+      background: #244a39; color: #fff; font-size: .8rem; font-weight: 700; cursor: pointer;
+    }
+    .controls button:hover { background: #375d49; }
+    .controls button[aria-pressed="true"] { background: var(--lime); border-color: var(--lime); color: #1c392b; }
+    .controls .motion-toggle { margin-left: auto; }
+    .controls-hint { font-size: .74rem; color: #cde2d3; margin-right: 4px; }
+
+    .matches-strip {
+      margin-top: 14px; border: 1px solid #b7e4c7; border-radius: 13px; padding: 14px 16px;
+      background: var(--wash);
+    }
+    .matches-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .matches-head h2 { margin: 0; font-size: .95rem; color: var(--brand-ink); }
+    .matches-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+    .match-card {
+      background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .match-card-top { display: flex; align-items: center; gap: 9px; }
+    .match-reason { font-size: .78rem; color: var(--muted); line-height: 1.45; margin: 0; }
+
+    aside { display: grid; gap: 14px; }
+    .card { border: 1px solid var(--line); border-radius: 14px; padding: 16px; background: var(--surface); }
+    .card h2 { margin: 0 0 10px; font-size: .98rem; }
+    .filter-bar { display: grid; gap: 8px; margin-bottom: 10px; }
+    .filter-bar input {
+      width: 100%; min-height: 38px; padding: 6px 10px; border-radius: 8px;
+      border: 1px solid var(--line); background: var(--surface-soft); font: inherit; font-size: .84rem;
+    }
+    .filter-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .chip-btn {
+      font-size: .75rem; font-weight: 700; padding: 5px 9px; border-radius: 99px;
+      border: 1px solid var(--line); background: #fff; color: var(--muted); cursor: pointer;
+    }
+    .chip-btn[aria-pressed="true"] { background: var(--wash); border-color: var(--brand); color: var(--brand-ink); }
+
+    .member-list { display: grid; gap: 7px; max-height: 360px; overflow-y: auto; padding-right: 2px; }
+    .member {
+      width: 100%; display: flex; align-items: center; text-align: left; gap: 10px; min-height: 52px;
+      color: var(--ink); border: 1px solid var(--line); border-radius: 9px; background: var(--surface-soft); padding: 7px 9px;
+      cursor: pointer;
+    }
+    .member:hover { background: var(--wash); }
+    .member[aria-expanded="true"] { border-color: var(--brand); background: var(--wash); }
+    .avatar { width: 38px; height: 38px; border-radius: 7px; object-fit: cover; flex: none; background: #d9f0bd; }
+    .member strong, .member small { display: block; }
+    .member strong { font-size: .86rem; }
+    .member small { margin-top: 2px; color: var(--muted); font-size: .75rem; }
+    .member .arrow { margin-left: auto; color: var(--brand); font-size: 1.1rem; }
+
+    #profile { outline: none; }
+    .profile-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .profile-head h2 { margin: 0; }
+    .close { width: 34px; height: 34px; border-radius: 8px; background: #fff; border: 1px solid var(--line); font-size: 1.2rem; color: var(--brand); cursor: pointer; }
+    .profile-title { display: flex; align-items: center; gap: 11px; margin-top: 12px; }
+    .profile-title strong { font-size: 1.15rem; }
+    .sample { font-size: .75rem; color: var(--brand); font-weight: 700; }
+    .profile-copy { font-size: .86rem; line-height: 1.6; color: var(--muted); margin: 12px 0; }
+    dl { margin: 0; font-size: .82rem; }
+    dl div { display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); padding: 9px 0 0; margin-top: 8px; }
+    dt { color: var(--muted); }
+    dd { margin: 0; font-weight: 700; text-align: right; }
+    .profile-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+    .invite-box {
+      margin-top: 12px; padding: 12px; border-radius: 10px; background: var(--surface-soft);
+      border: 1px solid var(--line); display: grid; gap: 8px;
+    }
+    .invite-box label { font-size: .76rem; font-weight: 700; color: var(--muted); display: block; margin-bottom: 3px; }
+    .invite-box select, .invite-box input {
+      width: 100%; min-height: 36px; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--line); font: inherit; font-size: .82rem;
+    }
+    .invite-status {
+      font-size: .8rem; line-height: 1.5; padding: 9px 10px; border-radius: 8px;
+      background: var(--wash); border: 1px solid #b7e4c7; color: var(--brand-ink);
+    }
+    [hidden] { display: none !important; }
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 540px) {
+      main { padding: 18px 12px 28px; }
+      .top { padding: 10px 14px; }
+      .map-note { top: 6px; left: 6px; font-size: .64rem; padding: 4px 6px; }
+      .controls { padding: 8px; gap: 5px; }
+      .controls button { min-height: 40px; padding: 4px 9px; font-size: .76rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="top">
+      <div class="brand"><span class="mark" aria-hidden="true">S</span> Spike Pickleball Club</div>
+      <span class="preview-label">Prototype · Đủ 8 nhân vật · Dữ liệu mẫu</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="hero-row">
+      <div>
+        <h1>Sân giao lưu</h1>
+        <p class="lead">Chạm vào bất kỳ nhân vật nào trên sân hoặc chọn trong danh sách để xem hồ sơ giao lưu, tìm người hợp trình và gửi lời mời chốt giờ chơi.</p>
+      </div>
+      <div class="hero-actions">
+        <button type="button" class="btn btn-primary" id="btnFindMatch">Tìm người hợp trình</button>
+        <a href="/Booking" class="btn">Xem sân trống</a>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div>
+        <section class="world" aria-label="Sân pickleball pixel 8 nhân vật">
+          <div class="scene">
+            <canvas id="map" width="640" height="374" aria-hidden="true"></canvas>
+            <span class="map-note">SÂN SPIKE · 9 HỘI VIÊN TRÊN SÂN</span>
+            <div class="actors-layer" id="actorsLayer"></div>
+          </div>
+          <div class="controls" role="group" aria-label="Điều khiển chuyển động nhân vật đang chọn">
+            <span class="controls-hint">Thử động tác:</span>
+            <button type="button" data-action="idle">Đứng</button>
+            <button type="button" data-action="walk">Đi bộ</button>
+            <button type="button" data-action="wave">Vẫy tay</button>
+            <button type="button" data-action="swing">Vung vợt</button>
+            <button type="button" id="auto-motion" class="motion-toggle" aria-pressed="true">Tự hoạt động</button>
+          </div>
+        </section>
+
+        <section class="matches-strip" id="matchesPanel" hidden aria-live="polite">
+          <div class="matches-head">
+            <h2>Gợi ý đối thủ hợp trình cho bạn (Trình độ 3.5 · Đánh đôi · Tối T6 &amp; Sáng CN)</h2>
+            <button type="button" class="close" id="closeMatches" aria-label="Đóng gợi ý">×</button>
+          </div>
+          <div class="matches-grid" id="matchesGrid"></div>
+        </section>
+      </div>
+
+      <aside>
+        <section class="card" aria-labelledby="people-heading">
+          <h2 id="people-heading">Hội viên đang trên sân (<span id="memberCount">0</span>)</h2>
+          <div class="filter-bar">
+            <input type="search" id="searchInput" placeholder="Tìm theo tên, trình độ (3.5), lối chơi..." aria-label="Tìm kiếm hội viên">
+            <div class="filter-row">
+              <button type="button" class="chip-btn" id="filterReady" aria-pressed="false">Sẵn sàng giao lưu</button>
+              <button type="button" class="chip-btn" id="filterDoubles" aria-pressed="false">Đánh đôi</button>
+              <button type="button" class="chip-btn" id="filterSingles" aria-pressed="false">Đánh đơn</button>
+            </div>
+          </div>
+          <div class="member-list" id="memberList"></div>
+        </section>
+
+        <section class="card" id="profile" hidden tabindex="-1" aria-labelledby="profile-heading">
+          <div class="profile-head">
+            <h2 id="profile-heading">Hồ sơ giao lưu</h2>
+            <button id="closeProfile" class="close" type="button" aria-label="Đóng hồ sơ">×</button>
+          </div>
+          <div class="profile-title">
+            <img class="avatar" id="profAvatar" alt="">
+            <div>
+              <strong id="profName"></strong>
+              <div class="sample" id="profStatus"></div>
+            </div>
+          </div>
+          <p class="profile-copy" id="profBio"></p>
+          <dl>
+            <div><dt>Trình độ tự khai</dt><dd id="profSkill"></dd></div>
+            <div><dt>Lối chơi</dt><dd id="profStyle"></dd></div>
+            <div><dt>Giờ thường rảnh</dt><dd id="profFreeTime"></dd></div>
+            <div><dt>Nhân vật hiển thị</dt><dd id="profSprite"></dd></div>
+          </dl>
+          <div class="profile-actions">
+            <button type="button" class="btn btn-primary" id="btnOpenInvite" style="flex:1;justify-content:center;">Mời giao lưu</button>
+          </div>
+
+          <div class="invite-box" id="inviteBox" hidden>
+            <div>
+              <label for="inviteSlot">Đề xuất khung giờ giao lưu</label>
+              <select id="inviteSlot">
+                <option value="Tối thứ Sáu · 19:00 – 20:30">Tối thứ Sáu · 19:00 – 20:30</option>
+                <option value="Sáng thứ Bảy · 07:30 – 09:00">Sáng thứ Bảy · 07:30 – 09:00</option>
+                <option value="Sáng Chủ nhật · 08:00 – 09:30">Sáng Chủ nhật · 08:00 – 09:30</option>
+              </select>
+            </div>
+            <div>
+              <label for="inviteNote">Lời nhắn ngắn</label>
+              <input type="text" id="inviteNote" maxlength="120" value="Giao lưu vui vẻ 2 set đôi nhé!">
+            </div>
+            <button type="button" class="btn btn-primary" id="btnSendInvite">Gửi lời mời mẫu</button>
+          </div>
+          <div class="invite-status" id="inviteStatus" hidden></div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script src="../../wwwroot/js/san-giao-luu-engine.js"></script>
+  <script>
+    "use strict";
+
+    // Sample viewer profile used for "Tìm người hợp trình" ranking demo
+    const VIEWER = { skillNum: 3.5, playStyle: "Đánh đôi", freeSlots: ["Tối T6", "Sáng CN"] };
+
+    // 9 sample members mapping to all 8 sprites (including 2 members sharing the 'maya' sprite to verify account separation)
+    const SAMPLE_MEMBERS = [
+      {
+        id: 101, displayName: "Maya Smash", shortName: "Maya", spriteId: "maya", zone: "left-court",
+        readyToPlay: true, allowMatchSuggest: true, skillConfirmed: true, skillLabel: "Trung cấp (3.5)", skillNum: 3.5,
+        playStyle: "Đánh đôi", freeSlots: ["Tối T6", "Sáng CN"],
+        bio: "Thích đánh đôi phối hợp và làm quen bạn mới. Thường ra sân tối thứ Sáu."
+      },
+      {
+        id: 102, displayName: "Sunny Rally", shortName: "Sunny", spriteId: "sunny", zone: "left-court",
+        readyToPlay: true, allowMatchSuggest: true, skillConfirmed: true, skillLabel: "Khá (3.5)", skillNum: 3.5,
+        playStyle: "Đánh đôi", freeSlots: ["Tối T6", "Sáng T7"],
+        bio: "Ưa lối đánh kiểm soát bóng mềm (dink) ở khu bếp, thích đánh đôi nam nữ."
+      },
+      {
+        id: 103, displayName: "Ace Dash", shortName: "Ace", spriteId: "ace", zone: "right-court",
+        readyToPlay: true, allowMatchSuggest: true, skillConfirmed: true, skillLabel: "Nâng cao (4.0)", skillNum: 4.0,
+        playStyle: "Đánh đơn & Đôi", freeSlots: ["Tối T4", "Sáng CN"],
+        bio: "Tập giao bóng xoáy và phản xạ lưới nhanh, sẵn sàng ghép kèo sáng Chủ nhật."
+      },
+      {
+        id: 104, displayName: "Mochi Panda", shortName: "Mochi", spriteId: "mochi", zone: "bench-lounge",
+        readyToPlay: true, allowMatchSuggest: true, skillConfirmed: false, skillLabel: "Giao lưu (DUPR 3.0)", skillNum: null,
+        playStyle: "Đánh đôi", freeSlots: ["Tối T6", "Tối T7"],
+        bio: "Mới tham gia CLB được 2 tháng, thích đánh vui vẻ và học hỏi kỹ thuật cơ bản."
+      },
+      {
+        id: 105, displayName: "Coco Fox", shortName: "Coco", spriteId: "coco", zone: "right-court",
+        readyToPlay: true, allowMatchSuggest: true, skillConfirmed: true, skillLabel: "Trung cấp (3.5)", skillNum: 3.5,
+        playStyle: "Đánh đôi", freeSlots: ["Sáng CN", "Tối T6"],
+        bio: "Chơi công lưới năng nổ, rất thích các trận giao lưu nhịp độ nhanh."
+      },
+      {
+        id: 106, displayName: "Leo Spin", shortName: "Leo", spriteId: "leo", zone: "left-court",
+        readyToPlay: false, allowMatchSuggest: true, skillConfirmed: true, skillLabel: "Khá (3.25)", skillNum: 3.25,
+        playStyle: "Đánh đơn", freeSlots: ["Sáng T7", "Chiều CN"],
+        bio: "Chuyên đánh đơn tập thể lực và cắt bóng sâu cuối sân."
+      },
+      {
+        id: 107, displayName: "Kiko Kitty", shortName: "Kiko", spriteId: "kiko", zone: "bench-lounge",
+        readyToPlay: true, allowMatchSuggest: true, skillConfirmed: true, skillLabel: "Nhập môn (2.75)", skillNum: 2.75,
+        playStyle: "Đánh đôi", freeSlots: ["Tối T5", "Sáng T7"],
+        bio: "Thích giao lưu nhẹ nhàng, làm quen luật chơi và kết nối nhóm mới."
+      },
+      {
+        id: 108, displayName: "Kai Bolt", shortName: "Kai", spriteId: "kai", zone: "right-court",
+        readyToPlay: true, allowMatchSuggest: true, skillConfirmed: true, skillLabel: "Nâng cao (4.25)", skillNum: 4.25,
+        playStyle: "Đánh đơn", freeSlots: ["Tối T3", "Tối T6"],
+        bio: "Đánh tốc độ cao, tìm bạn tập đánh đơn buổi tối."
+      },
+      {
+        id: 109, displayName: "Minh Anh (chung sprite Maya)", shortName: "Minh Anh", spriteId: "maya", zone: "bench-lounge",
+        readyToPlay: true, allowMatchSuggest: false, skillConfirmed: true, skillLabel: "Trung cấp (3.25)", skillNum: 3.25,
+        playStyle: "Đánh đôi", freeSlots: ["Chiều T7"],
+        bio: "Tài khoản mẫu thứ 9 dùng chung kiểu sprite Maya để kiểm chứng tách biệt hoàn toàn mã sprite và hồ sơ hội viên."
+      }
+    ];
+
+    const assetBase = "./assets";
+    const court = new SanGiaoLuuCourt({
+      mapCanvas: document.getElementById("map"),
+      actorsLayer: document.getElementById("actorsLayer"),
+      autoToggle: document.getElementById("auto-motion"),
+      assetBaseUrl: assetBase,
+      onSelectMember: (member, opener) => showProfile(member, opener)
+    });
+
+    const profileEl = document.getElementById("profile");
+    const memberListEl = document.getElementById("memberList");
+    const searchInput = document.getElementById("searchInput");
+    const filterReadyBtn = document.getElementById("filterReady");
+    const filterDoublesBtn = document.getElementById("filterDoubles");
+    const filterSinglesBtn = document.getElementById("filterSingles");
+    const matchesPanel = document.getElementById("matchesPanel");
+    const matchesGrid = document.getElementById("matchesGrid");
+    const inviteBox = document.getElementById("inviteBox");
+    const inviteStatus = document.getElementById("inviteStatus");
+
+    let activeMember = null;
+    let lastOpener = null;
+
+    function getFilteredMembers() {
+      const q = searchInput.value.trim().toLowerCase();
+      const onlyReady = filterReadyBtn.getAttribute("aria-pressed") === "true";
+      const onlyDoubles = filterDoublesBtn.getAttribute("aria-pressed") === "true";
+      const onlySingles = filterSinglesBtn.getAttribute("aria-pressed") === "true";
+      return SAMPLE_MEMBERS.filter(m => {
+        if (onlyReady && !m.readyToPlay) return false;
+        if (onlyDoubles && !m.playStyle.toLowerCase().includes("đôi")) return false;
+        if (onlySingles && !m.playStyle.toLowerCase().includes("đơn")) return false;
+        if (!q) return true;
+        return `${m.displayName} ${m.skillLabel} ${m.playStyle} ${m.freeSlots.join(" ")}`.toLowerCase().includes(q);
+      });
+    }
+
+    function renderMemberList() {
+      const rows = getFilteredMembers();
+      document.getElementById("memberCount").textContent = String(rows.length);
+      memberListEl.innerHTML = "";
+      rows.forEach(m => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "member";
+        btn.dataset.memberId = String(m.id);
+        btn.setAttribute("aria-controls", "profile");
+        btn.setAttribute("aria-expanded", String(activeMember?.id === m.id));
+        btn.innerHTML = `
+          <img class="avatar" src="${assetBase}/${m.spriteId}-profile.webp" alt="">
+          <span>
+            <strong>${m.displayName}</strong>
+            <small>${m.readyToPlay ? "Sẵn sàng giao lưu" : "Đang xem sân"} · ${m.skillConfirmed ? m.skillLabel : "Trình độ chưa xác nhận"}</small>
+          </span>
+          <span class="arrow" aria-hidden="true">›</span>
+        `;
+        btn.addEventListener("click", () => court.selectMember(m.id, btn));
+        memberListEl.appendChild(btn);
+      });
+    }
+
+    function showProfile(member, opener) {
+      activeMember = member;
+      lastOpener = opener;
+      document.getElementById("profAvatar").src = `${assetBase}/${member.spriteId}-profile.webp`;
+      document.getElementById("profName").textContent = member.displayName;
+      document.getElementById("profStatus").textContent = member.readyToPlay ? "Sẵn sàng giao lưu · Hồ sơ mẫu" : "Đang trên sân · Hồ sơ mẫu";
+      document.getElementById("profBio").textContent = member.bio;
+      document.getElementById("profSkill").textContent = member.skillConfirmed
+        ? member.skillLabel
+        : "Chưa xác nhận trình độ";
+      document.getElementById("profStyle").textContent = member.playStyle;
+      document.getElementById("profFreeTime").textContent = member.freeSlots.join(", ");
+      document.getElementById("profSprite").textContent = member.spriteId.toUpperCase();
+
+      inviteBox.hidden = true;
+      inviteStatus.hidden = true;
+      profileEl.hidden = false;
+      renderMemberList();
+      profileEl.focus({ preventScroll: true });
+    }
+
+    function closeProfilePanel() {
+      profileEl.hidden = true;
+      activeMember = null;
+      court.clearSelection();
+      renderMemberList();
+      lastOpener?.focus();
+    }
+
+    function runMatchSuggestions() {
+      const candidates = SAMPLE_MEMBERS
+        .filter(m => m.allowMatchSuggest && m.readyToPlay)
+        .map(m => {
+          let score = 0;
+          const reasons = [];
+          if (m.skillConfirmed && m.skillNum != null) {
+            const diff = Math.abs(m.skillNum - VIEWER.skillNum);
+            if (diff <= 0.25) { score += 50; reasons.push(`Cùng nhóm trình độ ${m.skillLabel}`); }
+            else if (diff <= 0.5) { score += 30; reasons.push(`Trình độ gần nhau (${m.skillLabel})`); }
+          } else {
+            score += 5;
+            reasons.push("Trình độ giao lưu chưa xác nhận");
+          }
+          if (m.playStyle.includes("Đôi")) { score += 25; reasons.push(`Cùng lối chơi ${m.playStyle}`); }
+          const sharedSlots = m.freeSlots.filter(s => VIEWER.freeSlots.includes(s));
+          if (sharedSlots.length > 0) {
+            score += sharedSlots.length * 20;
+            reasons.push(`Trùng lịch rảnh: ${sharedSlots.join(", ")}`);
+          }
+          return { member: m, score, reason: reasons.join(" • ") };
+        })
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+
+      matchesGrid.innerHTML = "";
+      candidates.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "match-card";
+        card.innerHTML = `
+          <div class="match-card-top">
+            <img class="avatar" src="${assetBase}/${item.member.spriteId}-profile.webp" alt="">
+            <div><strong>${item.member.displayName}</strong><div class="sample">${item.member.skillConfirmed ? item.member.skillLabel : "Chưa xác nhận"}</div></div>
+          </div>
+          <p class="match-reason">${item.reason}</p>
+          <button type="button" class="btn" style="margin-top:auto;justify-content:center;">Xem hồ sơ &amp; mời</button>
+        `;
+        card.querySelector("button").addEventListener("click", e => court.selectMember(item.member.id, e.currentTarget));
+        matchesGrid.appendChild(card);
+      });
+
+      matchesPanel.hidden = false;
+      court.highlightMembers(candidates.map(c => c.member.id));
+    }
+
+    document.getElementById("closeProfile").addEventListener("click", closeProfilePanel);
+    document.getElementById("btnFindMatch").addEventListener("click", runMatchSuggestions);
+    document.getElementById("closeMatches").addEventListener("click", () => {
+      matchesPanel.hidden = true;
+      court.highlightMembers([]);
+    });
+
+    document.getElementById("btnOpenInvite").addEventListener("click", () => {
+      inviteBox.hidden = !inviteBox.hidden;
+      inviteStatus.hidden = true;
+    });
+
+    document.getElementById("btnSendInvite").addEventListener("click", () => {
+      if (!activeMember) return;
+      const slot = document.getElementById("inviteSlot").value;
+      inviteBox.hidden = true;
+      inviteStatus.hidden = false;
+      inviteStatus.innerHTML = `
+        <strong>Đã gửi lời mời giao lưu mẫu tới ${activeMember.displayName}</strong> (${slot}).<br>
+        Khi đối thủ đồng ý giờ chơi, hai bạn chuyển sang luồng đặt sân chính thức để giữ chỗ.<br>
+        <a href="/Booking" class="btn btn-primary" style="margin-top:8px;">Xem sân trống tại /Booking</a>
+      `;
+    });
+
+    document.querySelectorAll("[data-action]").forEach(btn => {
+      btn.addEventListener("click", () => court.triggerSelectedAction(btn.dataset.action));
+    });
+
+    [filterReadyBtn, filterDoublesBtn, filterSinglesBtn].forEach(btn => {
+      btn.addEventListener("click", () => {
+        const cur = btn.getAttribute("aria-pressed") === "true";
+        btn.setAttribute("aria-pressed", String(!cur));
+        renderMemberList();
+      });
+    });
+    searchInput.addEventListener("input", renderMemberList);
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && !profileEl.hidden) closeProfilePanel();
+    });
+
+    court.loadManifest().then(() => {
+      court.setMembers(SAMPLE_MEMBERS);
+      renderMemberList();
+    });
+  </script>
+</body>
+</html>

@@ -1,24 +1,28 @@
-# Sân giao lưu · Bản thử Maya
+# Sân giao lưu · Đủ bộ 8 nhân vật Pixel
 
-Mở `San_Giao_Luu_Maya.html` bằng trình duyệt. File tự chứa ảnh và chạy offline. Maya tự chọn vị trí ngẫu nhiên theo cả hai trục trong nửa sân bên trái, nghỉ một lát rồi tiếp tục đi, vẫy tay hoặc vung vợt. Nút **Tự hoạt động** bật hoặc tắt nhịp này. Chạm vào nhân vật hoặc chọn Maya trong danh sách để mở hồ sơ mẫu. Maya đứng lại khi mở hồ sơ.
+## 1. Cách chạy bản thử
+- **Bản mẫu gốc Maya (offline 1 file):** Mở `prototypes/san-giao-luu/San_Giao_Luu_Maya.html`.
+- **Bản đầy đủ 8 nhân vật (9 hội viên mẫu):** Chạy máy chủ web cục bộ (hoặc từ ứng dụng Spike) và mở `prototypes/san-giao-luu/San_Giao_Luu_8_Nhan_Vat.html`.
 
-## Asset bàn giao
+## 2. Bộ 8 nhân vật & Asset bàn giao
 
-| Tệp | Nội dung |
-| --- | --- |
-| `assets/maya-master.png` | Sprite gốc trong suốt, 51 × 89 px |
-| `assets/maya-atlas.png` | 8 khung, 83 × 93 px mỗi khung, xếp ngang |
-| `assets/maya-animation.json` | Khung và thời lượng, điểm neo chân tại (41, 91) |
-| `assets/maya-profile.webp` | Ảnh chân dung lấy từ ZIP người dùng cung cấp |
+Tất cả tài sản đã được xuất đồng bộ vào `wwwroot/assets/san-giao-luu/` và `prototypes/san-giao-luu/assets/`:
 
-Nguồn thiết kế là `maya.png` trong `8_avatar_comic_1x1(1).zip`. Mẫu toàn thân giữ hai búi tóc, kẹp và hoa tai xanh, áo xanh viền chanh. Phần bổ sung gồm váy quần kem, giày sân trắng và vợt xanh kem.
+| Nhân vật | Dấu hiệu nhận dạng | Kích thước khung | Mốc chân (`anchor`) |
+| --- | --- | --- | --- |
+| **Maya** | Hai búi tóc, kẹp xanh, áo thể thao viền chanh | `83 × 93 px` | `(41, 91)` |
+| **Sunny** | Băng đô xanh có nét vàng, tóc đuôi ngựa | `96 × 104 px` | `(48, 101)` |
+| **Ace** | Mũ lưỡi trai xanh có họa tiết hoa kem | `96 × 104 px` | `(48, 101)` |
+| **Mochi** | Mũ gấu trúc và áo khoác xanh | `96 × 104 px` | `(48, 101)` |
+| **Coco** | Tai cáo nhọn và mái tóc cam | `96 × 104 px` | `(48, 101)` |
+| **Leo** | Kính tròn gọng đen và tóc ngắn | `96 × 104 px` | `(48, 101)` |
+| **Kiko** | Mặt mèo tam thể, tai nhọn và mảng lông cam | `96 × 104 px` | `(48, 101)` |
+| **Kai** | Tóc dựng và băng đô răng cưa màu chanh | `96 × 104 px` | `(48, 101)` |
 
-Tạo mẫu toàn thân và sáu tư thế trung gian bằng sinh ảnh từ tham chiếu. Dùng [Agent Sprite Forge](https://github.com/0x0funky/agent-sprite-forge/tree/25203d03900b46b444bdd72a75768c33d1895ad6) tại commit `25203d0` để đọc lưới, tách nền, rút bảng màu và tạo hai khung đứng bằng `pixel_motion.py breath`. Căn các tư thế đi, vẫy tay và vung vợt theo mốc chân trước khi ghép atlas. Vẫy tay và vung vợt là các động tác minh họa ngắn từ tư thế tĩnh. Bản đi sang hướng đối diện dùng cùng các khung được lật ngang.
+- Quy trình dựng master: sử dụng **Agent Sprite Forge** (`25203d0`) tuyến **Pixel Looks** (`pixel_look.py ask-cast` + `cast` đứng cạnh `maya-master.png` trên nền `#FF00FF`, kiểm tra độ cao & đường mặt đất bằng `pixel_look.py lineup`).
+- Quy trình động tác:
+  - `idle`: sinh trực tiếp 2 khung thở bằng `pixel_motion.py breath`.
+  - `walk`, `wave`, `swing`: do môi trường chưa kết nối nguồn image-to-video clip (và image API giới hạn quota 429), 7 nhân vật mới sử dụng bộ 4 khung bước đi + tư thế vẫy tay + tư thế vung vợt dựng từ các lớp pixel thật của từng master sprite (nearest-neighbor, giữ nguyên 100% đầu, phụ kiện, màu áo và đường viền 1px). Có thể nâng cấp sang clip I2V sau mà không phải đổi cấu trúc `manifest.json` hay engine.
 
-## Kiểm tra trước khi mở rộng
-
-- Duyệt Maya ở kích thước hiển thị trong sân. Xem búi tóc, mặt, vợt và chân có đủ dễ nhận ra khi xem trên điện thoại.
-- Kiểm tra chạm trực tiếp vào nhân vật, mở thẻ hồ sơ từ danh sách và đóng bằng nút hoặc phím Escape.
-- Theo dõi nhiều lượt đi để xác nhận Maya chọn các điểm khác nhau, dừng ở đúng vị trí và giữ khoảng cách với lưới, vạch sân.
-- Khi chốt tạo hình, dùng Maya làm chuẩn tỉ lệ cho Sunny, Ace, Mochi, Coco, Leo, Kiko và Kai. Tạo từng sprite cạnh mẫu Maya và so chúng trên cùng mặt đất.
-- Giữ nguyên phạm vi bảng mẫu trong bản thử. Phân quyền hội viên và nội dung hồ sơ chia sẻ sẽ dùng dữ liệu thật khi tích hợp.
+## 3. Tích hợp hồ sơ thật & Đề xuất Schema/API
+Xem chi tiết tại `docs/SAN_GIAO_LUU_SCHEMA_API_PROPOSAL.md` để chủ dự án duyệt trước khi chỉnh sửa cơ sở dữ liệu và API theo `AGENTS.md`.
