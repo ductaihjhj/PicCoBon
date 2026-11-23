@@ -18,6 +18,12 @@ function populateCmsForm() {
   document.getElementById('cmsCloseTime').value = CMS_CONFIG.closeTime || '22:00';
   document.getElementById('cmsClubTitle').value = CMS_CONFIG.clubTitle || '';
   document.getElementById('cmsClubDesc').value = CMS_CONFIG.clubDesc || '';
+
+  const aiAvatarInput = document.getElementById('cmsAssistantAvatar');
+  if (aiAvatarInput && CMS_CONFIG.assistantAvatar) {
+    aiAvatarInput.value = CMS_CONFIG.assistantAvatar;
+    syncAiAvatarPreviewUi(CMS_CONFIG.assistantAvatar);
+  }
   updateLivePreview();
 }
 
@@ -26,6 +32,91 @@ document.addEventListener('DOMContentLoaded', () => {
   populateCmsForm();
 });
 window.addEventListener('pickleball:db-synced', populateCmsForm);
+
+function syncAiAvatarPreviewUi(avatarUrl) {
+  const clean = String(avatarUrl || '').trim() || '/assets/assistant/02_wave.png';
+  const hiddenInput = document.getElementById('cmsAssistantAvatar');
+  if (hiddenInput) hiddenInput.value = clean;
+
+  const prev1 = document.getElementById('cmsAiAvatarPreview');
+  if (prev1) prev1.src = clean;
+
+  const prev2 = document.getElementById('prevAiAvatarImg');
+  if (prev2) prev2.src = clean;
+
+  document.querySelectorAll('.cms-ai-preset-btn').forEach(btn => {
+    const isMatch = (btn.getAttribute('data-ai-avatar-url') || '').toLowerCase() === clean.toLowerCase();
+    btn.classList.toggle('is-selected', isMatch);
+    btn.style.borderColor = isMatch ? 'var(--brand-primary)' : 'var(--border-default)';
+    btn.style.background = isMatch ? 'var(--brand-primary-tint)' : 'var(--surface)';
+  });
+
+  if (window.mascot && typeof window.mascot.setAssistantAvatar === 'function') {
+    window.mascot.setAssistantAvatar(clean);
+  }
+}
+
+async function selectAiAvatarPreset(presetUrl, saveImmediately = false) {
+  syncAiAvatarPreviewUi(presetUrl);
+  if (!saveImmediately) return;
+
+  try {
+    const formData = new FormData();
+    formData.append('avatarUrl', presetUrl);
+    const res = await apiFetch('/api/assistant/avatar', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data && data.ok) {
+      CMS_CONFIG.assistantAvatar = data.avatarUrl || presetUrl;
+      syncAiAvatarPreviewUi(CMS_CONFIG.assistantAvatar);
+      showToast('Đã cập nhật ảnh đại diện AI!', data.message || 'Hình đại diện Spike Assistant đã được áp dụng.', 'success');
+    } else {
+      showToast('Không thể lưu ảnh đại diện AI', (data && data.error) || 'Vui lòng thử lại.', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối', 'Không thể cập nhật ảnh đại diện Trợ lý AI.', 'error');
+  }
+}
+
+async function handleUploadAiAvatarFile(fileInput) {
+  if (!fileInput || !fileInput.files || fileInput.files.length === 0) return;
+  const file = fileInput.files[0];
+
+  if (file.size > 2 * 1024 * 1024) {
+    showToast('Tệp quá lớn', 'Ảnh đại diện Trợ lý AI không được vượt quá 2 MB.', 'error');
+    fileInput.value = '';
+    return;
+  }
+
+  const metaEl = document.getElementById('cmsAiAvatarMeta');
+  if (metaEl) metaEl.textContent = `Đang tải lên "${file.name}"...`;
+
+  try {
+    const formData = new FormData();
+    formData.append('avatarFile', file);
+    const res = await apiFetch('/api/assistant/avatar', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data && data.ok && data.avatarUrl) {
+      CMS_CONFIG.assistantAvatar = data.avatarUrl;
+      syncAiAvatarPreviewUi(data.avatarUrl);
+      if (metaEl) metaEl.textContent = `Đã áp dụng ảnh tải lên: ${file.name}`;
+      showToast('Đã cập nhật ảnh đại diện AI!', data.message || 'Ảnh tải lên đã được áp dụng cho Spike Assistant.', 'success');
+    } else {
+      if (metaEl) metaEl.textContent = (data && data.error) || 'Tải ảnh không thành công.';
+      showToast('Không thể tải ảnh', (data && data.error) || 'Định dạng ảnh không hợp lệ.', 'error');
+    }
+  } catch (err) {
+    if (metaEl) metaEl.textContent = 'Lỗi kết nối khi tải ảnh lên.';
+    showToast('Lỗi kết nối', 'Không thể tải ảnh đại diện lên máy chủ.', 'error');
+  } finally {
+    fileInput.value = '';
+  }
+}
 
 function updateLivePreview() {
   const prevHeroTag = document.getElementById('prevHeroTag');
@@ -46,6 +137,7 @@ function updateLivePreview() {
 }
 
 async function handleSaveCMS() {
+  const aiAvatarInput = document.getElementById('cmsAssistantAvatar');
   const res = await saveCmsConfig({
     heroTag: document.getElementById('cmsHeroTag').value.trim(),
     heroSubtag: document.getElementById('cmsHeroSubtag').value.trim(),
@@ -58,10 +150,11 @@ async function handleSaveCMS() {
     openTime: document.getElementById('cmsOpenTime').value || '06:00',
     closeTime: document.getElementById('cmsCloseTime').value || '22:00',
     clubTitle: document.getElementById('cmsClubTitle').value.trim(),
-    clubDesc: document.getElementById('cmsClubDesc').value.trim()
+    clubDesc: document.getElementById('cmsClubDesc').value.trim(),
+    assistantAvatar: aiAvatarInput ? aiAvatarInput.value.trim() : (CMS_CONFIG.assistantAvatar || '/assets/assistant/02_wave.png')
   });
   if (res && res.ok) {
-    showToast('Đã lưu cấu hình CMS!', 'Bảng giá, giờ hoạt động và PricingVersion đã được cập nhật toàn hệ thống.', 'success');
+    showToast('Đã lưu cấu hình CMS!', 'Bảng giá, giờ hoạt động và hình đại diện AI đã được cập nhật toàn hệ thống.', 'success');
   }
 }
 

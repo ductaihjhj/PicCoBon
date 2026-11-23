@@ -25,12 +25,15 @@ public sealed class ClubSettingsSnapshot
     public int MaxActivePendingPerActor { get; init; } = 3;
     public int CancelCutoffMinutes { get; init; } = 120;
     public string Hotline { get; init; } = "0901 234 567";
+    public string AssistantAvatar { get; init; } = ClubSettingsService.DefaultAssistantAvatar;
     public Dictionary<string, string> RawCms { get; init; } = new(StringComparer.OrdinalIgnoreCase);
     public string PricingVersion { get; init; } = "v1";
 }
 
 public class ClubSettingsService
 {
+    public const string DefaultAssistantAvatar = "/assets/assistant/02_wave.png";
+
     public static readonly IReadOnlyDictionary<string, string> AllowedCmsKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["heroTag"] = "Nhãn nổi bật trang chủ",
@@ -49,8 +52,45 @@ public class ClubSettingsService
         ["checkInEarlyMinutes"] = "Số phút cho phép Check-in sớm trước ca",
         ["cancelCutoffMinutes"] = "Số phút tối thiểu để khách tự hủy vé đã duyệt",
         ["pendingHoldMinutes"] = "Thời gian giữ chỗ tạm cho đơn chờ duyệt (phút)",
-        ["maxActivePendingPerActor"] = "Số đơn chờ duyệt tối đa đồng thời trên mỗi khách/tài khoản"
+        ["maxActivePendingPerActor"] = "Số đơn chờ duyệt tối đa đồng thời trên mỗi khách/tài khoản",
+        ["assistantAvatar"] = "Ảnh đại diện Trợ lý AI (Spike Assistant)"
     };
+
+    public static string ResolveSafeAssistantAvatarUrl(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return DefaultAssistantAvatar;
+        }
+
+        string clean = raw.Trim();
+        if (clean.Contains("..", StringComparison.Ordinal) ||
+            clean.Contains("//", StringComparison.Ordinal) ||
+            clean.Contains('\\'))
+        {
+            return DefaultAssistantAvatar;
+        }
+
+        bool allowedPrefix =
+            clean.StartsWith("/assets/assistant/", StringComparison.OrdinalIgnoreCase) ||
+            clean.StartsWith("/images/avatars/", StringComparison.OrdinalIgnoreCase) ||
+            clean.StartsWith("/uploads/avatars/", StringComparison.OrdinalIgnoreCase);
+
+        if (!allowedPrefix)
+        {
+            return DefaultAssistantAvatar;
+        }
+
+        foreach (char c in clean)
+        {
+            if (!(char.IsLetterOrDigit(c) || c is '/' or '.' or '-' or '_'))
+            {
+                return DefaultAssistantAvatar;
+            }
+        }
+
+        return clean;
+    }
 
     public async Task<ClubSettingsSnapshot> GetSettingsAsync(PickleballContext context)
     {
@@ -88,6 +128,7 @@ public class ClubSettingsService
         int pendingHold = ParseIntInRange(GetVal(dict, "pendingHoldMinutes"), 30, 1, 180);
         int maxActivePending = ParseIntInRange(GetVal(dict, "maxActivePendingPerActor"), 3, 1, 20);
         string hotline = string.IsNullOrWhiteSpace(GetVal(dict, "hotline")) ? "0901 234 567" : GetVal(dict, "hotline")!.Trim();
+        string assistantAvatar = ResolveSafeAssistantAvatarUrl(GetVal(dict, "assistantAvatar"));
 
         string versionSeed = $"{openTime}|{closeTime}|{peakStart}|{basePrice}|{peakSurcharge}|{pendingHold}|{maxActivePending}";
         string versionHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(versionSeed)))[..12].ToLowerInvariant();
@@ -108,6 +149,7 @@ public class ClubSettingsService
             MaxActivePendingPerActor = maxActivePending,
             CancelCutoffMinutes = cancelCutoff,
             Hotline = hotline,
+            AssistantAvatar = assistantAvatar,
             RawCms = dict,
             PricingVersion = versionHash
         };
