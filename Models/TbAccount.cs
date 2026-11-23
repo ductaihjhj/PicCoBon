@@ -52,4 +52,10 @@ public partial class TbAccount
     public virtual TbRole? Role { get; set; }
 
     public virtual ICollection<TbBooking> TbBookings { get; set; } = new List<TbBooking>();
+
+    public virtual TbSocialProfile? SocialProfile { get; set; }
+
+    public virtual ICollection<TbSocialInvite> SentSocialInvites { get; set; } = new List<TbSocialInvite>();
+
+    public virtual ICollection<TbSocialInvite> ReceivedSocialInvites { get; set; } = new List<TbSocialInvite>();
 }

@@ -79,6 +79,7 @@ builder.Services.AddHttpClient<IPayPalClient, PayPalClient>(client =>
     client.Timeout = TimeSpan.FromSeconds(25);
 });
 builder.Services.AddScoped<PayPalPaymentService>();
+builder.Services.AddScoped<SocialCourtService>();
 builder.Services.AddScoped<SpikeAssistantToolService>();
 builder.Services.AddHttpClient<IGeminiClient, GeminiClient>(client =>
 {
