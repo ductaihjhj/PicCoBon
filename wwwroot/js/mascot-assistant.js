@@ -215,7 +215,7 @@
               <span class="spk-ai-header-title">Spike Assistant</span>
               <span class="spk-ai-header-status">
                 <span class="spk-ai-status-dot"></span>
-                <span>Gemini AI • Dữ liệu Spike OS</span>
+                <span>AI phát triển bơi Đức Tài</span>
               </span>
             </div>
           </div>
@@ -281,9 +281,15 @@
       this.panelEl = panel;
       this.messagesEl = panel.querySelector("#spikeAssistantMessages");
       this.typingEl = panel.querySelector("#spikeAssistantTyping");
-      this.suggestionsWrapEl = panel.querySelector("#spikeAssistantSuggestionsWrap");
-      this.suggestionsToggleBtn = panel.querySelector("#spikeAssistantSuggestionsToggle");
-      this.suggestionsToggleLabel = panel.querySelector("#spikeAssistantSuggestionsToggleLabel");
+      this.suggestionsWrapEl = panel.querySelector(
+        "#spikeAssistantSuggestionsWrap",
+      );
+      this.suggestionsToggleBtn = panel.querySelector(
+        "#spikeAssistantSuggestionsToggle",
+      );
+      this.suggestionsToggleLabel = panel.querySelector(
+        "#spikeAssistantSuggestionsToggleLabel",
+      );
       this.suggestionsEl = panel.querySelector("#spikeAssistantSuggestions");
       this.inputEl = panel.querySelector("#spikeAssistantInput");
       this.sendBtnEl = panel.querySelector("#spikeAssistantSendBtn");
@@ -310,13 +316,21 @@
     setSuggestionsCollapsed(collapsed) {
       this.isSuggestionsCollapsed = Boolean(collapsed);
       if (this.suggestionsWrapEl) {
-        this.suggestionsWrapEl.classList.toggle("is-collapsed", this.isSuggestionsCollapsed);
+        this.suggestionsWrapEl.classList.toggle(
+          "is-collapsed",
+          this.isSuggestionsCollapsed,
+        );
       }
       if (this.suggestionsToggleBtn) {
-        this.suggestionsToggleBtn.setAttribute("aria-expanded", this.isSuggestionsCollapsed ? "false" : "true");
+        this.suggestionsToggleBtn.setAttribute(
+          "aria-expanded",
+          this.isSuggestionsCollapsed ? "false" : "true",
+        );
       }
       if (this.suggestionsToggleLabel) {
-        this.suggestionsToggleLabel.textContent = this.isSuggestionsCollapsed ? "Mở gợi ý" : "Thu gọn";
+        this.suggestionsToggleLabel.textContent = this.isSuggestionsCollapsed
+          ? "Mở gợi ý"
+          : "Thu gọn";
       }
       return this;
     }
@@ -330,10 +344,16 @@
       this.isChatExpanded = !this.isChatExpanded;
       this.panelEl.classList.toggle("is-expanded", this.isChatExpanded);
       if (this.expandBtnEl) {
-        this.expandBtnEl.setAttribute("aria-pressed", this.isChatExpanded ? "true" : "false");
+        this.expandBtnEl.setAttribute(
+          "aria-pressed",
+          this.isChatExpanded ? "true" : "false",
+        );
       }
       if (this.expandIconEl) {
-        this.expandIconEl.setAttribute("icon", this.isChatExpanded ? "lucide:minimize-2" : "lucide:maximize-2");
+        this.expandIconEl.setAttribute(
+          "icon",
+          this.isChatExpanded ? "lucide:minimize-2" : "lucide:maximize-2",
+        );
       }
       this._scrollToBottom();
       return this;
@@ -540,7 +560,10 @@
       const linkTokens = [];
       const storeLinkToken = (url, label) => {
         if (!VERIFIED_SITE_ROUTES.has(url)) return label;
-        const cleanLabel = String(label || url).replace(/\*\*/g, "").trim() || url;
+        const cleanLabel =
+          String(label || url)
+            .replace(/\*\*/g, "")
+            .trim() || url;
         const token = `__SPK_LINK_${linkTokens.length}__`;
         linkTokens.push(
           `<a href="${url}" class="spk-ai-inline-link"><strong>${cleanLabel}</strong></a>`,
@@ -576,11 +599,23 @@
 
       // 3. Convert bold action phrases (**Tra cứu vé**, **Đặt sân**, **Pro Shop**, **Hồ sơ**, **Đăng nhập**) into clickable bold links
       const phraseRouteMap = [
-        { regex: /\*\*(tra cứu vé(?:\s+qr)?|trang tra cứu(?:\s+vé)?)\*\*/gi, route: "/Lookup" },
-        { regex: /\*\*(đặt sân(?:\s+trực tuyến)?|trang đặt sân)\*\*/gi, route: "/Booking" },
+        {
+          regex: /\*\*(tra cứu vé(?:\s+qr)?|trang tra cứu(?:\s+vé)?)\*\*/gi,
+          route: "/Lookup",
+        },
+        {
+          regex: /\*\*(đặt sân(?:\s+trực tuyến)?|trang đặt sân)\*\*/gi,
+          route: "/Booking",
+        },
         { regex: /\*\*(?:cửa hàng\s+)?pro\s*shop\*\*/gi, route: "/Product" },
-        { regex: /\*\*(hồ sơ(?:\s+hội viên|\s+cá nhân)?)\*\*/gi, route: "/Account/Profile" },
-        { regex: /\*\*(đăng nhập(?:\s+tài khoản)?)\*\*/gi, route: "/Account/Login" },
+        {
+          regex: /\*\*(hồ sơ(?:\s+hội viên|\s+cá nhân)?)\*\*/gi,
+          route: "/Account/Profile",
+        },
+        {
+          regex: /\*\*(đăng nhập(?:\s+tài khoản)?)\*\*/gi,
+          route: "/Account/Login",
+        },
       ];
       phraseRouteMap.forEach(({ regex, route }) => {
         safe = safe.replace(regex, (full) => {
@@ -1157,7 +1192,9 @@
           closeBtn.addEventListener("click", () => this.closeChat());
         }
 
-        const expandBtn = this.panelEl.querySelector("#spikeAssistantExpandBtn");
+        const expandBtn = this.panelEl.querySelector(
+          "#spikeAssistantExpandBtn",
+        );
         if (expandBtn) {
           expandBtn.addEventListener("click", () => this.toggleChatExpanded());
         }
