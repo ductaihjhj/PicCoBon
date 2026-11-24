@@ -149,10 +149,13 @@
       this.canHover = global.matchMedia("(hover: hover)");
 
       this.atlasCache = new Map();
+      this.customAvatarCache = new Map();
       this.actors = [];
       this.selectedId = null;
       this.highlightedIds = new Set();
       this.rafId = null;
+      this.lastTickNow = null;
+      this.timeScale = 1;
       this.isHidden = document.hidden;
 
       this.drawBackground();
@@ -176,11 +179,20 @@
     }
 
     resolveSpriteId(member) {
+      if (member.avatar) {
+        const pathOnly = String(member.avatar).split("?")[0].trim();
+        if (this.manifest?.presetMap?.[pathOnly]) {
+          return this.manifest.presetMap[pathOnly];
+        }
+        const lowerKey = Object.keys(this.manifest?.presetMap || {}).find(
+          k => k.toLowerCase() === pathOnly.toLowerCase()
+        );
+        if (lowerKey) {
+          return this.manifest.presetMap[lowerKey];
+        }
+      }
       if (member.spriteId && this.manifest?.characters?.[member.spriteId]) {
         return member.spriteId;
-      }
-      if (member.avatar && this.manifest?.presetMap?.[member.avatar]) {
-        return this.manifest.presetMap[member.avatar];
       }
       const keys = Object.keys(this.manifest?.characters || { maya: {} });
       let hash = 0;
@@ -189,12 +201,140 @@
       return keys[Math.abs(hash) % keys.length] || "maya";
     }
 
+    loadCustomPixelAvatar(avatarUrl) {
+      if (!avatarUrl) return Promise.resolve(null);
+      if (this.customAvatarCache.has(avatarUrl)) return this.customAvatarCache.get(avatarUrl);
+      const promise = new Promise(resolve => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          try {
+            const tiny = document.createElement("canvas");
+            tiny.width = 14;
+            tiny.height = 14;
+            const tCtx = tiny.getContext("2d");
+            tCtx.imageSmoothingEnabled = true;
+            const side = Math.min(img.naturalWidth || img.width, img.naturalHeight || img.height);
+            const sx = Math.max(0, Math.floor(((img.naturalWidth || img.width) - side) / 2));
+            const sy = Math.max(0, Math.floor(((img.naturalHeight || img.height) - side) / 2));
+            tCtx.drawImage(img, sx, sy, side, side, 0, 0, 14, 14);
+
+            const out = document.createElement("canvas");
+            out.width = 32;
+            out.height = 32;
+            const oCtx = out.getContext("2d");
+            oCtx.imageSmoothingEnabled = false;
+            oCtx.fillStyle = "#17251d";
+            oCtx.fillRect(0, 0, 32, 32);
+            oCtx.fillStyle = "#eaf7ee";
+            oCtx.fillRect(2, 2, 28, 28);
+            oCtx.drawImage(tiny, 0, 0, 14, 14, 2, 2, 28, 28);
+            resolve(out);
+          } catch {
+            resolve(null);
+          }
+        };
+        img.onerror = () => resolve(null);
+        img.src = avatarUrl;
+      });
+      this.customAvatarCache.set(avatarUrl, promise);
+      return promise;
+    }
+
+    _buildBlinkCanvas(img, meta) {
+      try {
+        const { width, height } = meta;
+        const c = document.createElement("canvas");
+        c.width = width;
+        c.height = height;
+        const ctx = c.getContext("2d");
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(img, 0, 0, width, height, 0, 0, width, height);
+        const imgData = ctx.getImageData(0, 0, width, height);
+        const d = imgData.data;
+
+        const xMin = Math.floor(width * 0.34);
+        const xMax = Math.ceil(width * 0.66);
+        const yMin = Math.floor(height * 0.23);
+        const yMax = Math.ceil(height * 0.43);
+
+        // Sample dominant light skin/fur tone in the eye band
+        let skinR = 242, skinG = 201, skinB = 166, skinCount = 0;
+        let sumR = 0, sumG = 0, sumB = 0;
+        for (let y = yMin; y <= yMax; y++) {
+          for (let x = xMin; x <= xMax; x++) {
+            const idx = (y * width + x) * 4;
+            const r = d[idx], g = d[idx + 1], b = d[idx + 2], a = d[idx + 3];
+            if (a > 220 && r > 155 && g > 115 && !(r > 240 && g > 240 && b > 240)) {
+              sumR += r; sumG += g; sumB += b; skinCount++;
+            }
+          }
+        }
+        if (skinCount > 0) {
+          skinR = Math.round(sumR / skinCount);
+          skinG = Math.round(sumG / skinCount);
+          skinB = Math.round(sumB / skinCount);
+        }
+
+        // Find dark eye-interior pixels (surrounded closely by skin/white, not outer border)
+        const eyeRows = new Map();
+        for (let y = yMin + 1; y < yMax - 1; y++) {
+          for (let x = xMin + 1; x < xMax - 1; x++) {
+            const idx = (y * width + x) * 4;
+            const r = d[idx], g = d[idx + 1], b = d[idx + 2], a = d[idx + 3];
+            const isDark = a > 220 && r < 72 && g < 72 && b < 72;
+            const isEyeWhite = a > 220 && r > 230 && g > 230 && b > 230;
+            if (!isDark && !isEyeWhite) continue;
+
+            // Check that at least one neighbor within 2px is skin/fur tone (avoids hair/hat outline)
+            let hasSkinNeighbor = false;
+            for (let dy = -2; dy <= 2 && !hasSkinNeighbor; dy++) {
+              for (let dx = -2; dx <= 2; dx++) {
+                const nIdx = ((y + dy) * width + (x + dx)) * 4;
+                const nr = d[nIdx], ng = d[nIdx + 1], nb = d[nIdx + 2], na = d[nIdx + 3];
+                if (na > 220 && nr > 150 && ng > 110 && !(nr > 240 && ng > 240 && nb > 240)) {
+                  hasSkinNeighbor = true;
+                  break;
+                }
+              }
+            }
+            if (!hasSkinNeighbor) continue;
+
+            if (!eyeRows.has(x)) eyeRows.set(x, []);
+            eyeRows.get(x).push(y);
+          }
+        }
+
+        for (const [x, ys] of eyeRows.entries()) {
+          if (ys.length < 2 || ys.length > 7) continue;
+          const bottomY = Math.max(...ys);
+          for (const y of ys) {
+            const idx = (y * width + x) * 4;
+            if (y === bottomY) {
+              // Crisp 1px closed-eyelid line
+              d[idx] = 28; d[idx + 1] = 24; d[idx + 2] = 22; d[idx + 3] = 255;
+            } else {
+              d[idx] = skinR; d[idx + 1] = skinG; d[idx + 2] = skinB; d[idx + 3] = 255;
+            }
+          }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+        return c;
+      } catch {
+        return null;
+      }
+    }
+
     loadSpriteAtlas(spriteId) {
       if (this.atlasCache.has(spriteId)) return this.atlasCache.get(spriteId);
       const entry = this.manifest.characters[spriteId] || this.manifest.characters.maya;
       const promise = new Promise((resolve, reject) => {
         const img = new Image();
-        img.onload = () => resolve({ img, meta: entry.animation, entry });
+        img.onload = () => {
+          const blinkCanvas = this._buildBlinkCanvas(img, entry.animation);
+          resolve({ img, blinkCanvas, meta: entry.animation, entry });
+        };
         img.onerror = () => reject(new Error(`Không tải được atlas ${spriteId}`));
         img.src = entry.atlas.startsWith("/") && this.assetBaseUrl.startsWith(".")
           ? `${this.assetBaseUrl}/${spriteId}-atlas.png`
@@ -233,7 +373,10 @@
         btn.type = "button";
         btn.className = "sgl-actor";
         btn.dataset.memberId = String(m.id);
-        btn.setAttribute("aria-label", `Xem hồ sơ ${m.displayName}`);
+        btn.setAttribute(
+          "aria-label",
+          `Xem hồ sơ ${m.displayName} — ${m.readyToPlay ? "Sẵn sàng giao lưu" : "Hội viên Spike"}`
+        );
         btn.setAttribute("aria-expanded", "false");
         btn.style.left = `${(100 * pos.x) / COURT_SIZE.width}%`;
         btn.style.top = `${(100 * pos.y) / COURT_SIZE.height}%`;
@@ -272,22 +415,39 @@
           started: now,
           facing: pos.x < COURT_SIZE.width / 2 ? 1 : -1,
           walk: null,
+          walkDistance: 0,
           paintedFrame: -1,
           paintedFacing: 0,
-          nextAutomatic: now + between(900, 3200) + i * 340,
+          paintedBlink: false,
+          nextAutomatic: now + between(700, 2600) + i * 280,
+          nextBlink: now + between(1800, 4400) + i * 240,
+          blinkUntil: 0,
+          doubleBlinkQueued: false,
+          hopUntil: 0,
           lastAutomatic: "idle",
-          speedPxPerMs: between(0.048, 0.064),
+          speedPxPerMs: between(0.048, 0.068),
           atlasData: null
         };
 
         btn.addEventListener("pointerenter", e => {
-          if (e.pointerType === "mouse" && actor.action === "walk") {
-            this._setActorAction(actor, "idle", performance.now());
+          if (e.pointerType === "mouse" && !this.reduceMotion.matches) {
+            const t = performance.now();
+            actor.blinkUntil = t + 140;
+            if (actor.action === "walk") {
+              this._setActorAction(actor, "idle", t);
+            } else if (actor.action === "idle" && Math.random() < 0.55) {
+              this._setActorAction(actor, "wave", t);
+              actor.nextAutomatic = t + 1800;
+            }
           }
         });
         btn.addEventListener("focus", () => {
+          const t = performance.now();
+          if (!this.reduceMotion.matches) {
+            actor.blinkUntil = t + 140;
+          }
           if (actor.action === "walk") {
-            this._setActorAction(actor, "idle", performance.now());
+            this._setActorAction(actor, "idle", t);
           }
         });
         btn.addEventListener("click", e => {
@@ -295,12 +455,21 @@
         });
 
         this.actors.push(actor);
-        this.loadSpriteAtlas(spriteId).then(data => {
+        const isCustomUpload = m.avatarMode === "custom-upload" && Boolean(m.avatar);
+        Promise.all([
+          this.loadSpriteAtlas(spriteId),
+          isCustomUpload ? this.loadCustomPixelAvatar(m.avatar) : Promise.resolve(null)
+        ]).then(([data, customPixelCanvas]) => {
           actor.atlasData = data;
+          actor.customPixelCanvas = customPixelCanvas;
           actor.canvas.width = data.meta.width;
           actor.canvas.height = data.meta.height;
           actor.ctx.imageSmoothingEnabled = false;
           this._paintActor(actor, performance.now());
+        }).catch(() => {
+          actor.atlasData = null;
+          actor.canvas.width = 64;
+          actor.canvas.height = 64;
         });
       }
 
@@ -351,15 +520,38 @@
       }
     }
 
+    setTimeScale(scale) {
+      const n = Number(scale);
+      this.timeScale = Number.isFinite(n) && n > 0 ? Math.min(2, Math.max(0.15, n)) : 1;
+    }
+
+    getSignatureActions(spriteId) {
+      if (!spriteId || !this.manifest?.characters?.[spriteId]?.animation?.signatureActions) {
+        return [];
+      }
+      return this.manifest.characters[spriteId].animation.signatureActions;
+    }
+
+    getSelectedSpriteId() {
+      const target = this.actors.find(a => a.id === this.selectedId) || this.actors[0];
+      return target ? target.spriteId : null;
+    }
+
     triggerSelectedAction(actionName) {
       const target = this.actors.find(a => a.id === this.selectedId) || this.actors[0];
       if (!target) return;
       const now = performance.now();
       this._setActorAction(target, actionName, now);
-      target.nextAutomatic = now + 6000;
+      const seq = target.atlasData?.meta?.actions?.[target.action];
+      const dur = seq && seq.length ? seqDuration(seq) : 1200;
+      target.nextAutomatic = now + Math.max(2400, dur + 1600);
     }
 
     _chooseDestination(actor) {
+      const zoneNames = ["left-court", "right-court", "bench-lounge"];
+      if (Math.random() < 0.25) {
+        actor.zoneKey = zoneNames[Math.floor(Math.random() * zoneNames.length)];
+      }
       const zone = ZONES[actor.zoneKey];
       for (let attempt = 0; attempt < MAX_DEST_ATTEMPTS; attempt++) {
         const cand = { x: between(zone.left, zone.right), y: between(zone.top, zone.bottom) };
@@ -377,11 +569,27 @@
     }
 
     _setActorAction(actor, name, now) {
+      if (name === "look") {
+        actor.facing = actor.facing > 0 ? -1 : 1;
+        actor.action = "idle";
+        actor.started = now;
+        actor.blinkUntil = now + 135;
+        actor.nextAutomatic = now + between(900, 1700);
+        return;
+      }
+      if (name === "hop") {
+        actor.hopUntil = now + 380;
+        actor.action = "idle";
+        actor.started = now;
+        actor.nextAutomatic = now + between(1000, 1900);
+        return;
+      }
       if (name === "walk") {
         const to = this._chooseDestination(actor);
         if (!to) {
           actor.action = "idle";
           actor.started = now;
+          actor.walkDistance = 0;
           actor.nextAutomatic = now + between(900, 1700);
           return;
         }
@@ -389,9 +597,24 @@
         actor.walk = {
           from: { ...actor.pos },
           to,
+          totalDist: d,
           ms: Math.max(760, d / actor.speedPxPerMs)
         };
-        actor.facing = to.x >= actor.pos.x ? 1 : -1;
+        actor.walkDistance = 0;
+        const dx = to.x - actor.pos.x;
+        if (Math.abs(dx) > 6) {
+          actor.facing = dx >= 0 ? 1 : -1;
+        }
+      } else {
+        actor.walkDistance = 0;
+      }
+      if (name !== "idle" && name !== "walk") {
+        const seq = actor.atlasData?.meta?.actions?.[name];
+        if (!Array.isArray(seq) || seq.length === 0) {
+          actor.action = "idle";
+          actor.started = now;
+          return;
+        }
       }
       actor.action = name;
       actor.started = now;
@@ -399,30 +622,93 @@
 
     _paintActor(actor, now) {
       if (!actor.atlasData) return;
-      const { img, meta } = actor.atlasData;
-      const seq = meta.actions[actor.action] || meta.actions.idle;
-      const elapsed = Math.max(0, now - actor.started);
-      const frame = this.reduceMotion.matches
-        ? seq[actor.action === "wave" || actor.action === "swing" ? 1 : 0].index
-        : frameAt(seq, elapsed);
-      const dir = actor.action === "walk" ? actor.facing : 1;
+      const { img, blinkCanvas, meta } = actor.atlasData;
+      const rawSeq = meta.actions?.[actor.action] || meta.actions?.idle;
+      const seq = Array.isArray(rawSeq) && rawSeq.length > 0 ? rawSeq : [{ index: 0, ms: 600 }];
+      const elapsed = Math.max(0, (now - actor.started) * this.timeScale);
+      let frame;
+      if (this.reduceMotion.matches) {
+        frame = seq[actor.action === "idle" ? 0 : Math.min(1, seq.length - 1)]?.index ?? 0;
+      } else if (actor.action === "walk") {
+        const stepPx = meta.walkStepPx || 13;
+        const stepIdx = Math.floor(actor.walkDistance / stepPx) % seq.length;
+        frame = seq[stepIdx].index;
+      } else {
+        frame = frameAt(seq, elapsed);
+      }
 
-      if (frame !== actor.paintedFrame || dir !== actor.paintedFacing) {
-        actor.paintedFrame = frame;
+      const dir = actor.facing || 1;
+      const atlasBlinkFrame = meta.actions?.blink?.[0]?.index;
+      const hasBlinkSource = atlasBlinkFrame != null || Boolean(blinkCanvas);
+      const isBlinking = !this.reduceMotion.matches && now < actor.blinkUntil && actor.action === "idle" && hasBlinkSource;
+      const drawFrame = isBlinking && atlasBlinkFrame != null ? atlasBlinkFrame : frame;
+
+      if (actor.hopUntil > now && !this.reduceMotion.matches) {
+        const p = 1 - (actor.hopUntil - now) / 380;
+        const hopOffset = Math.round(Math.sin(p * Math.PI) * 6);
+        actor.canvas.style.transform = `translateY(${-hopOffset}px)`;
+      } else if (actor.canvas.style.transform) {
+        actor.canvas.style.transform = "";
+      }
+
+      if (drawFrame !== actor.paintedFrame || dir !== actor.paintedFacing || isBlinking !== actor.paintedBlink) {
+        actor.paintedFrame = drawFrame;
         actor.paintedFacing = dir;
+        actor.paintedBlink = isBlinking;
         const { width, height } = meta;
+        const cols = meta.cols || Math.max(1, Math.floor(img.width / width));
+        const sx = (drawFrame % cols) * width;
+        const sy = Math.floor(drawFrame / cols) * height;
+
         actor.ctx.setTransform(1, 0, 0, 1, 0, 0);
         actor.ctx.clearRect(0, 0, width, height);
         if (dir < 0) actor.ctx.setTransform(-1, 0, 0, 1, width, 0);
-        actor.ctx.drawImage(img, frame * width, 0, width, height, 0, 0, width, height);
+        if (isBlinking && atlasBlinkFrame == null && blinkCanvas) {
+          const yShift = frame === 1 ? 1 : 0;
+          actor.ctx.drawImage(blinkCanvas, 0, 0, width, height, 0, yShift, width, height);
+        } else {
+          actor.ctx.drawImage(img, sx, sy, width, height, 0, 0, width, height);
+        }
+        if (actor.customPixelCanvas) {
+          actor.ctx.setTransform(1, 0, 0, 1, 0, 0);
+          const bobY = drawFrame === 1 || drawFrame === 9 || drawFrame === 12 ? 1 : 0;
+          const headX = Math.round((width - actor.customPixelCanvas.width) / 2);
+          const headY = 12 + bobY;
+          actor.ctx.drawImage(actor.customPixelCanvas, headX, headY);
+        }
       }
+    }
+
+    _pickNextAutonomousAction(actor) {
+      const hasNeighbor = this.actors.some(other => other.id !== actor.id && dist(other.pos, actor.pos) < 130);
+      const sigActions = (actor.atlasData?.meta?.signatureActions || [])
+        .filter(s => s && s.autonomous !== false && Array.isArray(actor.atlasData?.meta?.actions?.[s.id]) && actor.atlasData.meta.actions[s.id].length > 0)
+        .map(s => s.id);
+
+      const pool = ["walk", "walk", "walk", "walk", "wave", "swing", "look", "hop"];
+      if (actor.atlasData?.meta?.actions?.wink?.length) {
+        pool.push("wink");
+      }
+      if (hasNeighbor) pool.push("wave");
+      for (const sig of sigActions) {
+        pool.push(sig);
+      }
+
+      const candidates = pool.filter(a => a !== actor.lastAutomatic);
+      const pickFrom = candidates.length > 0 ? candidates : pool;
+      return pickFrom[Math.floor(Math.random() * pickFrom.length)] || "walk";
     }
 
     _tick = now => {
       if (this.isHidden) {
         this.rafId = null;
+        this.lastTickNow = null;
         return;
       }
+
+      const rawDt = this.lastTickNow == null ? 16 : Math.min(50, Math.max(0, now - this.lastTickNow));
+      this.lastTickNow = now;
+      const dt = rawDt * this.timeScale;
 
       const autoOn = !this.autoToggle || this.autoToggle.getAttribute("aria-pressed") === "true";
 
@@ -432,32 +718,57 @@
           actor.btn.matches(":focus-visible") ||
           (this.canHover.matches && actor.btn.matches(":hover"));
 
+        if (!this.reduceMotion.matches && now >= actor.nextBlink) {
+          actor.blinkUntil = now + between(115, 155);
+          if (!actor.doubleBlinkQueued && Math.random() < 0.24) {
+            actor.doubleBlinkQueued = true;
+            actor.nextBlink = now + between(240, 320);
+          } else {
+            actor.doubleBlinkQueued = false;
+            actor.nextBlink = now + between(2400, 5200);
+          }
+        }
+
         if (actor.action === "idle" && autoOn && !this.reduceMotion.matches && !isPausedByUser && now >= actor.nextAutomatic) {
-          const nextAct = actor.lastAutomatic === "walk" && Math.random() < 0.36
-            ? (Math.random() < 0.52 ? "wave" : "swing")
-            : "walk";
+          const nextAct = this._pickNextAutonomousAction(actor);
           actor.lastAutomatic = nextAct;
           this._setActorAction(actor, nextAct, now);
 
           const meta = actor.atlasData?.meta;
           const actMs = actor.action === "walk" && actor.walk
-            ? actor.walk.ms
-            : (meta ? seqDuration(meta.actions[actor.action] || meta.actions.idle) : 900);
-          actor.nextAutomatic = now + actMs + between(1400, 3400);
+            ? actor.walk.ms / this.timeScale
+            : (meta ? seqDuration(meta.actions[actor.action] || meta.actions.idle) / this.timeScale : 900);
+          if (actor.action !== "idle") {
+            actor.nextAutomatic = now + actMs + between(1100, 2900);
+          }
         }
 
-        const elapsed = now - actor.started;
+        const elapsed = (now - actor.started) * this.timeScale;
         if (actor.action === "walk" && actor.walk) {
-          const progress = Math.min(1, elapsed / actor.walk.ms);
-          if (!this.reduceMotion.matches) {
-            actor.pos.x = actor.walk.from.x + (actor.walk.to.x - actor.walk.from.x) * progress;
-            actor.pos.y = actor.walk.from.y + (actor.walk.to.y - actor.walk.from.y) * progress;
-            actor.btn.style.left = `${(100 * actor.pos.x) / COURT_SIZE.width}%`;
-            actor.btn.style.top = `${(100 * actor.pos.y) / COURT_SIZE.height}%`;
-            actor.btn.style.zIndex = String(Math.round(actor.pos.y));
-          }
-          if (progress >= 1) {
-            this._setActorAction(actor, "idle", now);
+          if (!this.reduceMotion.matches && !isPausedByUser) {
+            const remDx = actor.walk.to.x - actor.pos.x;
+            const remDy = actor.walk.to.y - actor.pos.y;
+            const remDist = Math.hypot(remDx, remDy);
+            if (remDist <= 0.6) {
+              actor.pos.x = actor.walk.to.x;
+              actor.pos.y = actor.walk.to.y;
+              this._setActorAction(actor, "idle", now);
+            } else {
+              const traveled = dist(actor.walk.from, actor.pos);
+              const ramp = Math.max(0.45, Math.min(1, traveled / 12 + 0.45, remDist / 12 + 0.45));
+              const step = Math.min(remDist, actor.speedPxPerMs * dt * ramp);
+              actor.pos.x += (remDx / remDist) * step;
+              actor.pos.y += (remDy / remDist) * step;
+              actor.walkDistance += step;
+              actor.btn.style.left = `${(100 * actor.pos.x) / COURT_SIZE.width}%`;
+              actor.btn.style.top = `${(100 * actor.pos.y) / COURT_SIZE.height}%`;
+              actor.btn.style.zIndex = String(Math.round(actor.pos.y));
+              if (remDist - step <= 0.5) {
+                actor.pos.x = actor.walk.to.x;
+                actor.pos.y = actor.walk.to.y;
+                this._setActorAction(actor, "idle", now);
+              }
+            }
           }
         } else if (actor.action !== "idle" && actor.atlasData) {
           const seq = actor.atlasData.meta.actions[actor.action];

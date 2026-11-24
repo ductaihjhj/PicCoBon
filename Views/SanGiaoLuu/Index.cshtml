@@ -6,20 +6,9 @@
     var bootstrapJson = JsonSerializer.Serialize(new
     {
         myProfile = Model.MyProfile,
-        players = Model.Players
+        players = Model.Players,
+        totalCount = Model.TotalCount
     }, jsonOpts);
-
-    var sprites = new[]
-    {
-        new { Id = "sunny", Label = "Sunny" },
-        new { Id = "ace", Label = "Ace" },
-        new { Id = "mochi", Label = "Mochi" },
-        new { Id = "coco", Label = "Coco" },
-        new { Id = "maya", Label = "Maya" },
-        new { Id = "leo", Label = "Leo" },
-        new { Id = "kiko", Label = "Kiko" },
-        new { Id = "kai", Label = "Kai" }
-    };
 }
 
 <link rel="stylesheet" href="~/css/pages/san-giao-luu.css" asp-append-version="true" />
@@ -29,7 +18,7 @@
         <div class="page-hero-inner">
             <div>
                 <h1 class="page-hero-title">Sân giao lưu hội viên</h1>
-                <p class="page-hero-sub">Gặp gỡ hội viên cùng trình độ, chọn nhân vật pixel đại diện và hẹn lịch giao lưu trước khi đặt sân chính thức.</p>
+                <p class="page-hero-sub">Gặp gỡ hội viên cùng trình độ qua nhân vật pixel đồng bộ từ Hồ sơ cá nhân và hẹn lịch giao lưu trước khi đặt sân chính thức.</p>
             </div>
             <div class="sgl-hero-actions">
                 <span class="badge badge-success" id="visibleCountBadge">@Model.Players.Count hội viên trên sân</span>
@@ -57,7 +46,7 @@
                             <iconify-icon icon="lucide:users" width="17" style="color:var(--brand-primary);"></iconify-icon>
                             <span>Không gian Sân giao lưu</span>
                         </span>
-                        <span class="text-xs" style="color:var(--text-muted);">Nhấn vào nhân vật để xem hồ sơ hoặc nhấn Esc để đóng chọn</span>
+                        <span class="text-xs" style="color:var(--text-muted);">Nhấn vào nhân vật để mở thẻ hồ sơ hoặc nhấn Esc để đóng</span>
                     </div>
 
                     <div class="sgl-court-stage" id="courtStage" aria-label="Sân Pickleball giao lưu">
@@ -68,21 +57,10 @@
                         <div class="sgl-court-empty" id="courtEmptyState" @(Model.Players.Count > 0 ? "hidden" : "")>
                             <div class="sgl-court-empty-box">
                                 <h3>Sân giao lưu đang sẵn sàng đón bạn</h3>
-                                <p>Theo mặc định, hồ sơ hội viên được giữ riêng tư. Hãy bật hiển thị và chọn một nhân vật pixel để bắt đầu xuất hiện trên sân.</p>
+                                <p>Theo mặc định, hồ sơ hội viên được giữ riêng tư. Hãy bật hiển thị để nhân vật pixel đồng bộ từ ảnh đại diện của bạn xuất hiện trên sân.</p>
                                 <button type="button" class="btn btn-primary btn-sm" id="emptyEnableCourtBtn">Bật hiển thị trên sân</button>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="sgl-pose-bar">
-                        <div class="sgl-pose-group">
-                            <span class="sgl-pose-label">Thử động tác:</span>
-                            <button type="button" class="sgl-pose-btn is-active" data-pose="idle">Đứng</button>
-                            <button type="button" class="sgl-pose-btn" data-pose="walk">Đi bộ</button>
-                            <button type="button" class="sgl-pose-btn" data-pose="wave">Vẫy tay</button>
-                            <button type="button" class="sgl-pose-btn" data-pose="swing">Vung vợt</button>
-                        </div>
-                        <button type="button" class="sgl-pose-btn sgl-auto-btn is-active" id="autoRoamToggle" aria-pressed="true">Tự hoạt động</button>
                     </div>
                 </div>
 
@@ -139,21 +117,23 @@
                         <div class="sgl-member-list" id="memberList"></div>
                     </div>
                 </div>
-
-                <!-- 5. Hồ sơ giao lưu & Gửi lời mời -->
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-header-title">
-                            <iconify-icon icon="lucide:user-check" width="16" style="color:var(--brand-primary);"></iconify-icon>
-                            <span>Hồ sơ giao lưu</span>
-                        </span>
-                    </div>
-                    <div class="card-body" id="profileCardBody"></div>
-                </div>
             </aside>
         </div>
     </div>
 </main>
+
+<!-- Dialog: Thẻ hồ sơ hội viên khi bấm nhân vật / danh sách / gợi ý -->
+<div class="sgl-modal-backdrop" id="memberProfileModal" hidden role="dialog" aria-modal="true" aria-labelledby="memberProfileTitle">
+    <div class="sgl-profile-modal" id="memberProfileDialogCard">
+        <div class="sgl-profile-banner">
+            <button type="button" class="sgl-profile-close" id="closeMemberProfileBtn" aria-label="Đóng thẻ hồ sơ">&times;</button>
+        </div>
+        <div class="sgl-profile-avatar-overlap">
+            <img id="memberCardAvatar" src="" alt="" />
+        </div>
+        <div class="sgl-profile-content" id="memberCardBody"></div>
+    </div>
+</div>
 
 <!-- Modal: Cài đặt hồ sơ giao lưu của tôi -->
 <div class="sgl-modal-backdrop" id="socialSettingsModal" hidden role="dialog" aria-modal="true" aria-labelledby="socialSettingsTitle">
@@ -167,7 +147,7 @@
             <label class="sgl-switch-card">
                 <span>
                     <strong>Hiển thị trên Sân giao lưu</strong>
-                    <span>Cho phép hội viên khác nhìn thấy bạn (chỉ hiển thị tên, trình độ tự khai, khung giờ rảnh và nhân vật pixel).</span>
+                    <span>Cho phép hội viên khác nhìn thấy bạn (chỉ hiển thị tên, thông số thi đấu, khung giờ rảnh và nhân vật pixel).</span>
                 </span>
                 <input type="checkbox" id="optVisibleOnCourt">
             </label>
@@ -175,7 +155,7 @@
             <label class="sgl-switch-card">
                 <span>
                     <strong>Trạng thái Sẵn sàng giao lưu</strong>
-                    <span>Hiện chấm xanh nổi bật trên sân để mọi người biết bạn đang muốn hẹn trận.</span>
+                    <span>Hiện chấm xanh và nhãn Sẵn sàng giao lưu để mọi người biết bạn đang muốn hẹn trận.</span>
                 </span>
                 <input type="checkbox" id="optReadyToPlay">
             </label>
@@ -189,24 +169,30 @@
             </label>
 
             <div>
-                <label class="form-label">Chọn nhân vật pixel đại diện (8 nhân vật)</label>
-                <div class="sgl-sprite-grid" id="spritePickerGrid">
-                    @foreach (var sp in sprites)
-                    {
-                        <button type="button" class="sgl-sprite-option" data-sprite-id="@sp.Id">
+                <label class="form-label">Nhân vật pixel đồng bộ từ Hồ sơ cá nhân</label>
+                <div class="sgl-avatar-sync-card">
+                    <div class="sgl-avatar-sync-media">
+                        <div class="sgl-avatar-sync-thumbs">
                             <div class="sgl-portrait">
-                                <img src="/assets/san-giao-luu/@(sp.Id)-profile.webp" alt="@sp.Label">
+                                <img id="syncProfileAvatarImg" src="/assets/san-giao-luu/@(Model.MyProfile.SpriteId)-profile.webp" alt="Ảnh đại diện hiện tại">
                             </div>
-                            <span>@sp.Label</span>
-                        </button>
-                    }
+                            <div class="sgl-portrait" title="Nhân vật pixel trên sân">
+                                <img id="syncPixelSpriteImg" src="/assets/san-giao-luu/@(Model.MyProfile.SpriteId)-profile.webp" alt="Nhân vật pixel đồng bộ">
+                            </div>
+                        </div>
+                        <div>
+                            <strong id="syncAvatarModeLabel" style="display:block;font-size:0.875rem;color:var(--text-primary);">Đồng bộ theo ảnh đại diện</strong>
+                            <span style="display:block;font-size:0.8rem;color:var(--text-muted);">Đổi ảnh mẫu hoặc tải ảnh riêng tại Hồ sơ cá nhân để cập nhật nhân vật trên sân.</span>
+                        </div>
+                    </div>
+                    <a href="/Account/Profile" class="btn btn-secondary btn-xs">Đổi ảnh trong Hồ sơ cá nhân</a>
                 </div>
             </div>
 
             <div class="sgl-switch-card" style="flex-direction:column;align-items:stretch;">
                 <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;">
                     <span>
-                        <strong>Xác nhận trình độ giao lưu</strong>
+                        <strong>Xác nhận trình độ tự khai</strong>
                         <span>Nếu chưa bật, hệ thống hiển thị “Chưa xác nhận trình độ” thay vì dùng mặc định.</span>
                     </span>
                     <input type="checkbox" id="optSkillConfirmed">

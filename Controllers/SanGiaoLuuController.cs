@@ -25,6 +25,11 @@ public class SanGiaoLuuController : Controller
             return RedirectToAction("Login", "Account", new { returnUrl = "/SanGiaoLuu" });
         }
 
+        if (Function.IsStaffOrAdmin())
+        {
+            return Forbid();
+        }
+
         var snapshot = await _socialService.GetCourtSnapshotAsync(accountId);
         if (snapshot == null)
         {
@@ -35,15 +40,24 @@ public class SanGiaoLuuController : Controller
     }
 
     [HttpGet("/api/social/court")]
-    public async Task<IActionResult> GetCourt()
+    public async Task<IActionResult> GetCourt([FromQuery] int page = 1, [FromQuery] int pageSize = 60, [FromQuery] string? search = null)
     {
         int accountId = Function._AccountId;
         if (accountId <= 0) return Unauthorized(new { ok = false, message = "Vui lòng đăng nhập." });
+        if (Function.IsStaffOrAdmin()) return StatusCode(403, new { ok = false, message = "Chỉ hội viên Customer mới được truy cập Sân giao lưu." });
 
-        var snapshot = await _socialService.GetCourtSnapshotAsync(accountId);
+        var snapshot = await _socialService.GetCourtSnapshotAsync(accountId, page, pageSize, search);
         if (snapshot == null) return Unauthorized(new { ok = false, message = "Tài khoản không hợp lệ." });
 
-        return Ok(new { ok = true, myProfile = snapshot.MyProfile, players = snapshot.Players });
+        return Ok(new
+        {
+            ok = true,
+            myProfile = snapshot.MyProfile,
+            players = snapshot.Players,
+            totalCount = snapshot.TotalCount,
+            page = snapshot.Page,
+            pageSize = snapshot.PageSize
+        });
     }
 
     [HttpPut("/api/social/profile")]
@@ -52,6 +66,7 @@ public class SanGiaoLuuController : Controller
     {
         int accountId = Function._AccountId;
         if (accountId <= 0) return Unauthorized(new { ok = false, message = "Vui lòng đăng nhập." });
+        if (Function.IsStaffOrAdmin()) return StatusCode(403, new { ok = false, message = "Chỉ hội viên Customer mới được cập nhật hồ sơ Sân giao lưu." });
         if (req == null) return BadRequest(new { ok = false, message = "Dữ liệu không hợp lệ." });
 
         var (ok, error, profile) = await _socialService.UpdateMyProfileAsync(accountId, req);
@@ -65,6 +80,10 @@ public class SanGiaoLuuController : Controller
     {
         int accountId = Function._AccountId;
         if (accountId <= 0) return Unauthorized(new { ok = false, message = "Vui lòng đăng nhập." });
+        if (Function.IsStaffOrAdmin() || !await _socialService.IsActiveCustomerAsync(accountId))
+        {
+            return StatusCode(403, new { ok = false, message = "Chỉ hội viên Customer mới được sử dụng gợi ý ghép cặp." });
+        }
 
         var suggestions = await _socialService.GetMatchSuggestionsAsync(accountId);
         return Ok(new { ok = true, suggestions });
@@ -75,6 +94,10 @@ public class SanGiaoLuuController : Controller
     {
         int accountId = Function._AccountId;
         if (accountId <= 0) return Unauthorized(new { ok = false, message = "Vui lòng đăng nhập." });
+        if (Function.IsStaffOrAdmin() || !await _socialService.IsActiveCustomerAsync(accountId))
+        {
+            return StatusCode(403, new { ok = false, message = "Chỉ hội viên Customer mới được xem lời mời giao lưu." });
+        }
 
         var invites = await _socialService.GetInvitesAsync(accountId);
         return Ok(new { ok = true, sent = invites.Sent, received = invites.Received });
@@ -86,6 +109,7 @@ public class SanGiaoLuuController : Controller
     {
         int accountId = Function._AccountId;
         if (accountId <= 0) return Unauthorized(new { ok = false, message = "Vui lòng đăng nhập." });
+        if (Function.IsStaffOrAdmin()) return StatusCode(403, new { ok = false, message = "Chỉ hội viên Customer mới được gửi lời mời giao lưu." });
         if (req == null) return BadRequest(new { ok = false, message = "Dữ liệu lời mời không hợp lệ." });
 
         var (ok, error, invite) = await _socialService.CreateInviteAsync(accountId, req);
@@ -100,6 +124,7 @@ public class SanGiaoLuuController : Controller
     {
         int accountId = Function._AccountId;
         if (accountId <= 0) return Unauthorized(new { ok = false, message = "Vui lòng đăng nhập." });
+        if (Function.IsStaffOrAdmin()) return StatusCode(403, new { ok = false, message = "Chỉ hội viên Customer mới được phản hồi lời mời." });
         if (req == null) return BadRequest(new { ok = false, message = "Dữ liệu phản hồi không hợp lệ." });
 
         var (ok, error, status) = await _socialService.RespondInviteAsync(accountId, id, req);

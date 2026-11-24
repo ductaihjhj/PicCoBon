@@ -11,13 +11,17 @@
   const memberList = document.getElementById("memberList");
   const searchInput = document.getElementById("searchMembers");
   const readyOnlyBtn = document.getElementById("readyOnlyFilter");
-  const profileBody = document.getElementById("profileCardBody");
   const matchPanel = document.getElementById("matchPanel");
   const matchGrid = document.getElementById("matchGrid");
   const findMatchBtn = document.getElementById("findMatchBtn");
   const closeMatchBtn = document.getElementById("closeMatchPanel");
-  const poseButtons = Array.from(document.querySelectorAll(".sgl-pose-btn[data-pose]"));
-  const autoToggleBtn = document.getElementById("autoRoamToggle");
+
+  // Member Profile Card Modal
+  const memberProfileModal = document.getElementById("memberProfileModal");
+  const memberProfileDialogCard = document.getElementById("memberProfileDialogCard");
+  const closeMemberProfileBtn = document.getElementById("closeMemberProfileBtn");
+  const memberCardAvatar = document.getElementById("memberCardAvatar");
+  const memberCardBody = document.getElementById("memberCardBody");
 
   // Invites UI
   const invitesContainer = document.getElementById("invitesContainer");
@@ -36,7 +40,9 @@
   const optSuggest = document.getElementById("optAllowMatchSuggestion");
   const optSkillConfirmed = document.getElementById("optSkillConfirmed");
   const optSkillSelect = document.getElementById("optConfirmedSkillLevel");
-  const spritePickerGrid = document.getElementById("spritePickerGrid");
+  const syncProfileAvatarImg = document.getElementById("syncProfileAvatarImg");
+  const syncPixelSpriteImg = document.getElementById("syncPixelSpriteImg");
+  const syncAvatarModeLabel = document.getElementById("syncAvatarModeLabel");
   const freeSlotChips = Array.from(document.querySelectorAll(".sgl-slot-chip"));
 
   const toastEl = document.getElementById("sglToast");
@@ -47,7 +53,7 @@
   let activeInviteTab = "received";
   let onlyReadyFilter = false;
   let selectedAccountId = null;
-  let selectedSpriteId = myProfile.spriteId || "maya";
+  let lastProfileOpener = null;
   let selectedFreeSlots = new Set(Array.isArray(myProfile.freeSlots) ? myProfile.freeSlots : []);
   let courtEngine = null;
   let toastTimer = null;
@@ -83,12 +89,17 @@
     return vn.toISOString().slice(0, 10);
   }
 
-  function renderPortraitHtml(player, extraClass) {
+  function resolveCardAvatarUrls(player) {
     const spriteId = (player.spriteId || "maya").toLowerCase();
     const fallbackSrc = `${assetBase}/${encodeURIComponent(spriteId)}-profile.webp`;
-    const avatarSrc = player.avatar && player.avatar.trim() ? player.avatar : fallbackSrc;
+    const primarySrc = player.avatar && player.avatar.trim() ? player.avatar.trim() : fallbackSrc;
+    return { primarySrc, fallbackSrc };
+  }
+
+  function renderPortraitHtml(player, extraClass) {
+    const { primarySrc, fallbackSrc } = resolveCardAvatarUrls(player);
     const cls = extraClass ? `sgl-portrait ${extraClass}` : "sgl-portrait";
-    return `<div class="${cls}"><img src="${escapeHtml(avatarSrc)}" alt="${escapeHtml(player.displayName)}" onerror="this.onerror=null;this.src='${escapeHtml(fallbackSrc)}';"></div>`;
+    return `<div class="${cls}"><img src="${escapeHtml(primarySrc)}" alt="${escapeHtml(player.displayName)}" onerror="this.onerror=null;this.src='${escapeHtml(fallbackSrc)}';"></div>`;
   }
 
   function mapEngineMembers(list) {
@@ -96,16 +107,18 @@
       id: String(p.accountId),
       accountId: p.accountId,
       spriteId: p.spriteId,
+      avatar: p.avatar,
+      avatarMode: p.avatarMode || "fallback",
       displayName: p.displayName,
       shortName: p.isSelf ? `${p.displayName} (Bạn)` : p.displayName,
       skillLabel: p.skillLabel,
       skillConfirmed: p.skillConfirmed,
-      playStyle: p.playStyle,
+      dominantHand: p.dominantHand || "Chưa cập nhật",
+      paddleBrand: p.paddleBrand || "Chưa cập nhật",
+      playStyle: p.playStyle || "Chưa cập nhật",
       freeSlots: Array.isArray(p.freeSlots) ? p.freeSlots : [],
-      bio: p.bio,
       readyToPlay: Boolean(p.readyToPlay),
-      isSelf: Boolean(p.isSelf),
-      avatar: p.avatar
+      isSelf: Boolean(p.isSelf)
     }));
   }
 
@@ -121,7 +134,7 @@
     const filtered = players.filter((p) => {
       if (onlyReadyFilter && !p.readyToPlay) return false;
       if (!q) return true;
-      const hay = `${p.displayName} ${p.skillLabel} ${p.playStyle} ${(p.freeSlots || []).join(" ")}`.toLowerCase();
+      const hay = `${p.displayName} ${p.skillLabel} ${p.playStyle} ${p.paddleBrand || ""} ${(p.freeSlots || []).join(" ")}`.toLowerCase();
       return hay.includes(q);
     });
 
@@ -130,7 +143,7 @@
     } else {
       memberList.innerHTML = filtered.map((p) => {
         const isSel = Number(selectedAccountId) === Number(p.accountId);
-        const statusText = p.readyToPlay ? "Sẵn sàng giao lưu" : "Đang xem sân";
+        const statusText = p.readyToPlay ? "Sẵn sàng giao lưu" : "Hội viên Spike";
         return `
           <button type="button" class="sgl-member-item ${isSel ? "is-selected" : ""}" data-select-account="${p.accountId}">
             <span class="sgl-member-meta">
@@ -140,7 +153,7 @@
                 <span class="sgl-member-sub">${escapeHtml(statusText)} · ${escapeHtml(p.skillLabel)}</span>
               </span>
             </span>
-            <span class="badge ${p.readyToPlay ? "badge-success" : "badge-neutral"}">${p.readyToPlay ? "Sẵn sàng" : "Xem sân"}</span>
+            <span class="badge ${p.readyToPlay ? "badge-success" : "badge-neutral"}">${p.readyToPlay ? "Sẵn sàng giao lưu" : "Hội viên Spike"}</span>
           </button>
         `;
       }).join("");
@@ -152,65 +165,69 @@
         courtEngine.selectMember(String(selectedAccountId));
       }
     }
-
-    renderSelectedProfile();
   }
 
-  function renderSelectedProfile() {
-    const p = players.find((item) => Number(item.accountId) === Number(selectedAccountId));
-    if (!p) {
-      profileBody.innerHTML = `
-        <p class="text-sm" style="color:var(--text-muted);margin:0;">
-          Nhấn vào một nhân vật đang đi dạo trên sân hoặc chọn ở danh sách bên trên để xem trình độ tự khai, khung giờ rảnh và gửi lời mời giao lưu.
-        </p>
-      `;
-      return;
-    }
+  function openMemberProfileModal(accountId, openerEl) {
+    const p = players.find((item) => Number(item.accountId) === Number(accountId));
+    if (!p || !memberProfileModal) return;
 
-    const slotsText = (p.freeSlots && p.freeSlots.length) ? p.freeSlots.join(", ") : "Chưa chia sẻ khung giờ rảnh";
+    selectedAccountId = Number(p.accountId);
+    lastProfileOpener = openerEl || document.activeElement;
+    renderCourtAndDirectory(false);
+
+    const { primarySrc, fallbackSrc } = resolveCardAvatarUrls(p);
+    memberCardAvatar.onerror = function () {
+      memberCardAvatar.onerror = null;
+      memberCardAvatar.src = fallbackSrc;
+    };
+    memberCardAvatar.src = primarySrc;
+    memberCardAvatar.alt = p.displayName;
+
+    const slotsText = (p.freeSlots && p.freeSlots.length) ? p.freeSlots.join(", ") : "Chưa cập nhật";
     const tomorrow = defaultTomorrowIso();
 
-    profileBody.innerHTML = `
-      <div class="sgl-profile-top">
-        <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-          ${renderPortraitHtml(p, "sgl-portrait--lg")}
-          <div style="min-width:0;">
-            <strong style="display:block;font-size:1rem;color:var(--text-primary);">${escapeHtml(p.displayName)}${p.isSelf ? " (Bạn)" : ""}</strong>
-            <span class="badge ${p.readyToPlay ? "badge-success" : "badge-neutral"}" style="margin-top:4px;">
-              ${p.readyToPlay ? "Sẵn sàng giao lưu" : "Đang xem sân"}
-            </span>
-          </div>
-        </div>
+    memberCardBody.innerHTML = `
+      <div class="sgl-profile-identity">
+        <h2 class="sgl-profile-name" id="memberProfileTitle">${escapeHtml(p.displayName)}${p.isSelf ? " (Bạn)" : ""}</h2>
+        <span class="badge ${p.readyToPlay ? "badge-success" : "badge-neutral"}">
+          ${p.readyToPlay ? "Sẵn sàng giao lưu" : "Hội viên Spike"}
+        </span>
       </div>
 
-      <p class="sgl-profile-bio">${escapeHtml(p.bio)}</p>
-
-      <dl class="sgl-spec-list">
-        <div class="sgl-spec-row">
-          <dt>Trình độ</dt>
-          <dd>${escapeHtml(p.skillLabel)}</dd>
+      <dl class="sgl-profile-rows">
+        <div class="sgl-profile-row">
+          <dt>Trình độ tự khai</dt>
+          <dd>${escapeHtml(p.skillLabel || "Chưa xác nhận trình độ")}</dd>
         </div>
-        <div class="sgl-spec-row">
+        <div class="sgl-profile-row">
+          <dt>Tay thuận</dt>
+          <dd>${escapeHtml(p.dominantHand || "Chưa cập nhật")}</dd>
+        </div>
+        <div class="sgl-profile-row">
+          <dt>Dòng vợt</dt>
+          <dd>${escapeHtml(p.paddleBrand || "Chưa cập nhật")}</dd>
+        </div>
+        <div class="sgl-profile-row">
           <dt>Lối đánh</dt>
-          <dd>${escapeHtml(p.playStyle)}</dd>
+          <dd>${escapeHtml(p.playStyle || "Chưa cập nhật")}</dd>
         </div>
-        <div class="sgl-spec-row">
+        <div class="sgl-profile-row">
           <dt>Giờ thường rảnh</dt>
           <dd>${escapeHtml(slotsText)}</dd>
-        </div>
-        <div class="sgl-spec-row">
-          <dt>Nhân vật pixel</dt>
-          <dd style="text-transform:uppercase;">${escapeHtml(p.spriteId)}</dd>
         </div>
       </dl>
 
       ${p.isSelf ? `
         <button type="button" class="btn btn-secondary btn-sm" style="width:100%;" id="editOwnProfileFromCardBtn">
-          Chỉnh sửa hồ sơ giao lưu của tôi
+          Chỉnh cài đặt giao lưu
         </button>
       ` : `
-        <form id="sendSocialInviteForm" class="sgl-invite-form">
-          <strong style="font-size:0.875rem;color:var(--text-primary);">Gửi lời mời giao lưu</strong>
+        <button type="button" class="btn btn-primary btn-sm" style="width:100%;" id="toggleInviteFormBtn" aria-expanded="false" aria-controls="sendSocialInviteForm">
+          Hẹn giao lưu
+        </button>
+        <form id="sendSocialInviteForm" class="sgl-invite-form" style="margin-top:12px;" hidden>
+          <strong style="font-size:0.875rem;color:var(--text-primary);">Gửi lời mời tới ${escapeHtml(p.displayName)}</strong>
+          <div id="inviteFormError" class="sgl-inline-error" role="alert" hidden></div>
           <div class="sgl-invite-grid">
             <div>
               <label class="form-label" for="inviteDateInput">Ngày dự kiến</label>
@@ -248,14 +265,32 @@
 
     const editOwnBtn = document.getElementById("editOwnProfileFromCardBtn");
     if (editOwnBtn) {
-      editOwnBtn.addEventListener("click", openSettingsModal);
+      editOwnBtn.addEventListener("click", () => {
+        closeMemberProfileModal(false);
+        openSettingsModal();
+      });
     }
 
+    const toggleInviteBtn = document.getElementById("toggleInviteFormBtn");
     const inviteForm = document.getElementById("sendSocialInviteForm");
-    if (inviteForm) {
+    if (toggleInviteBtn && inviteForm) {
+      toggleInviteBtn.addEventListener("click", () => {
+        const opening = inviteForm.hidden;
+        inviteForm.hidden = !opening;
+        toggleInviteBtn.setAttribute("aria-expanded", String(opening));
+        if (opening) {
+          document.getElementById("inviteDateInput")?.focus();
+        }
+      });
+
       inviteForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const submitBtn = document.getElementById("submitInviteBtn");
+        const errBox = document.getElementById("inviteFormError");
+        if (errBox) {
+          errBox.hidden = true;
+          errBox.textContent = "";
+        }
         if (submitBtn) submitBtn.disabled = true;
 
         try {
@@ -275,20 +310,49 @@
           });
           const data = await res.json();
           if (!res.ok || !data.ok) {
-            showToast(data.message || "Không thể gửi lời mời.", true);
+            if (errBox) {
+              errBox.textContent = data.message || "Không thể gửi lời mời.";
+              errBox.hidden = false;
+            }
             return;
           }
           showToast(`Đã gửi lời mời giao lưu tới ${p.displayName}.`, false);
           activeInviteTab = "sent";
           syncInviteTabs();
           await refreshInvites();
+          closeMemberProfileModal(true);
         } catch {
-          showToast("Lỗi kết nối khi gửi lời mời.", true);
+          if (errBox) {
+            errBox.textContent = "Lỗi kết nối khi gửi lời mời.";
+            errBox.hidden = false;
+          }
         } finally {
           if (submitBtn) submitBtn.disabled = false;
         }
       });
     }
+
+    memberProfileModal.hidden = false;
+    closeMemberProfileBtn?.focus();
+  }
+
+  function closeMemberProfileModal(restoreFocus) {
+    if (!memberProfileModal || memberProfileModal.hidden) return;
+    memberProfileModal.hidden = true;
+    selectedAccountId = null;
+    courtEngine?.clearSelection();
+    renderCourtAndDirectory(false);
+    if (restoreFocus && lastProfileOpener && typeof lastProfileOpener.focus === "function") {
+      lastProfileOpener.focus();
+    }
+    lastProfileOpener = null;
+  }
+
+  function getFocusableIn(container) {
+    if (!container) return [];
+    return Array.from(
+      container.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+    ).filter((el) => !el.closest("[hidden]") && el.offsetParent !== null);
   }
 
   function statusBadgeHtml(status) {
@@ -409,6 +473,29 @@
     }
   }
 
+  function syncSettingsAvatarPreview() {
+    const { primarySrc, fallbackSrc } = resolveCardAvatarUrls(myProfile);
+    if (syncProfileAvatarImg) {
+      syncProfileAvatarImg.onerror = function () {
+        syncProfileAvatarImg.onerror = null;
+        syncProfileAvatarImg.src = fallbackSrc;
+      };
+      syncProfileAvatarImg.src = primarySrc;
+    }
+    if (syncPixelSpriteImg) {
+      syncPixelSpriteImg.src = fallbackSrc;
+    }
+    if (syncAvatarModeLabel) {
+      if (myProfile.avatarMode === "preset") {
+        syncAvatarModeLabel.textContent = `Khớp nhân vật pixel ${(myProfile.spriteId || "maya").toUpperCase()}`;
+      } else if (myProfile.avatarMode === "custom-upload") {
+        syncAvatarModeLabel.textContent = "Hiển thị ảnh tải lên dạng pixel trên sân";
+      } else {
+        syncAvatarModeLabel.textContent = "Đang dùng nhân vật pixel dự phòng";
+      }
+    }
+  }
+
   function openSettingsModal() {
     if (!settingsModal) return;
     optVisible.checked = Boolean(myProfile.isVisibleOnCourt);
@@ -418,10 +505,7 @@
     optSkillSelect.value = myProfile.confirmedSkillLevel || "Giao lưu (DUPR 3.0)";
     optSkillSelect.disabled = !optSkillConfirmed.checked;
 
-    selectedSpriteId = myProfile.spriteId || "maya";
-    spritePickerGrid.querySelectorAll(".sgl-sprite-option").forEach((btn) => {
-      btn.classList.toggle("is-selected", btn.getAttribute("data-sprite-id") === selectedSpriteId);
-    });
+    syncSettingsAvatarPreview();
 
     selectedFreeSlots = new Set(Array.isArray(myProfile.freeSlots) ? myProfile.freeSlots : []);
     freeSlotChips.forEach((chip) => {
@@ -448,9 +532,9 @@
   memberList?.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-select-account]");
     if (!btn) return;
-    selectedAccountId = Number(btn.getAttribute("data-select-account"));
-    renderCourtAndDirectory(false);
-    courtEngine?.selectMember(String(selectedAccountId));
+    const accId = Number(btn.getAttribute("data-select-account"));
+    courtEngine?.selectMember(String(accId), btn);
+    openMemberProfileModal(accId, btn);
   });
 
   findMatchBtn?.addEventListener("click", async () => {
@@ -494,25 +578,16 @@
   matchGrid?.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-focus-match]");
     if (!btn) return;
-    selectedAccountId = Number(btn.getAttribute("data-focus-match"));
-    renderCourtAndDirectory(false);
-    courtEngine?.selectMember(String(selectedAccountId));
+    const accId = Number(btn.getAttribute("data-focus-match"));
+    courtEngine?.selectMember(String(accId), btn);
+    openMemberProfileModal(accId, btn);
   });
 
-  poseButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      poseButtons.forEach((b) => b.classList.remove("is-active"));
-      btn.classList.add("is-active");
-      const pose = btn.getAttribute("data-pose");
-      if (courtEngine && pose) {
-        courtEngine.triggerSelectedAction(pose);
-      }
-    });
-  });
-
-  autoToggleBtn?.addEventListener("click", () => {
-    const isPressed = autoToggleBtn.getAttribute("aria-pressed") === "true";
-    autoToggleBtn.classList.toggle("is-active", !isPressed);
+  closeMemberProfileBtn?.addEventListener("click", () => closeMemberProfileModal(true));
+  memberProfileModal?.addEventListener("click", (e) => {
+    if (e.target === memberProfileModal) {
+      closeMemberProfileModal(true);
+    }
   });
 
   tabReceivedBtn?.addEventListener("click", () => {
@@ -583,15 +658,6 @@
     optSkillSelect.disabled = !optSkillConfirmed.checked;
   });
 
-  spritePickerGrid?.addEventListener("click", (e) => {
-    const btn = e.target.closest(".sgl-sprite-option");
-    if (!btn) return;
-    selectedSpriteId = btn.getAttribute("data-sprite-id") || "maya";
-    spritePickerGrid.querySelectorAll(".sgl-sprite-option").forEach((el) => {
-      el.classList.toggle("is-selected", el === btn);
-    });
-  });
-
   freeSlotChips.forEach((chip) => {
     chip.addEventListener("click", () => {
       const slot = chip.getAttribute("data-slot");
@@ -619,7 +685,7 @@
           isVisibleOnCourt: optVisible.checked,
           isReadyToPlay: optReady.checked,
           allowMatchSuggestion: optSuggest.checked,
-          spriteId: selectedSpriteId,
+          spriteId: myProfile.spriteId || "maya",
           skillConfirmed: optSkillConfirmed.checked,
           confirmedSkillLevel: optSkillSelect.value,
           freeSlots: Array.from(selectedFreeSlots)
@@ -634,11 +700,6 @@
       closeSettingsModal();
       showToast("Đã lưu cài đặt Sân giao lưu.", false);
       await refreshCourt();
-      if (myProfile.isVisibleOnCourt) {
-        selectedAccountId = myProfile.accountId;
-        await renderCourtAndDirectory(false);
-        courtEngine?.selectMember(String(selectedAccountId));
-      }
     } catch {
       showToast("Lỗi kết nối khi lưu cài đặt.", true);
     } finally {
@@ -647,15 +708,29 @@
   });
 
   document.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
-    if (settingsModal && !settingsModal.hidden) {
-      closeSettingsModal();
-      return;
+    if (e.key === "Escape") {
+      if (settingsModal && !settingsModal.hidden) {
+        closeSettingsModal();
+        return;
+      }
+      if (memberProfileModal && !memberProfileModal.hidden) {
+        closeMemberProfileModal(true);
+        return;
+      }
     }
-    if (selectedAccountId !== null) {
-      selectedAccountId = null;
-      courtEngine?.clearSelection();
-      renderCourtAndDirectory(false);
+
+    if (e.key === "Tab" && memberProfileModal && !memberProfileModal.hidden) {
+      const focusable = getFocusableIn(memberProfileDialogCard);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
   });
 
@@ -663,18 +738,17 @@
     courtEngine = new window.SanGiaoLuuCourt({
       mapCanvas,
       actorsLayer,
-      autoToggle: autoToggleBtn,
       assetBaseUrl: assetBase,
-      onSelectMember: (member) => {
-        selectedAccountId = member ? Number(member.id) : null;
-        renderCourtAndDirectory(false);
+      onSelectMember: (member, openerEl) => {
+        if (!member) {
+          closeMemberProfileModal(false);
+          return;
+        }
+        openMemberProfileModal(Number(member.id), openerEl);
       }
     });
 
     await courtEngine.loadManifest();
-    if (players.length > 0) {
-      selectedAccountId = players[0].accountId;
-    }
     await renderCourtAndDirectory(true);
     await refreshInvites();
   }

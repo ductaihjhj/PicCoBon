@@ -211,11 +211,16 @@
             <div class="actors-layer" id="actorsLayer"></div>
           </div>
           <div class="controls" role="group" aria-label="Điều khiển chuyển động nhân vật đang chọn">
-            <span class="controls-hint">Thử động tác:</span>
+            <span class="controls-hint">Di chuyển:</span>
             <button type="button" data-action="idle">Đứng</button>
             <button type="button" data-action="walk">Đi bộ</button>
+            <span class="controls-hint" style="margin-left:4px;">Biểu cảm:</span>
+            <button type="button" data-action="blink">Chớp mắt</button>
+            <button type="button" data-action="wink">Nháy mắt</button>
             <button type="button" data-action="wave">Vẫy tay</button>
             <button type="button" data-action="swing">Vung vợt</button>
+            <span id="signatureControls" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;" aria-label="Động tác riêng"></span>
+            <button type="button" id="slow-motion" aria-pressed="false" title="Xem chậm 0.35x">Chậm 0.35x</button>
             <button type="button" id="auto-motion" class="motion-toggle" aria-pressed="true">Tự hoạt động</button>
           </div>
         </section>
@@ -352,13 +357,35 @@
       }
     ];
 
+    const signatureControlsEl = document.getElementById("signatureControls");
+
+    function renderSignatureControls(spriteId) {
+      if (!signatureControlsEl) return;
+      const sigs = court.getSignatureActions(spriteId);
+      if (!sigs.length) {
+        signatureControlsEl.innerHTML = "";
+        return;
+      }
+      signatureControlsEl.innerHTML = `<span class="controls-hint" style="margin-left:4px;">Động tác riêng:</span>` +
+        sigs.map(s => `<button type="button" data-sig-action="${s.id}">${s.label}</button>`).join("");
+    }
+
+    signatureControlsEl?.addEventListener("click", e => {
+      const btn = e.target.closest("[data-sig-action]");
+      if (!btn) return;
+      court.triggerSelectedAction(btn.dataset.sigAction);
+    });
+
     const assetBase = "./assets";
     const court = new SanGiaoLuuCourt({
       mapCanvas: document.getElementById("map"),
       actorsLayer: document.getElementById("actorsLayer"),
       autoToggle: document.getElementById("auto-motion"),
       assetBaseUrl: assetBase,
-      onSelectMember: (member, opener) => showProfile(member, opener)
+      onSelectMember: (member, opener) => {
+        renderSignatureControls(member?.spriteId);
+        showProfile(member, opener);
+      }
     });
 
     const profileEl = document.getElementById("profile");
@@ -515,6 +542,13 @@
       btn.addEventListener("click", () => court.triggerSelectedAction(btn.dataset.action));
     });
 
+    const slowBtn = document.getElementById("slow-motion");
+    slowBtn?.addEventListener("click", () => {
+      const next = slowBtn.getAttribute("aria-pressed") !== "true";
+      slowBtn.setAttribute("aria-pressed", String(next));
+      court.setTimeScale(next ? 0.35 : 1);
+    });
+
     [filterReadyBtn, filterDoublesBtn, filterSinglesBtn].forEach(btn => {
       btn.addEventListener("click", () => {
         const cur = btn.getAttribute("aria-pressed") === "true";
@@ -530,6 +564,7 @@
 
     court.loadManifest().then(() => {
       court.setMembers(SAMPLE_MEMBERS);
+      renderSignatureControls(SAMPLE_MEMBERS[0].spriteId);
       renderMemberList();
     });
   </script>

@@ -1,74 +1,203 @@
 {
-  "width": 96,
-  "height": 104,
+  "width": 108,
+  "height": 112,
+  "cols": 8,
+  "rows": 4,
   "anchor": [
-    48,
-    101
+    54,
+    108
   ],
+  "walkStepPx": 16,
   "actions": {
     "idle": [
       {
         "index": 0,
-        "ms": 620
+        "ms": 640
       },
       {
         "index": 1,
-        "ms": 520
+        "ms": 540
       }
     ],
     "walk": [
       {
-        "index": 2,
-        "ms": 160
+        "index": 8,
+        "ms": 130
       },
       {
-        "index": 3,
-        "ms": 150
+        "index": 9,
+        "ms": 100
       },
       {
-        "index": 4,
-        "ms": 160
+        "index": 10,
+        "ms": 130
       },
       {
-        "index": 5,
-        "ms": 150
+        "index": 11,
+        "ms": 130
+      },
+      {
+        "index": 12,
+        "ms": 100
+      },
+      {
+        "index": 13,
+        "ms": 130
       }
     ],
     "wave": [
       {
         "index": 0,
-        "ms": 120
-      },
-      {
-        "index": 6,
-        "ms": 255
-      },
-      {
-        "index": 0,
-        "ms": 125
-      },
-      {
-        "index": 6,
-        "ms": 360
-      },
-      {
-        "index": 0,
         "ms": 100
+      },
+      {
+        "index": 4,
+        "ms": 220
+      },
+      {
+        "index": 5,
+        "ms": 220
+      },
+      {
+        "index": 4,
+        "ms": 240
+      },
+      {
+        "index": 0,
+        "ms": 110
       }
     ],
     "swing": [
       {
         "index": 0,
-        "ms": 115
+        "ms": 95
+      },
+      {
+        "index": 6,
+        "ms": 160
       },
       {
         "index": 7,
-        "ms": 295
+        "ms": 240
       },
       {
         "index": 0,
-        "ms": 140
+        "ms": 130
+      }
+    ],
+    "blink": [
+      {
+        "index": 2,
+        "ms": 135
+      },
+      {
+        "index": 0,
+        "ms": 90
+      }
+    ],
+    "wink": [
+      {
+        "index": 3,
+        "ms": 420
+      },
+      {
+        "index": 0,
+        "ms": 120
+      }
+    ],
+    "kai_split_step": [
+      {
+        "index": 16,
+        "ms": 160
+      },
+      {
+        "index": 17,
+        "ms": 280
+      },
+      {
+        "index": 18,
+        "ms": 240
+      },
+      {
+        "index": 19,
+        "ms": 120
+      }
+    ],
+    "kai_overhead": [
+      {
+        "index": 20,
+        "ms": 160
+      },
+      {
+        "index": 21,
+        "ms": 280
+      },
+      {
+        "index": 22,
+        "ms": 240
+      },
+      {
+        "index": 23,
+        "ms": 120
+      }
+    ],
+    "kai_shoulder_roll": [
+      {
+        "index": 24,
+        "ms": 160
+      },
+      {
+        "index": 25,
+        "ms": 280
+      },
+      {
+        "index": 26,
+        "ms": 240
+      },
+      {
+        "index": 27,
+        "ms": 120
+      }
+    ],
+    "kai_ready_fist": [
+      {
+        "index": 28,
+        "ms": 160
+      },
+      {
+        "index": 29,
+        "ms": 280
+      },
+      {
+        "index": 30,
+        "ms": 240
+      },
+      {
+        "index": 31,
+        "ms": 120
       }
     ]
-  }
+  },
+  "signatureActions": [
+    {
+      "id": "kai_split_step",
+      "label": "Bước chờ bóng",
+      "autonomous": true
+    },
+    {
+      "id": "kai_overhead",
+      "label": "Đập bóng cao",
+      "autonomous": true
+    },
+    {
+      "id": "kai_shoulder_roll",
+      "label": "Xoay vai",
+      "autonomous": true
+    },
+    {
+      "id": "kai_ready_fist",
+      "label": "Siết tay sẵn sàng",
+      "autonomous": true
+    }
+  ]
 }
