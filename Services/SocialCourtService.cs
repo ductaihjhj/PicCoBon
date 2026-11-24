@@ -10,6 +10,14 @@ using PickleballClub.Utilities;
 
 namespace PickleballClub.Services;
 
+/// <summary>
+/// Dịch vụ nghiệp vụ trung tâm cho Sân giao lưu (TbSocialProfile &amp; TbSocialInvite).
+/// Chịu trách nhiệm:
+/// - Ánh xạ đồng bộ ảnh đại diện (/Account/Profile) sang 8 nhân vật pixel chuẩn (sunny, ace, mochi, coco, maya, leo, kiko, kai).
+/// - Xuất snapshot sân giao lưu đã lọc sạch thông tin nhạy cảm (PII) như Email, SĐT, PasswordHash.
+/// - Gợi ý ghép cặp bạn tập (Matchmaking) theo trình độ DUPR, lối đánh, khung giờ rảnh và khu vực sân.
+/// - Quản lý vòng đời lời mời giao lưu (gửi, chấp nhận, từ chối, hủy) kèm chống trùng lặp.
+/// </summary>
 public class SocialCourtService
 {
     private readonly PickleballContext _db;

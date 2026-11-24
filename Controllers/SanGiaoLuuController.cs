@@ -6,6 +6,12 @@ using PickleballClub.Utilities;
 
 namespace PickleballClub.Controllers;
 
+/// <summary>
+/// Phân hệ Sân giao lưu (Pixel Social Court — V6).
+/// Dành riêng cho Hội viên (Customer, RoleId = 2): hiển thị mặt sân tương tác trực quan,
+/// đồng bộ nhân vật pixel từ ảnh đại diện hồ sơ (/Account/Profile), tìm bạn tập theo trình độ/khu vực
+/// và gửi/phản hồi lời mời giao lưu có kiểm tra CSRF + phân quyền chặt chẽ.
+/// </summary>
 [Authorize]
 public class SanGiaoLuuController : Controller
 {

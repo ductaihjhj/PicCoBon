@@ -1,3 +1,10 @@
+/**
+ * Module điều phối trang Sân giao lưu (/SanGiaoLuu).
+ * Kết nối dữ liệu hội viên từ SocialCourtService (/api/social/*) với bộ dựng cảnh pixel SanGiaoLuuEngine:
+ * - Tự động đồng bộ danh sách hội viên hiển thị trên sân, bộ lọc tìm kiếm và trạng thái sẵn sàng giao lưu.
+ * - Quản lý hộp thoại Thẻ hồ sơ hội viên (Member Profile Card), Bảng ghép cặp (Matchmaking),
+ *   Danh sách lời mời nhận/gửi và Cài đặt hồ sơ giao lưu (hỗ trợ đóng bằng phím Escape & trả focus chuẩn a11y).
+ */
 (function () {
   "use strict";
 
