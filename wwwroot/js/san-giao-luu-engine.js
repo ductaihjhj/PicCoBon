@@ -239,12 +239,100 @@
       return promise;
     }
 
+    _buildBlinkCanvas(img, meta) {
+      try {
+        const { width, height } = meta;
+        const c = document.createElement("canvas");
+        c.width = width;
+        c.height = height;
+        const ctx = c.getContext("2d");
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(img, 0, 0, width, height, 0, 0, width, height);
+        const imgData = ctx.getImageData(0, 0, width, height);
+        const d = imgData.data;
+
+        const xMin = Math.floor(width * 0.34);
+        const xMax = Math.ceil(width * 0.66);
+        const yMin = Math.floor(height * 0.23);
+        const yMax = Math.ceil(height * 0.43);
+
+        // Sample dominant light skin/fur tone in the eye band
+        let skinR = 242, skinG = 201, skinB = 166, skinCount = 0;
+        let sumR = 0, sumG = 0, sumB = 0;
+        for (let y = yMin; y <= yMax; y++) {
+          for (let x = xMin; x <= xMax; x++) {
+            const idx = (y * width + x) * 4;
+            const r = d[idx], g = d[idx + 1], b = d[idx + 2], a = d[idx + 3];
+            if (a > 220 && r > 155 && g > 115 && !(r > 240 && g > 240 && b > 240)) {
+              sumR += r; sumG += g; sumB += b; skinCount++;
+            }
+          }
+        }
+        if (skinCount > 0) {
+          skinR = Math.round(sumR / skinCount);
+          skinG = Math.round(sumG / skinCount);
+          skinB = Math.round(sumB / skinCount);
+        }
+
+        // Find dark eye-interior pixels (surrounded closely by skin/white, not outer border)
+        const eyeRows = new Map();
+        for (let y = yMin + 1; y < yMax - 1; y++) {
+          for (let x = xMin + 1; x < xMax - 1; x++) {
+            const idx = (y * width + x) * 4;
+            const r = d[idx], g = d[idx + 1], b = d[idx + 2], a = d[idx + 3];
+            const isDark = a > 220 && r < 72 && g < 72 && b < 72;
+            const isEyeWhite = a > 220 && r > 230 && g > 230 && b > 230;
+            if (!isDark && !isEyeWhite) continue;
+
+            // Check that at least one neighbor within 2px is skin/fur tone (avoids hair/hat outline)
+            let hasSkinNeighbor = false;
+            for (let dy = -2; dy <= 2 && !hasSkinNeighbor; dy++) {
+              for (let dx = -2; dx <= 2; dx++) {
+                const nIdx = ((y + dy) * width + (x + dx)) * 4;
+                const nr = d[nIdx], ng = d[nIdx + 1], nb = d[nIdx + 2], na = d[nIdx + 3];
+                if (na > 220 && nr > 150 && ng > 110 && !(nr > 240 && ng > 240 && nb > 240)) {
+                  hasSkinNeighbor = true;
+                  break;
+                }
+              }
+            }
+            if (!hasSkinNeighbor) continue;
+
+            if (!eyeRows.has(x)) eyeRows.set(x, []);
+            eyeRows.get(x).push(y);
+          }
+        }
+
+        for (const [x, ys] of eyeRows.entries()) {
+          if (ys.length < 2 || ys.length > 7) continue;
+          const bottomY = Math.max(...ys);
+          for (const y of ys) {
+            const idx = (y * width + x) * 4;
+            if (y === bottomY) {
+              // Crisp 1px closed-eyelid line
+              d[idx] = 28; d[idx + 1] = 24; d[idx + 2] = 22; d[idx + 3] = 255;
+            } else {
+              d[idx] = skinR; d[idx + 1] = skinG; d[idx + 2] = skinB; d[idx + 3] = 255;
+            }
+          }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+        return c;
+      } catch {
+        return null;
+      }
+    }
+
     loadSpriteAtlas(spriteId) {
       if (this.atlasCache.has(spriteId)) return this.atlasCache.get(spriteId);
       const entry = this.manifest.characters[spriteId] || this.manifest.characters.maya;
       const promise = new Promise((resolve, reject) => {
         const img = new Image();
-        img.onload = () => resolve({ img, meta: entry.animation, entry });
+        img.onload = () => {
+          const blinkCanvas = this._buildBlinkCanvas(img, entry.animation);
+          resolve({ img, blinkCanvas, meta: entry.animation, entry });
+        };
         img.onerror = () => reject(new Error(`Không tải được atlas ${spriteId}`));
         img.src = entry.atlas.startsWith("/") && this.assetBaseUrl.startsWith(".")
           ? `${this.assetBaseUrl}/${spriteId}-atlas.png`
@@ -327,20 +415,36 @@
           walk: null,
           paintedFrame: -1,
           paintedFacing: 0,
-          nextAutomatic: now + between(900, 3200) + i * 340,
+          paintedBlink: false,
+          nextAutomatic: now + between(700, 2600) + i * 280,
+          nextBlink: now + between(1800, 4400) + i * 240,
+          blinkUntil: 0,
+          doubleBlinkQueued: false,
+          hopUntil: 0,
           lastAutomatic: "idle",
-          speedPxPerMs: between(0.048, 0.064),
+          speedPxPerMs: between(0.048, 0.068),
           atlasData: null
         };
 
         btn.addEventListener("pointerenter", e => {
-          if (e.pointerType === "mouse" && actor.action === "walk") {
-            this._setActorAction(actor, "idle", performance.now());
+          if (e.pointerType === "mouse" && !this.reduceMotion.matches) {
+            const t = performance.now();
+            actor.blinkUntil = t + 140;
+            if (actor.action === "walk") {
+              this._setActorAction(actor, "idle", t);
+            } else if (actor.action === "idle" && Math.random() < 0.55) {
+              this._setActorAction(actor, "wave", t);
+              actor.nextAutomatic = t + 1800;
+            }
           }
         });
         btn.addEventListener("focus", () => {
+          const t = performance.now();
+          if (!this.reduceMotion.matches) {
+            actor.blinkUntil = t + 140;
+          }
           if (actor.action === "walk") {
-            this._setActorAction(actor, "idle", performance.now());
+            this._setActorAction(actor, "idle", t);
           }
         });
         btn.addEventListener("click", e => {
@@ -418,6 +522,10 @@
     }
 
     _chooseDestination(actor) {
+      const zoneNames = ["left-court", "right-court", "bench-lounge"];
+      if (Math.random() < 0.25) {
+        actor.zoneKey = zoneNames[Math.floor(Math.random() * zoneNames.length)];
+      }
       const zone = ZONES[actor.zoneKey];
       for (let attempt = 0; attempt < MAX_DEST_ATTEMPTS; attempt++) {
         const cand = { x: between(zone.left, zone.right), y: between(zone.top, zone.bottom) };
@@ -435,6 +543,21 @@
     }
 
     _setActorAction(actor, name, now) {
+      if (name === "look") {
+        actor.facing = actor.facing > 0 ? -1 : 1;
+        actor.action = "idle";
+        actor.started = now;
+        actor.blinkUntil = now + 135;
+        actor.nextAutomatic = now + between(900, 1700);
+        return;
+      }
+      if (name === "hop") {
+        actor.hopUntil = now + 380;
+        actor.action = "idle";
+        actor.started = now;
+        actor.nextAutomatic = now + between(1000, 1900);
+        return;
+      }
       if (name === "walk") {
         const to = this._chooseDestination(actor);
         if (!to) {
@@ -457,22 +580,37 @@
 
     _paintActor(actor, now) {
       if (!actor.atlasData) return;
-      const { img, meta } = actor.atlasData;
+      const { img, blinkCanvas, meta } = actor.atlasData;
       const seq = meta.actions[actor.action] || meta.actions.idle;
       const elapsed = Math.max(0, now - actor.started);
       const frame = this.reduceMotion.matches
         ? seq[actor.action === "wave" || actor.action === "swing" ? 1 : 0].index
         : frameAt(seq, elapsed);
-      const dir = actor.action === "walk" ? actor.facing : 1;
+      const dir = actor.facing || 1;
+      const isBlinking = !this.reduceMotion.matches && now < actor.blinkUntil && (frame === 0 || frame === 1) && Boolean(blinkCanvas);
 
-      if (frame !== actor.paintedFrame || dir !== actor.paintedFacing) {
+      if (actor.hopUntil > now && !this.reduceMotion.matches) {
+        const p = 1 - (actor.hopUntil - now) / 380;
+        const hopOffset = Math.round(Math.sin(p * Math.PI) * 6);
+        actor.canvas.style.transform = `translateY(${-hopOffset}px)`;
+      } else if (actor.canvas.style.transform) {
+        actor.canvas.style.transform = "";
+      }
+
+      if (frame !== actor.paintedFrame || dir !== actor.paintedFacing || isBlinking !== actor.paintedBlink) {
         actor.paintedFrame = frame;
         actor.paintedFacing = dir;
+        actor.paintedBlink = isBlinking;
         const { width, height } = meta;
         actor.ctx.setTransform(1, 0, 0, 1, 0, 0);
         actor.ctx.clearRect(0, 0, width, height);
         if (dir < 0) actor.ctx.setTransform(-1, 0, 0, 1, width, 0);
-        actor.ctx.drawImage(img, frame * width, 0, width, height, 0, 0, width, height);
+        if (isBlinking) {
+          const yShift = frame === 1 ? 1 : 0;
+          actor.ctx.drawImage(blinkCanvas, 0, 0, width, height, 0, yShift, width, height);
+        } else {
+          actor.ctx.drawImage(img, frame * width, 0, width, height, 0, 0, width, height);
+        }
         if (actor.customPixelCanvas) {
           actor.ctx.setTransform(1, 0, 0, 1, 0, 0);
           const bobY = frame === 1 || frame === 3 || frame === 5 ? 1 : 0;
@@ -481,6 +619,21 @@
           actor.ctx.drawImage(actor.customPixelCanvas, headX, headY);
         }
       }
+    }
+
+    _pickNextAutonomousAction(actor) {
+      const hasNeighbor = this.actors.some(other => other.id !== actor.id && dist(other.pos, actor.pos) < 130);
+      const roll = Math.random();
+      if (actor.lastAutomatic === "walk") {
+        if (hasNeighbor && roll < 0.38) return "wave";
+        if (roll < 0.56) return "swing";
+        if (roll < 0.78) return "look";
+        return "hop";
+      }
+      if (roll < 0.62) return "walk";
+      if (roll < 0.78) return "wave";
+      if (roll < 0.90) return "swing";
+      return "look";
     }
 
     _tick = now => {
@@ -497,10 +650,19 @@
           actor.btn.matches(":focus-visible") ||
           (this.canHover.matches && actor.btn.matches(":hover"));
 
+        if (!this.reduceMotion.matches && now >= actor.nextBlink) {
+          actor.blinkUntil = now + between(115, 155);
+          if (!actor.doubleBlinkQueued && Math.random() < 0.24) {
+            actor.doubleBlinkQueued = true;
+            actor.nextBlink = now + between(240, 320);
+          } else {
+            actor.doubleBlinkQueued = false;
+            actor.nextBlink = now + between(2400, 5200);
+          }
+        }
+
         if (actor.action === "idle" && autoOn && !this.reduceMotion.matches && !isPausedByUser && now >= actor.nextAutomatic) {
-          const nextAct = actor.lastAutomatic === "walk" && Math.random() < 0.36
-            ? (Math.random() < 0.52 ? "wave" : "swing")
-            : "walk";
+          const nextAct = this._pickNextAutonomousAction(actor);
           actor.lastAutomatic = nextAct;
           this._setActorAction(actor, nextAct, now);
 
@@ -508,7 +670,9 @@
           const actMs = actor.action === "walk" && actor.walk
             ? actor.walk.ms
             : (meta ? seqDuration(meta.actions[actor.action] || meta.actions.idle) : 900);
-          actor.nextAutomatic = now + actMs + between(1400, 3400);
+          if (actor.action !== "idle") {
+            actor.nextAutomatic = now + actMs + between(1100, 2900);
+          }
         }
 
         const elapsed = now - actor.started;

@@ -15,8 +15,6 @@
   const matchGrid = document.getElementById("matchGrid");
   const findMatchBtn = document.getElementById("findMatchBtn");
   const closeMatchBtn = document.getElementById("closeMatchPanel");
-  const poseButtons = Array.from(document.querySelectorAll(".sgl-pose-btn[data-pose]"));
-  const autoToggleBtn = document.getElementById("autoRoamToggle");
 
   // Member Profile Card Modal
   const memberProfileModal = document.getElementById("memberProfileModal");
@@ -592,22 +590,6 @@
     }
   });
 
-  poseButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      poseButtons.forEach((b) => b.classList.remove("is-active"));
-      btn.classList.add("is-active");
-      const pose = btn.getAttribute("data-pose");
-      if (courtEngine && pose) {
-        courtEngine.triggerSelectedAction(pose);
-      }
-    });
-  });
-
-  autoToggleBtn?.addEventListener("click", () => {
-    const isPressed = autoToggleBtn.getAttribute("aria-pressed") === "true";
-    autoToggleBtn.classList.toggle("is-active", !isPressed);
-  });
-
   tabReceivedBtn?.addEventListener("click", () => {
     activeInviteTab = "received";
     syncInviteTabs();
@@ -756,7 +738,6 @@
     courtEngine = new window.SanGiaoLuuCourt({
       mapCanvas,
       actorsLayer,
-      autoToggle: autoToggleBtn,
       assetBaseUrl: assetBase,
       onSelectMember: (member, openerEl) => {
         if (!member) {
