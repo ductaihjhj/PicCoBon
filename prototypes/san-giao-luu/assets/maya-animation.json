@@ -1,9 +1,9 @@
 {
-  "width": 83,
-  "height": 93,
+  "width": 96,
+  "height": 104,
   "anchor": [
-    41,
-    91
+    48,
+    101
   ],
   "actions": {
     "idle": [
@@ -19,37 +19,37 @@
     "walk": [
       {
         "index": 2,
-        "ms": 160
+        "ms": 165
       },
       {
         "index": 3,
-        "ms": 150
+        "ms": 155
       },
       {
         "index": 4,
-        "ms": 160
+        "ms": 165
       },
       {
         "index": 5,
-        "ms": 150
+        "ms": 155
       }
     ],
     "wave": [
       {
         "index": 0,
-        "ms": 120
+        "ms": 110
       },
       {
         "index": 6,
-        "ms": 255
+        "ms": 260
       },
       {
         "index": 0,
-        "ms": 125
+        "ms": 115
       },
       {
         "index": 6,
-        "ms": 360
+        "ms": 340
       },
       {
         "index": 0,
@@ -59,16 +59,64 @@
     "swing": [
       {
         "index": 0,
-        "ms": 115
+        "ms": 110
       },
       {
         "index": 7,
-        "ms": 295
+        "ms": 290
       },
       {
         "index": 0,
-        "ms": 140
+        "ms": 130
+      }
+    ],
+    "maya_paddle_twirl": [
+      {
+        "index": 8,
+        "ms": 180
+      },
+      {
+        "index": 9,
+        "ms": 260
+      },
+      {
+        "index": 10,
+        "ms": 220
+      },
+      {
+        "index": 0,
+        "ms": 110
+      }
+    ],
+    "maya_fist_pump": [
+      {
+        "index": 11,
+        "ms": 170
+      },
+      {
+        "index": 12,
+        "ms": 280
+      },
+      {
+        "index": 13,
+        "ms": 220
+      },
+      {
+        "index": 0,
+        "ms": 110
       }
     ]
-  }
+  },
+  "signatureActions": [
+    {
+      "id": "maya_paddle_twirl",
+      "label": "Xoay vợt",
+      "autonomous": true
+    },
+    {
+      "id": "maya_fist_pump",
+      "label": "Ăn mừng",
+      "autonomous": true
+    }
+  ]
 }

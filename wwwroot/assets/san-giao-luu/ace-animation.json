@@ -19,37 +19,37 @@
     "walk": [
       {
         "index": 2,
-        "ms": 160
+        "ms": 155
       },
       {
         "index": 3,
-        "ms": 150
+        "ms": 145
       },
       {
         "index": 4,
-        "ms": 160
+        "ms": 155
       },
       {
         "index": 5,
-        "ms": 150
+        "ms": 145
       }
     ],
     "wave": [
       {
         "index": 0,
-        "ms": 120
+        "ms": 110
       },
       {
         "index": 6,
-        "ms": 255
+        "ms": 260
       },
       {
         "index": 0,
-        "ms": 125
+        "ms": 115
       },
       {
         "index": 6,
-        "ms": 360
+        "ms": 340
       },
       {
         "index": 0,
@@ -59,16 +59,64 @@
     "swing": [
       {
         "index": 0,
-        "ms": 115
+        "ms": 110
       },
       {
         "index": 7,
-        "ms": 295
+        "ms": 290
       },
       {
         "index": 0,
-        "ms": 140
+        "ms": 130
+      }
+    ],
+    "ace_cap_tip": [
+      {
+        "index": 8,
+        "ms": 180
+      },
+      {
+        "index": 9,
+        "ms": 260
+      },
+      {
+        "index": 10,
+        "ms": 220
+      },
+      {
+        "index": 0,
+        "ms": 110
+      }
+    ],
+    "ace_serve": [
+      {
+        "index": 11,
+        "ms": 170
+      },
+      {
+        "index": 12,
+        "ms": 280
+      },
+      {
+        "index": 13,
+        "ms": 220
+      },
+      {
+        "index": 0,
+        "ms": 110
       }
     ]
-  }
+  },
+  "signatureActions": [
+    {
+      "id": "ace_cap_tip",
+      "label": "Chào bằng mũ",
+      "autonomous": true
+    },
+    {
+      "id": "ace_serve",
+      "label": "Giao bóng",
+      "autonomous": true
+    }
+  ]
 }

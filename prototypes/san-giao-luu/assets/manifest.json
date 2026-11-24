@@ -1,85 +1,5 @@
 {
   "characters": {
-    "maya": {
-      "id": "maya",
-      "name": "Maya",
-      "atlas": "/assets/san-giao-luu/maya-atlas.png",
-      "profile": "/assets/san-giao-luu/maya-profile.webp",
-      "animation": {
-        "width": 83,
-        "height": 93,
-        "anchor": [
-          41,
-          91
-        ],
-        "actions": {
-          "idle": [
-            {
-              "index": 0,
-              "ms": 620
-            },
-            {
-              "index": 1,
-              "ms": 520
-            }
-          ],
-          "walk": [
-            {
-              "index": 2,
-              "ms": 160
-            },
-            {
-              "index": 3,
-              "ms": 150
-            },
-            {
-              "index": 4,
-              "ms": 160
-            },
-            {
-              "index": 5,
-              "ms": 150
-            }
-          ],
-          "wave": [
-            {
-              "index": 0,
-              "ms": 120
-            },
-            {
-              "index": 6,
-              "ms": 255
-            },
-            {
-              "index": 0,
-              "ms": 125
-            },
-            {
-              "index": 6,
-              "ms": 360
-            },
-            {
-              "index": 0,
-              "ms": 100
-            }
-          ],
-          "swing": [
-            {
-              "index": 0,
-              "ms": 115
-            },
-            {
-              "index": 7,
-              "ms": 295
-            },
-            {
-              "index": 0,
-              "ms": 140
-            }
-          ]
-        }
-      }
-    },
     "sunny": {
       "id": "sunny",
       "name": "Sunny",
@@ -124,19 +44,19 @@
           "wave": [
             {
               "index": 0,
-              "ms": 120
+              "ms": 110
             },
             {
               "index": 6,
-              "ms": 255
+              "ms": 260
             },
             {
               "index": 0,
-              "ms": 125
+              "ms": 115
             },
             {
               "index": 6,
-              "ms": 360
+              "ms": 340
             },
             {
               "index": 0,
@@ -146,18 +66,66 @@
           "swing": [
             {
               "index": 0,
-              "ms": 115
+              "ms": 110
             },
             {
               "index": 7,
-              "ms": 295
+              "ms": 290
             },
             {
               "index": 0,
-              "ms": 140
+              "ms": 130
+            }
+          ],
+          "sunny_fix_band": [
+            {
+              "index": 8,
+              "ms": 180
+            },
+            {
+              "index": 9,
+              "ms": 260
+            },
+            {
+              "index": 10,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
+            }
+          ],
+          "sunny_ball_toss": [
+            {
+              "index": 11,
+              "ms": 170
+            },
+            {
+              "index": 12,
+              "ms": 280
+            },
+            {
+              "index": 13,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
             }
           ]
-        }
+        },
+        "signatureActions": [
+          {
+            "id": "sunny_fix_band",
+            "label": "Chỉnh băng đô",
+            "autonomous": true
+          },
+          {
+            "id": "sunny_ball_toss",
+            "label": "Tung bóng",
+            "autonomous": true
+          }
+        ]
       }
     },
     "ace": {
@@ -186,37 +154,37 @@
           "walk": [
             {
               "index": 2,
-              "ms": 160
+              "ms": 155
             },
             {
               "index": 3,
-              "ms": 150
+              "ms": 145
             },
             {
               "index": 4,
-              "ms": 160
+              "ms": 155
             },
             {
               "index": 5,
-              "ms": 150
+              "ms": 145
             }
           ],
           "wave": [
             {
               "index": 0,
-              "ms": 120
+              "ms": 110
             },
             {
               "index": 6,
-              "ms": 255
+              "ms": 260
             },
             {
               "index": 0,
-              "ms": 125
+              "ms": 115
             },
             {
               "index": 6,
-              "ms": 360
+              "ms": 340
             },
             {
               "index": 0,
@@ -226,18 +194,66 @@
           "swing": [
             {
               "index": 0,
-              "ms": 115
+              "ms": 110
             },
             {
               "index": 7,
-              "ms": 295
+              "ms": 290
             },
             {
               "index": 0,
-              "ms": 140
+              "ms": 130
+            }
+          ],
+          "ace_cap_tip": [
+            {
+              "index": 8,
+              "ms": 180
+            },
+            {
+              "index": 9,
+              "ms": 260
+            },
+            {
+              "index": 10,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
+            }
+          ],
+          "ace_serve": [
+            {
+              "index": 11,
+              "ms": 170
+            },
+            {
+              "index": 12,
+              "ms": 280
+            },
+            {
+              "index": 13,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
             }
           ]
-        }
+        },
+        "signatureActions": [
+          {
+            "id": "ace_cap_tip",
+            "label": "Chào bằng mũ",
+            "autonomous": true
+          },
+          {
+            "id": "ace_serve",
+            "label": "Giao bóng",
+            "autonomous": true
+          }
+        ]
       }
     },
     "mochi": {
@@ -266,37 +282,37 @@
           "walk": [
             {
               "index": 2,
-              "ms": 160
+              "ms": 190
             },
             {
               "index": 3,
-              "ms": 150
+              "ms": 180
             },
             {
               "index": 4,
-              "ms": 160
+              "ms": 190
             },
             {
               "index": 5,
-              "ms": 150
+              "ms": 180
             }
           ],
           "wave": [
             {
               "index": 0,
-              "ms": 120
+              "ms": 110
             },
             {
               "index": 6,
-              "ms": 255
+              "ms": 260
             },
             {
               "index": 0,
-              "ms": 125
+              "ms": 115
             },
             {
               "index": 6,
-              "ms": 360
+              "ms": 340
             },
             {
               "index": 0,
@@ -306,18 +322,66 @@
           "swing": [
             {
               "index": 0,
-              "ms": 115
+              "ms": 110
             },
             {
               "index": 7,
-              "ms": 295
+              "ms": 290
             },
             {
               "index": 0,
-              "ms": 140
+              "ms": 130
+            }
+          ],
+          "mochi_peekaboo": [
+            {
+              "index": 8,
+              "ms": 180
+            },
+            {
+              "index": 9,
+              "ms": 260
+            },
+            {
+              "index": 10,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
+            }
+          ],
+          "mochi_water_break": [
+            {
+              "index": 11,
+              "ms": 170
+            },
+            {
+              "index": 12,
+              "ms": 280
+            },
+            {
+              "index": 13,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
             }
           ]
-        }
+        },
+        "signatureActions": [
+          {
+            "id": "mochi_peekaboo",
+            "label": "Ú òa",
+            "autonomous": true
+          },
+          {
+            "id": "mochi_water_break",
+            "label": "Uống nước",
+            "autonomous": true
+          }
+        ]
       }
     },
     "coco": {
@@ -346,37 +410,37 @@
           "walk": [
             {
               "index": 2,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 3,
-              "ms": 150
+              "ms": 140
             },
             {
               "index": 4,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 5,
-              "ms": 150
+              "ms": 140
             }
           ],
           "wave": [
             {
               "index": 0,
-              "ms": 120
+              "ms": 110
             },
             {
               "index": 6,
-              "ms": 255
+              "ms": 260
             },
             {
               "index": 0,
-              "ms": 125
+              "ms": 115
             },
             {
               "index": 6,
-              "ms": 360
+              "ms": 340
             },
             {
               "index": 0,
@@ -386,18 +450,66 @@
           "swing": [
             {
               "index": 0,
-              "ms": 115
+              "ms": 110
             },
             {
               "index": 7,
-              "ms": 295
+              "ms": 290
             },
             {
               "index": 0,
-              "ms": 140
+              "ms": 130
+            }
+          ],
+          "coco_ear_perk": [
+            {
+              "index": 8,
+              "ms": 180
+            },
+            {
+              "index": 9,
+              "ms": 260
+            },
+            {
+              "index": 10,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
+            }
+          ],
+          "coco_dink": [
+            {
+              "index": 11,
+              "ms": 170
+            },
+            {
+              "index": 12,
+              "ms": 280
+            },
+            {
+              "index": 13,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
             }
           ]
-        }
+        },
+        "signatureActions": [
+          {
+            "id": "coco_ear_perk",
+            "label": "Vểnh tai",
+            "autonomous": true
+          },
+          {
+            "id": "coco_dink",
+            "label": "Đánh bóng nhẹ",
+            "autonomous": true
+          }
+        ]
       }
     },
     "leo": {
@@ -426,37 +538,37 @@
           "walk": [
             {
               "index": 2,
-              "ms": 160
+              "ms": 175
             },
             {
               "index": 3,
-              "ms": 150
+              "ms": 165
             },
             {
               "index": 4,
-              "ms": 160
+              "ms": 175
             },
             {
               "index": 5,
-              "ms": 150
+              "ms": 165
             }
           ],
           "wave": [
             {
               "index": 0,
-              "ms": 120
+              "ms": 110
             },
             {
               "index": 6,
-              "ms": 255
+              "ms": 260
             },
             {
               "index": 0,
-              "ms": 125
+              "ms": 115
             },
             {
               "index": 6,
-              "ms": 360
+              "ms": 340
             },
             {
               "index": 0,
@@ -466,18 +578,66 @@
           "swing": [
             {
               "index": 0,
-              "ms": 115
+              "ms": 110
             },
             {
               "index": 7,
-              "ms": 295
+              "ms": 290
             },
             {
               "index": 0,
-              "ms": 140
+              "ms": 130
+            }
+          ],
+          "leo_fix_glasses": [
+            {
+              "index": 8,
+              "ms": 180
+            },
+            {
+              "index": 9,
+              "ms": 260
+            },
+            {
+              "index": 10,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
+            }
+          ],
+          "leo_call_play": [
+            {
+              "index": 11,
+              "ms": 170
+            },
+            {
+              "index": 12,
+              "ms": 280
+            },
+            {
+              "index": 13,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
             }
           ]
-        }
+        },
+        "signatureActions": [
+          {
+            "id": "leo_fix_glasses",
+            "label": "Đẩy kính",
+            "autonomous": true
+          },
+          {
+            "id": "leo_call_play",
+            "label": "Ra hiệu phối hợp",
+            "autonomous": true
+          }
+        ]
       }
     },
     "kiko": {
@@ -506,37 +666,37 @@
           "walk": [
             {
               "index": 2,
-              "ms": 160
+              "ms": 155
             },
             {
               "index": 3,
-              "ms": 150
+              "ms": 145
             },
             {
               "index": 4,
-              "ms": 160
+              "ms": 155
             },
             {
               "index": 5,
-              "ms": 150
+              "ms": 145
             }
           ],
           "wave": [
             {
               "index": 0,
-              "ms": 120
+              "ms": 110
             },
             {
               "index": 6,
-              "ms": 255
+              "ms": 260
             },
             {
               "index": 0,
-              "ms": 125
+              "ms": 115
             },
             {
               "index": 6,
-              "ms": 360
+              "ms": 340
             },
             {
               "index": 0,
@@ -546,18 +706,194 @@
           "swing": [
             {
               "index": 0,
-              "ms": 115
+              "ms": 110
             },
             {
               "index": 7,
-              "ms": 295
+              "ms": 290
             },
             {
               "index": 0,
-              "ms": 140
+              "ms": 130
+            }
+          ],
+          "kiko_paw_tap": [
+            {
+              "index": 8,
+              "ms": 180
+            },
+            {
+              "index": 9,
+              "ms": 260
+            },
+            {
+              "index": 10,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
+            }
+          ],
+          "kiko_ball_pounce": [
+            {
+              "index": 11,
+              "ms": 170
+            },
+            {
+              "index": 12,
+              "ms": 280
+            },
+            {
+              "index": 13,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
             }
           ]
-        }
+        },
+        "signatureActions": [
+          {
+            "id": "kiko_paw_tap",
+            "label": "Gõ chân",
+            "autonomous": true
+          },
+          {
+            "id": "kiko_ball_pounce",
+            "label": "Chụp bóng",
+            "autonomous": true
+          }
+        ]
+      }
+    },
+    "maya": {
+      "id": "maya",
+      "name": "Maya",
+      "atlas": "/assets/san-giao-luu/maya-atlas.png",
+      "profile": "/assets/san-giao-luu/maya-profile.webp",
+      "animation": {
+        "width": 96,
+        "height": 104,
+        "anchor": [
+          48,
+          101
+        ],
+        "actions": {
+          "idle": [
+            {
+              "index": 0,
+              "ms": 620
+            },
+            {
+              "index": 1,
+              "ms": 520
+            }
+          ],
+          "walk": [
+            {
+              "index": 2,
+              "ms": 165
+            },
+            {
+              "index": 3,
+              "ms": 155
+            },
+            {
+              "index": 4,
+              "ms": 165
+            },
+            {
+              "index": 5,
+              "ms": 155
+            }
+          ],
+          "wave": [
+            {
+              "index": 0,
+              "ms": 110
+            },
+            {
+              "index": 6,
+              "ms": 260
+            },
+            {
+              "index": 0,
+              "ms": 115
+            },
+            {
+              "index": 6,
+              "ms": 340
+            },
+            {
+              "index": 0,
+              "ms": 100
+            }
+          ],
+          "swing": [
+            {
+              "index": 0,
+              "ms": 110
+            },
+            {
+              "index": 7,
+              "ms": 290
+            },
+            {
+              "index": 0,
+              "ms": 130
+            }
+          ],
+          "maya_paddle_twirl": [
+            {
+              "index": 8,
+              "ms": 180
+            },
+            {
+              "index": 9,
+              "ms": 260
+            },
+            {
+              "index": 10,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
+            }
+          ],
+          "maya_fist_pump": [
+            {
+              "index": 11,
+              "ms": 170
+            },
+            {
+              "index": 12,
+              "ms": 280
+            },
+            {
+              "index": 13,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
+            }
+          ]
+        },
+        "signatureActions": [
+          {
+            "id": "maya_paddle_twirl",
+            "label": "Xoay vợt",
+            "autonomous": true
+          },
+          {
+            "id": "maya_fist_pump",
+            "label": "Ăn mừng",
+            "autonomous": true
+          }
+        ]
       }
     },
     "kai": {
@@ -586,37 +922,37 @@
           "walk": [
             {
               "index": 2,
-              "ms": 160
+              "ms": 135
             },
             {
               "index": 3,
-              "ms": 150
+              "ms": 125
             },
             {
               "index": 4,
-              "ms": 160
+              "ms": 135
             },
             {
               "index": 5,
-              "ms": 150
+              "ms": 125
             }
           ],
           "wave": [
             {
               "index": 0,
-              "ms": 120
+              "ms": 110
             },
             {
               "index": 6,
-              "ms": 255
+              "ms": 260
             },
             {
               "index": 0,
-              "ms": 125
+              "ms": 115
             },
             {
               "index": 6,
-              "ms": 360
+              "ms": 340
             },
             {
               "index": 0,
@@ -626,18 +962,66 @@
           "swing": [
             {
               "index": 0,
-              "ms": 115
+              "ms": 110
             },
             {
               "index": 7,
-              "ms": 295
+              "ms": 290
             },
             {
               "index": 0,
-              "ms": 140
+              "ms": 130
+            }
+          ],
+          "kai_split_step": [
+            {
+              "index": 8,
+              "ms": 180
+            },
+            {
+              "index": 9,
+              "ms": 260
+            },
+            {
+              "index": 10,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
+            }
+          ],
+          "kai_overhead": [
+            {
+              "index": 11,
+              "ms": 170
+            },
+            {
+              "index": 12,
+              "ms": 280
+            },
+            {
+              "index": 13,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 110
             }
           ]
-        }
+        },
+        "signatureActions": [
+          {
+            "id": "kai_split_step",
+            "label": "Bước chờ bóng",
+            "autonomous": true
+          },
+          {
+            "id": "kai_overhead",
+            "label": "Đập bóng cao",
+            "autonomous": true
+          }
+        ]
       }
     }
   },
