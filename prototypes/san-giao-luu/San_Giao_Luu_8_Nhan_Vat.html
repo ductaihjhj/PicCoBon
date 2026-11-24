@@ -216,6 +216,7 @@
             <button type="button" data-action="walk">Đi bộ</button>
             <button type="button" data-action="wave">Vẫy tay</button>
             <button type="button" data-action="swing">Vung vợt</button>
+            <span id="signatureControls" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;" aria-label="Động tác riêng"></span>
             <button type="button" id="auto-motion" class="motion-toggle" aria-pressed="true">Tự hoạt động</button>
           </div>
         </section>
@@ -352,13 +353,35 @@
       }
     ];
 
+    const signatureControlsEl = document.getElementById("signatureControls");
+
+    function renderSignatureControls(spriteId) {
+      if (!signatureControlsEl) return;
+      const sigs = court.getSignatureActions(spriteId);
+      if (!sigs.length) {
+        signatureControlsEl.innerHTML = "";
+        return;
+      }
+      signatureControlsEl.innerHTML = `<span class="controls-hint" style="margin-left:4px;">Động tác riêng:</span>` +
+        sigs.map(s => `<button type="button" data-sig-action="${s.id}">${s.label}</button>`).join("");
+    }
+
+    signatureControlsEl?.addEventListener("click", e => {
+      const btn = e.target.closest("[data-sig-action]");
+      if (!btn) return;
+      court.triggerSelectedAction(btn.dataset.sigAction);
+    });
+
     const assetBase = "./assets";
     const court = new SanGiaoLuuCourt({
       mapCanvas: document.getElementById("map"),
       actorsLayer: document.getElementById("actorsLayer"),
       autoToggle: document.getElementById("auto-motion"),
       assetBaseUrl: assetBase,
-      onSelectMember: (member, opener) => showProfile(member, opener)
+      onSelectMember: (member, opener) => {
+        renderSignatureControls(member?.spriteId);
+        showProfile(member, opener);
+      }
     });
 
     const profileEl = document.getElementById("profile");
@@ -530,6 +553,7 @@
 
     court.loadManifest().then(() => {
       court.setMembers(SAMPLE_MEMBERS);
+      renderSignatureControls(SAMPLE_MEMBERS[0].spriteId);
       renderMemberList();
     });
   </script>

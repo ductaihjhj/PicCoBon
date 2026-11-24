@@ -62,6 +62,21 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="sgl-pose-bar" role="group" aria-label="Điều khiển động tác nhân vật đang chọn">
+                        <div class="sgl-pose-group">
+                            <span class="sgl-pose-label">Động tác:</span>
+                            <button type="button" class="sgl-pose-btn is-active" data-pose="idle">Đứng</button>
+                            <button type="button" class="sgl-pose-btn" data-pose="walk">Đi bộ</button>
+                            <button type="button" class="sgl-pose-btn" data-pose="wave">Vẫy tay</button>
+                            <button type="button" class="sgl-pose-btn" data-pose="swing">Vung vợt</button>
+                        </div>
+                        <div class="sgl-pose-group" id="signaturePoseGroup" hidden>
+                            <span class="sgl-pose-label">Động tác riêng:</span>
+                            <span id="signaturePoseButtons" style="display:inline-flex;gap:6px;flex-wrap:wrap;"></span>
+                        </div>
+                        <button type="button" class="sgl-pose-btn sgl-auto-btn is-active" id="autoRoamToggle" aria-pressed="true">Tự hoạt động</button>
+                    </div>
                 </div>
 
                 <!-- 2. Gợi ý đối thủ hợp trình -->

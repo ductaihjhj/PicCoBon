@@ -463,6 +463,10 @@
           actor.canvas.height = data.meta.height;
           actor.ctx.imageSmoothingEnabled = false;
           this._paintActor(actor, performance.now());
+        }).catch(() => {
+          actor.atlasData = null;
+          actor.canvas.width = 64;
+          actor.canvas.height = 64;
         });
       }
 
@@ -513,12 +517,26 @@
       }
     }
 
+    getSignatureActions(spriteId) {
+      if (!spriteId || !this.manifest?.characters?.[spriteId]?.animation?.signatureActions) {
+        return [];
+      }
+      return this.manifest.characters[spriteId].animation.signatureActions;
+    }
+
+    getSelectedSpriteId() {
+      const target = this.actors.find(a => a.id === this.selectedId) || this.actors[0];
+      return target ? target.spriteId : null;
+    }
+
     triggerSelectedAction(actionName) {
       const target = this.actors.find(a => a.id === this.selectedId) || this.actors[0];
       if (!target) return;
       const now = performance.now();
       this._setActorAction(target, actionName, now);
-      target.nextAutomatic = now + 6000;
+      const seq = target.atlasData?.meta?.actions?.[target.action];
+      const dur = seq && seq.length ? seqDuration(seq) : 1200;
+      target.nextAutomatic = now + Math.max(2400, dur + 1600);
     }
 
     _chooseDestination(actor) {
@@ -574,6 +592,14 @@
         };
         actor.facing = to.x >= actor.pos.x ? 1 : -1;
       }
+      if (name !== "idle" && name !== "walk") {
+        const seq = actor.atlasData?.meta?.actions?.[name];
+        if (!Array.isArray(seq) || seq.length === 0) {
+          actor.action = "idle";
+          actor.started = now;
+          return;
+        }
+      }
       actor.action = name;
       actor.started = now;
     }
@@ -581,10 +607,11 @@
     _paintActor(actor, now) {
       if (!actor.atlasData) return;
       const { img, blinkCanvas, meta } = actor.atlasData;
-      const seq = meta.actions[actor.action] || meta.actions.idle;
+      const rawSeq = meta.actions?.[actor.action] || meta.actions?.idle;
+      const seq = Array.isArray(rawSeq) && rawSeq.length > 0 ? rawSeq : [{ index: 0, ms: 600 }];
       const elapsed = Math.max(0, now - actor.started);
       const frame = this.reduceMotion.matches
-        ? seq[actor.action === "wave" || actor.action === "swing" ? 1 : 0].index
+        ? (seq[actor.action === "idle" ? 0 : Math.min(1, seq.length - 1)]?.index ?? 0)
         : frameAt(seq, elapsed);
       const dir = actor.facing || 1;
       const isBlinking = !this.reduceMotion.matches && now < actor.blinkUntil && (frame === 0 || frame === 1) && Boolean(blinkCanvas);
@@ -623,17 +650,19 @@
 
     _pickNextAutonomousAction(actor) {
       const hasNeighbor = this.actors.some(other => other.id !== actor.id && dist(other.pos, actor.pos) < 130);
-      const roll = Math.random();
-      if (actor.lastAutomatic === "walk") {
-        if (hasNeighbor && roll < 0.38) return "wave";
-        if (roll < 0.56) return "swing";
-        if (roll < 0.78) return "look";
-        return "hop";
+      const sigActions = (actor.atlasData?.meta?.signatureActions || [])
+        .filter(s => s && s.autonomous !== false && Array.isArray(actor.atlasData?.meta?.actions?.[s.id]) && actor.atlasData.meta.actions[s.id].length > 0)
+        .map(s => s.id);
+
+      const pool = ["walk", "walk", "walk", "wave", "swing", "look", "hop"];
+      if (hasNeighbor) pool.push("wave");
+      for (const sig of sigActions) {
+        pool.push(sig);
       }
-      if (roll < 0.62) return "walk";
-      if (roll < 0.78) return "wave";
-      if (roll < 0.90) return "swing";
-      return "look";
+
+      const candidates = pool.filter(a => a !== actor.lastAutomatic);
+      const pickFrom = candidates.length > 0 ? candidates : pool;
+      return pickFrom[Math.floor(Math.random() * pickFrom.length)] || "walk";
     }
 
     _tick = now => {
