@@ -7,7 +7,7 @@ public sealed class GeminiOptions
     public const string SectionName = "Gemini";
     public const string OfficialBaseUrl = "https://generativelanguage.googleapis.com/v1beta";
     public const string DefaultModel = "gemini-3.5-flash-lite";
-    public const string FallbackModel = "gemini-3.1-flash-lite";
+    public const string FallbackModel = "gemini-flash-lite-latest";
 
     public bool Enabled { get; set; } = true;
     public string ApiKey { get; set; } = string.Empty;
@@ -15,7 +15,7 @@ public sealed class GeminiOptions
     public string FallbackModelName { get; set; } = FallbackModel;
     public string BaseUrl { get; set; } = OfficialBaseUrl;
     public int MaxOutputTokens { get; set; } = 512;
-    public int TimeoutSeconds { get; set; } = 22;
+    public int TimeoutSeconds { get; set; } = 12;
     public int MaxInputChars { get; set; } = 500;
     public int MaxConversationTurns { get; set; } = 8;
     public int MaxConcurrentRequests { get; set; } = 6;
