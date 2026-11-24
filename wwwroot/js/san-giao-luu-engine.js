@@ -149,6 +149,7 @@
       this.canHover = global.matchMedia("(hover: hover)");
 
       this.atlasCache = new Map();
+      this.customAvatarCache = new Map();
       this.actors = [];
       this.selectedId = null;
       this.highlightedIds = new Set();
@@ -176,17 +177,66 @@
     }
 
     resolveSpriteId(member) {
+      if (member.avatar) {
+        const pathOnly = String(member.avatar).split("?")[0].trim();
+        if (this.manifest?.presetMap?.[pathOnly]) {
+          return this.manifest.presetMap[pathOnly];
+        }
+        const lowerKey = Object.keys(this.manifest?.presetMap || {}).find(
+          k => k.toLowerCase() === pathOnly.toLowerCase()
+        );
+        if (lowerKey) {
+          return this.manifest.presetMap[lowerKey];
+        }
+      }
       if (member.spriteId && this.manifest?.characters?.[member.spriteId]) {
         return member.spriteId;
-      }
-      if (member.avatar && this.manifest?.presetMap?.[member.avatar]) {
-        return this.manifest.presetMap[member.avatar];
       }
       const keys = Object.keys(this.manifest?.characters || { maya: {} });
       let hash = 0;
       const seed = String(member.id || member.displayName || "spike");
       for (let i = 0; i < seed.length; i++) hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
       return keys[Math.abs(hash) % keys.length] || "maya";
+    }
+
+    loadCustomPixelAvatar(avatarUrl) {
+      if (!avatarUrl) return Promise.resolve(null);
+      if (this.customAvatarCache.has(avatarUrl)) return this.customAvatarCache.get(avatarUrl);
+      const promise = new Promise(resolve => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          try {
+            const tiny = document.createElement("canvas");
+            tiny.width = 14;
+            tiny.height = 14;
+            const tCtx = tiny.getContext("2d");
+            tCtx.imageSmoothingEnabled = true;
+            const side = Math.min(img.naturalWidth || img.width, img.naturalHeight || img.height);
+            const sx = Math.max(0, Math.floor(((img.naturalWidth || img.width) - side) / 2));
+            const sy = Math.max(0, Math.floor(((img.naturalHeight || img.height) - side) / 2));
+            tCtx.drawImage(img, sx, sy, side, side, 0, 0, 14, 14);
+
+            const out = document.createElement("canvas");
+            out.width = 32;
+            out.height = 32;
+            const oCtx = out.getContext("2d");
+            oCtx.imageSmoothingEnabled = false;
+            oCtx.fillStyle = "#17251d";
+            oCtx.fillRect(0, 0, 32, 32);
+            oCtx.fillStyle = "#eaf7ee";
+            oCtx.fillRect(2, 2, 28, 28);
+            oCtx.drawImage(tiny, 0, 0, 14, 14, 2, 2, 28, 28);
+            resolve(out);
+          } catch {
+            resolve(null);
+          }
+        };
+        img.onerror = () => resolve(null);
+        img.src = avatarUrl;
+      });
+      this.customAvatarCache.set(avatarUrl, promise);
+      return promise;
     }
 
     loadSpriteAtlas(spriteId) {
@@ -233,7 +283,10 @@
         btn.type = "button";
         btn.className = "sgl-actor";
         btn.dataset.memberId = String(m.id);
-        btn.setAttribute("aria-label", `Xem hồ sơ ${m.displayName}`);
+        btn.setAttribute(
+          "aria-label",
+          `Xem hồ sơ ${m.displayName} — ${m.readyToPlay ? "Sẵn sàng giao lưu" : "Hội viên Spike"}`
+        );
         btn.setAttribute("aria-expanded", "false");
         btn.style.left = `${(100 * pos.x) / COURT_SIZE.width}%`;
         btn.style.top = `${(100 * pos.y) / COURT_SIZE.height}%`;
@@ -295,8 +348,13 @@
         });
 
         this.actors.push(actor);
-        this.loadSpriteAtlas(spriteId).then(data => {
+        const isCustomUpload = m.avatarMode === "custom-upload" && Boolean(m.avatar);
+        Promise.all([
+          this.loadSpriteAtlas(spriteId),
+          isCustomUpload ? this.loadCustomPixelAvatar(m.avatar) : Promise.resolve(null)
+        ]).then(([data, customPixelCanvas]) => {
           actor.atlasData = data;
+          actor.customPixelCanvas = customPixelCanvas;
           actor.canvas.width = data.meta.width;
           actor.canvas.height = data.meta.height;
           actor.ctx.imageSmoothingEnabled = false;
@@ -415,6 +473,13 @@
         actor.ctx.clearRect(0, 0, width, height);
         if (dir < 0) actor.ctx.setTransform(-1, 0, 0, 1, width, 0);
         actor.ctx.drawImage(img, frame * width, 0, width, height, 0, 0, width, height);
+        if (actor.customPixelCanvas) {
+          actor.ctx.setTransform(1, 0, 0, 1, 0, 0);
+          const bobY = frame === 1 || frame === 3 || frame === 5 ? 1 : 0;
+          const headX = Math.round((width - actor.customPixelCanvas.width) / 2);
+          const headY = 12 + bobY;
+          actor.ctx.drawImage(actor.customPixelCanvas, headX, headY);
+        }
       }
     }
 
