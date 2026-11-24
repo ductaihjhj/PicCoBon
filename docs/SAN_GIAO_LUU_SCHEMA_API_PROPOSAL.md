@@ -45,7 +45,8 @@ Thay vì thêm nhiều cột trực tiếp vào `tb_Account`, đề xuất tạo
 - **Không sửa đổi bất kỳ cột hay ràng buộc nào** của `tb_Account`, `tb_Booking`, `tb_Court`, `tb_Product`, `tb_PaymentTransaction`.
 - **An toàn quyền riêng tư mặc định:** Mọi tài khoản hiện có chưa có bản ghi `tb_SocialProfile` sẽ mặc định **ẩn khỏi Sân giao lưu** (`IsVisibleOnCourt = false`) và không xuất hiện trong danh sách hay gợi ý cho tới khi hội viên tự bật.
 - **Xử lý trình độ mặc định:** Trường `tb_Account.SkillLevel` hiện có giá trị mặc định `Giao lưu (DUPR 3.0)` sẽ hiển thị là *"Chưa xác nhận trình độ"* trong ngữ cảnh Sân giao lưu nếu `SkillConfirmed = false`.
-- **Không lộ dữ liệu riêng tư:** Projection DTO chỉ trả về: `accountId`, `displayName`, `avatar`, `spriteId`, `bio`, `skillConfirmed`, `skillLabel`, `playStyle`, `freeSlots`, `readyToPlay`. Tuyệt đối loại trừ `Phone`, `Email`, `Address`, `BirthDate`, `EmergencyContact`, lịch đặt sân và giao dịch.
+- **Không lộ dữ liệu riêng tư:** Projection DTO chỉ trả về: `accountId`, `displayName` (chỉ lấy `FullName`, fallback `"Hội viên Spike"`, tuyệt đối không fallback `Username`), `avatar`, `avatarMode`, `spriteId` (ưu tiên ánh xạ từ avatar `/Account/Profile` trước `tb_SocialProfile.SpriteId`), `skillConfirmed`, `skillLabel`, `dominantHand`, `paddleBrand`, `playStyle`, `freeSlots`, `readyToPlay`, `isSelf`. Tuyệt đối loại trừ `Phone`, `Email`, `Address`, `BirthDate`, `EmergencyContact`, `Username`, `Bio`, hạng tích lũy, điểm/tiền tích lũy, lịch đặt sân và giao dịch.
+- **Đề xuất mở rộng hợp đồng DTO (additive, không đổi SQL/migration):** Bổ sung `dominantHand`, `paddleBrand` (lấy từ cột sẵn có của `tb_Account`, lọc thông tin liên hệ và fallback `"Chưa cập nhật"`) và `avatarMode` (`preset` | `custom-upload` | `fallback`) cùng tham số tùy chọn `page`, `pageSize`, `search` trên `GET /api/social/court`. Giữ nguyên toàn bộ route, HTTP method và cấu trúc request hiện có.
 
 ---
 

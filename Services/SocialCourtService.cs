@@ -19,6 +19,26 @@ public class SocialCourtService
         "sunny", "ace", "mochi", "coco", "maya", "leo", "kiko", "kai"
     };
 
+    private static readonly Dictionary<string, string> PresetAvatarToSprite = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["/images/avatars/sunny.png"] = "sunny",
+        ["/images/avatars/ace.png"] = "ace",
+        ["/images/avatars/mochi.png"] = "mochi",
+        ["/images/avatars/coco.png"] = "coco",
+        ["/images/avatars/maya.png"] = "maya",
+        ["/images/avatars/leo.png"] = "leo",
+        ["/images/avatars/kiko.png"] = "kiko",
+        ["/images/avatars/kai.png"] = "kai",
+        ["/images/avatars/avatar-01.svg"] = "sunny",
+        ["/images/avatars/avatar-02.svg"] = "ace",
+        ["/images/avatars/avatar-03.svg"] = "mochi",
+        ["/images/avatars/avatar-04.svg"] = "coco",
+        ["/images/avatars/avatar-05.svg"] = "maya",
+        ["/images/avatars/avatar-06.svg"] = "leo",
+        ["/images/avatars/avatar-07.svg"] = "kiko",
+        ["/images/avatars/avatar-08.svg"] = "kai"
+    };
+
     public static readonly string[] ValidSkillLevels =
     {
         "Newbie / Cơ bản",
@@ -38,9 +58,23 @@ public class SocialCourtService
         "Tối T7–CN"
     };
 
+    private static readonly Regex EmailLikeRegex = new(@"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex PhoneLikeRegex = new(@"(?:\+?\d[\d\s.\-()]{7,}\d)", RegexOptions.Compiled);
+
     public SocialCourtService(PickleballContext db)
     {
         _db = db;
+    }
+
+    public static bool IsCustomerAccount(TbAccount? acc) =>
+        acc != null && acc.IsActive && acc.RoleId != 1 && acc.RoleId != 3;
+
+    public async Task<bool> IsActiveCustomerAsync(int accountId)
+    {
+        if (accountId <= 0) return false;
+        return await _db.TbAccounts
+            .AsNoTracking()
+            .AnyAsync(a => a.AccountId == accountId && a.IsActive && (a.RoleId == null || (a.RoleId != 1 && a.RoleId != 3)));
     }
 
     public static DateTime GetVietnamNow()
@@ -76,6 +110,23 @@ public class SocialCourtService
         }
         int idx = Math.Abs(accountId) % ValidSpriteIds.Length;
         return ValidSpriteIds[idx];
+    }
+
+    public static (string SpriteId, string AvatarMode) ResolveSpriteSelection(string? rawAvatar, string? storedSpriteId, int accountId)
+    {
+        string safeAvatar = Function.GetSafeAvatarUrl(rawAvatar);
+        if (!string.IsNullOrEmpty(safeAvatar))
+        {
+            int qIdx = safeAvatar.IndexOf('?');
+            string pathOnly = qIdx >= 0 ? safeAvatar[..qIdx] : safeAvatar;
+            if (PresetAvatarToSprite.TryGetValue(pathOnly, out var mappedSprite))
+            {
+                return (mappedSprite, "preset");
+            }
+            return (NormalizeSpriteId(storedSpriteId, accountId), "custom-upload");
+        }
+
+        return (NormalizeSpriteId(storedSpriteId, accountId), "fallback");
     }
 
     public static List<string> ParseFreeSlots(string? json)
@@ -130,11 +181,30 @@ public class SocialCourtService
         return "Chưa xác nhận trình độ";
     }
 
-    private static string ResolveDisplayName(TbAccount acc)
+    private static bool ContainsContactLikeData(string value) =>
+        EmailLikeRegex.IsMatch(value) || PhoneLikeRegex.IsMatch(value);
+
+    public static string ResolveDisplayName(TbAccount acc)
     {
-        if (!string.IsNullOrWhiteSpace(acc.FullName)) return acc.FullName.Trim();
-        if (!string.IsNullOrWhiteSpace(acc.Username)) return acc.Username.Trim();
-        return $"Hội viên #{acc.AccountId}";
+        if (!string.IsNullOrWhiteSpace(acc.FullName))
+        {
+            var clean = StripHtml(acc.FullName, 80);
+            if (!string.IsNullOrWhiteSpace(clean) && !ContainsContactLikeData(clean))
+            {
+                return clean;
+            }
+        }
+        return "Hội viên Spike";
+    }
+
+    private static string SanitizePublicField(string? input, string fallback, int maxLength = 100)
+    {
+        var clean = StripHtml(input, maxLength);
+        if (string.IsNullOrWhiteSpace(clean) || ContainsContactLikeData(clean))
+        {
+            return fallback;
+        }
+        return clean;
     }
 
     public static string StripHtml(string? input, int maxLength)
@@ -144,51 +214,82 @@ public class SocialCourtService
         return stripped.Length > maxLength ? stripped[..maxLength] : stripped;
     }
 
-    public async Task<SocialCourtSnapshotDto?> GetCourtSnapshotAsync(int viewerAccountId)
+    public async Task<SocialCourtSnapshotDto?> GetCourtSnapshotAsync(int viewerAccountId, int page = 1, int pageSize = 60, string? search = null)
     {
         var viewer = await _db.TbAccounts
             .AsNoTracking()
             .Include(a => a.SocialProfile)
-            .FirstOrDefaultAsync(a => a.AccountId == viewerAccountId && a.IsActive);
+            .FirstOrDefaultAsync(a => a.AccountId == viewerAccountId && a.IsActive && (a.RoleId == null || (a.RoleId != 1 && a.RoleId != 3)));
 
         if (viewer == null)
         {
             return null;
         }
 
-        var visibleAccounts = await _db.TbAccounts
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 120);
+
+        var query = _db.TbAccounts
             .AsNoTracking()
             .Include(a => a.SocialProfile)
-            .Where(a => a.IsActive && a.SocialProfile != null && a.SocialProfile.IsVisibleOnCourt)
+            .Where(a => a.IsActive
+                && (a.RoleId == null || (a.RoleId != 1 && a.RoleId != 3))
+                && a.SocialProfile != null
+                && a.SocialProfile.IsVisibleOnCourt);
+
+        var allVisible = await query
             .OrderByDescending(a => a.AccountId == viewerAccountId)
             .ThenByDescending(a => a.SocialProfile!.IsReadyToPlay)
             .ThenByDescending(a => a.SocialProfile!.UpdatedAtUtc)
-            .Take(60)
             .ToListAsync();
 
-        var players = visibleAccounts.Select(a => MapPublicPlayer(a, viewerAccountId)).ToList();
+        var mapped = allVisible.Select(a => MapPublicPlayer(a, viewerAccountId)).ToList();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string q = search.Trim().ToLowerInvariant();
+            mapped = mapped.Where(p =>
+                p.DisplayName.ToLowerInvariant().Contains(q) ||
+                p.SkillLabel.ToLowerInvariant().Contains(q) ||
+                p.PlayStyle.ToLowerInvariant().Contains(q) ||
+                p.PaddleBrand.ToLowerInvariant().Contains(q) ||
+                p.FreeSlots.Any(s => s.ToLowerInvariant().Contains(q))).ToList();
+        }
+
+        int totalCount = mapped.Count;
+        var pagedPlayers = mapped
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
 
         var mySp = viewer.SocialProfile;
+        var (mySpriteId, myAvatarMode) = ResolveSpriteSelection(viewer.Avatar, mySp?.SpriteId, viewer.AccountId);
+
         var myProfile = new MySocialProfileDto
         {
             AccountId = viewer.AccountId,
             DisplayName = ResolveDisplayName(viewer),
             Avatar = Function.GetSafeAvatarUrl(viewer.Avatar),
+            AvatarMode = myAvatarMode,
             IsVisibleOnCourt = mySp?.IsVisibleOnCourt ?? false,
             IsReadyToPlay = mySp?.IsReadyToPlay ?? false,
             AllowMatchSuggestion = mySp?.AllowMatchSuggestion ?? false,
-            SpriteId = NormalizeSpriteId(mySp?.SpriteId, viewer.AccountId),
+            SpriteId = mySpriteId,
             SkillConfirmed = mySp?.SkillConfirmed ?? false,
             ConfirmedSkillLevel = mySp?.ConfirmedSkillLevel ?? (ValidSkillLevels.Contains(viewer.SkillLevel ?? "") ? viewer.SkillLevel! : "Giao lưu (DUPR 3.0)"),
-            PlayStyle = string.IsNullOrWhiteSpace(viewer.PlayStyle) ? "Đánh đôi phối hợp (All-Court)" : viewer.PlayStyle!.Trim(),
-            Bio = string.IsNullOrWhiteSpace(viewer.Bio) ? string.Empty : viewer.Bio!.Trim(),
+            PlayStyle = SanitizePublicField(viewer.PlayStyle, "Đánh đôi phối hợp (All-Court)", 120),
+            DominantHand = SanitizePublicField(viewer.DominantHand, "Chưa cập nhật", 50),
+            PaddleBrand = SanitizePublicField(viewer.PaddleBrand, "Chưa cập nhật", 100),
             FreeSlots = ParseFreeSlots(mySp?.PreferredFreeSlotsJson)
         };
 
         return new SocialCourtSnapshotDto
         {
             MyProfile = myProfile,
-            Players = players
+            Players = pagedPlayers,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
         };
     }
 
@@ -196,17 +297,26 @@ public class SocialCourtService
     {
         var account = await _db.TbAccounts
             .Include(a => a.SocialProfile)
-            .FirstOrDefaultAsync(a => a.AccountId == accountId && a.IsActive);
+            .FirstOrDefaultAsync(a => a.AccountId == accountId && a.IsActive && (a.RoleId == null || (a.RoleId != 1 && a.RoleId != 3)));
 
         if (account == null)
         {
-            return (false, "Tài khoản không tồn tại hoặc đang bị tạm khóa.", null);
+            return (false, "Chỉ hội viên Customer đang hoạt động mới được cập nhật hồ sơ Sân giao lưu.", null);
         }
 
-        var cleanSprite = req.SpriteId?.Trim().ToLowerInvariant();
-        if (string.IsNullOrWhiteSpace(cleanSprite) || !ValidSpriteIds.Contains(cleanSprite))
+        var sp = account.SocialProfile;
+        var (resolvedSpriteId, avatarMode) = ResolveSpriteSelection(account.Avatar, req.SpriteId ?? sp?.SpriteId, accountId);
+
+        // If user has a custom uploaded/fallback avatar and provided a valid fallback spriteId, keep it for compatibility
+        string spriteToPersist = resolvedSpriteId;
+        if (avatarMode != "preset" && !string.IsNullOrWhiteSpace(req.SpriteId))
         {
-            return (false, "Nhân vật pixel không hợp lệ.", null);
+            var candidateSprite = req.SpriteId.Trim().ToLowerInvariant();
+            if (!ValidSpriteIds.Contains(candidateSprite))
+            {
+                return (false, "Nhân vật pixel không hợp lệ.", null);
+            }
+            spriteToPersist = candidateSprite;
         }
 
         string? confirmedSkill = null;
@@ -227,7 +337,6 @@ public class SocialCourtService
             .Take(6)
             .ToList();
 
-        var sp = account.SocialProfile;
         if (sp == null)
         {
             sp = new TbSocialProfile { AccountId = accountId };
@@ -237,7 +346,7 @@ public class SocialCourtService
         sp.IsVisibleOnCourt = req.IsVisibleOnCourt;
         sp.IsReadyToPlay = req.IsVisibleOnCourt && req.IsReadyToPlay;
         sp.AllowMatchSuggestion = req.IsVisibleOnCourt && req.AllowMatchSuggestion;
-        sp.SpriteId = cleanSprite;
+        sp.SpriteId = spriteToPersist;
         sp.SkillConfirmed = req.SkillConfirmed;
         sp.ConfirmedSkillLevel = confirmedSkill;
         sp.PreferredFreeSlotsJson = JsonSerializer.Serialize(cleanSlots);
@@ -245,19 +354,23 @@ public class SocialCourtService
 
         await _db.SaveChangesAsync();
 
+        var (effectiveSpriteId, effectiveAvatarMode) = ResolveSpriteSelection(account.Avatar, sp.SpriteId, account.AccountId);
+
         return (true, null, new MySocialProfileDto
         {
             AccountId = account.AccountId,
             DisplayName = ResolveDisplayName(account),
             Avatar = Function.GetSafeAvatarUrl(account.Avatar),
+            AvatarMode = effectiveAvatarMode,
             IsVisibleOnCourt = sp.IsVisibleOnCourt,
             IsReadyToPlay = sp.IsReadyToPlay,
             AllowMatchSuggestion = sp.AllowMatchSuggestion,
-            SpriteId = sp.SpriteId!,
+            SpriteId = effectiveSpriteId,
             SkillConfirmed = sp.SkillConfirmed,
             ConfirmedSkillLevel = sp.ConfirmedSkillLevel ?? "Giao lưu (DUPR 3.0)",
-            PlayStyle = string.IsNullOrWhiteSpace(account.PlayStyle) ? "Đánh đôi phối hợp (All-Court)" : account.PlayStyle!.Trim(),
-            Bio = string.IsNullOrWhiteSpace(account.Bio) ? string.Empty : account.Bio!.Trim(),
+            PlayStyle = SanitizePublicField(account.PlayStyle, "Đánh đôi phối hợp (All-Court)", 120),
+            DominantHand = SanitizePublicField(account.DominantHand, "Chưa cập nhật", 50),
+            PaddleBrand = SanitizePublicField(account.PaddleBrand, "Chưa cập nhật", 100),
             FreeSlots = cleanSlots
         });
     }
@@ -267,7 +380,7 @@ public class SocialCourtService
         var viewer = await _db.TbAccounts
             .AsNoTracking()
             .Include(a => a.SocialProfile)
-            .FirstOrDefaultAsync(a => a.AccountId == viewerAccountId && a.IsActive);
+            .FirstOrDefaultAsync(a => a.AccountId == viewerAccountId && a.IsActive && (a.RoleId == null || (a.RoleId != 1 && a.RoleId != 3)));
 
         if (viewer == null)
         {
@@ -279,6 +392,7 @@ public class SocialCourtService
             .Include(a => a.SocialProfile)
             .Where(a => a.AccountId != viewerAccountId
                 && a.IsActive
+                && (a.RoleId == null || (a.RoleId != 1 && a.RoleId != 3))
                 && a.SocialProfile != null
                 && a.SocialProfile.IsVisibleOnCourt
                 && a.SocialProfile.AllowMatchSuggestion)
@@ -354,12 +468,15 @@ public class SocialCourtService
                 reasons.Add("Đang tham gia Sân giao lưu và mở gợi ý ghép cặp");
             }
 
+            var (spriteId, avatarMode) = ResolveSpriteSelection(cand.Avatar, sp.SpriteId, cand.AccountId);
+
             scored.Add((score, new SocialMatchSuggestionDto
             {
                 AccountId = cand.AccountId,
                 DisplayName = ResolveDisplayName(cand),
                 Avatar = Function.GetSafeAvatarUrl(cand.Avatar),
-                SpriteId = NormalizeSpriteId(sp.SpriteId, cand.AccountId),
+                AvatarMode = avatarMode,
+                SpriteId = spriteId,
                 SkillLabel = ResolvePublicSkillLabel(cand, sp),
                 SkillConfirmed = sp.SkillConfirmed,
                 ReadyToPlay = sp.IsReadyToPlay,
@@ -395,6 +512,7 @@ public class SocialCourtService
             var isSender = inv.SenderAccountId == accountId;
             var partner = isSender ? inv.ReceiverAccount : inv.SenderAccount;
             var partnerSp = partner.SocialProfile;
+            var (partnerSpriteId, _) = ResolveSpriteSelection(partner.Avatar, partnerSp?.SpriteId, partner.AccountId);
 
             var dto = new SocialInviteDto
             {
@@ -403,7 +521,7 @@ public class SocialCourtService
                 PartnerAccountId = partner.AccountId,
                 PartnerName = ResolveDisplayName(partner),
                 PartnerAvatar = Function.GetSafeAvatarUrl(partner.Avatar),
-                PartnerSpriteId = NormalizeSpriteId(partnerSp?.SpriteId, partner.AccountId),
+                PartnerSpriteId = partnerSpriteId,
                 PartnerSkillLabel = ResolvePublicSkillLabel(partner, partnerSp),
                 ProposedDate = inv.ProposedDate.ToString("yyyy-MM-dd"),
                 ProposedStartTime = inv.ProposedStartTime,
@@ -436,15 +554,15 @@ public class SocialCourtService
 
         var sender = await _db.TbAccounts.AsNoTracking()
             .Include(a => a.SocialProfile)
-            .FirstOrDefaultAsync(a => a.AccountId == senderAccountId && a.IsActive);
+            .FirstOrDefaultAsync(a => a.AccountId == senderAccountId && a.IsActive && (a.RoleId == null || (a.RoleId != 1 && a.RoleId != 3)));
         if (sender == null)
         {
-            return (false, "Tài khoản của bạn chưa hợp lệ.", null);
+            return (false, "Chỉ hội viên Customer đang hoạt động mới có thể gửi lời mời.", null);
         }
 
         var receiver = await _db.TbAccounts.AsNoTracking()
             .Include(a => a.SocialProfile)
-            .FirstOrDefaultAsync(a => a.AccountId == req.ReceiverAccountId && a.IsActive);
+            .FirstOrDefaultAsync(a => a.AccountId == req.ReceiverAccountId && a.IsActive && (a.RoleId == null || (a.RoleId != 1 && a.RoleId != 3)));
         if (receiver == null || receiver.SocialProfile == null || !receiver.SocialProfile.IsVisibleOnCourt)
         {
             return (false, "Hội viên này hiện không mở hiển thị trên Sân giao lưu.", null);
@@ -486,6 +604,8 @@ public class SocialCourtService
         _db.TbSocialInvites.Add(invite);
         await _db.SaveChangesAsync();
 
+        var (receiverSpriteId, _) = ResolveSpriteSelection(receiver.Avatar, receiver.SocialProfile.SpriteId, receiver.AccountId);
+
         var dto = new SocialInviteDto
         {
             InviteId = invite.InviteId,
@@ -493,7 +613,7 @@ public class SocialCourtService
             PartnerAccountId = receiver.AccountId,
             PartnerName = ResolveDisplayName(receiver),
             PartnerAvatar = Function.GetSafeAvatarUrl(receiver.Avatar),
-            PartnerSpriteId = NormalizeSpriteId(receiver.SocialProfile.SpriteId, receiver.AccountId),
+            PartnerSpriteId = receiverSpriteId,
             PartnerSkillLabel = ResolvePublicSkillLabel(receiver, receiver.SocialProfile),
             ProposedDate = invite.ProposedDate.ToString("yyyy-MM-dd"),
             ProposedStartTime = invite.ProposedStartTime,
@@ -508,6 +628,11 @@ public class SocialCourtService
 
     public async Task<(bool Ok, string? Error, string? Status)> RespondInviteAsync(int actorAccountId, int inviteId, RespondSocialInviteRequest req)
     {
+        if (!await IsActiveCustomerAsync(actorAccountId))
+        {
+            return (false, "Chỉ hội viên Customer đang hoạt động mới được phản hồi lời mời.", null);
+        }
+
         var invite = await _db.TbSocialInvites.FirstOrDefaultAsync(i => i.InviteId == inviteId);
         if (invite == null)
         {
@@ -627,16 +752,20 @@ public class SocialCourtService
     private static SocialCourtPlayerDto MapPublicPlayer(TbAccount acc, int viewerAccountId)
     {
         var sp = acc.SocialProfile!;
+        var (spriteId, avatarMode) = ResolveSpriteSelection(acc.Avatar, sp.SpriteId, acc.AccountId);
+
         return new SocialCourtPlayerDto
         {
             AccountId = acc.AccountId,
             DisplayName = ResolveDisplayName(acc),
             Avatar = Function.GetSafeAvatarUrl(acc.Avatar),
-            SpriteId = NormalizeSpriteId(sp.SpriteId, acc.AccountId),
-            Bio = string.IsNullOrWhiteSpace(acc.Bio) ? "Hội viên đang tham gia Sân giao lưu Spike OS." : acc.Bio!.Trim(),
+            AvatarMode = avatarMode,
+            SpriteId = spriteId,
             SkillConfirmed = sp.SkillConfirmed,
             SkillLabel = ResolvePublicSkillLabel(acc, sp),
-            PlayStyle = string.IsNullOrWhiteSpace(acc.PlayStyle) ? "Đánh đôi phối hợp (All-Court)" : acc.PlayStyle!.Trim(),
+            DominantHand = SanitizePublicField(acc.DominantHand, "Chưa cập nhật", 50),
+            PaddleBrand = SanitizePublicField(acc.PaddleBrand, "Chưa cập nhật", 100),
+            PlayStyle = SanitizePublicField(acc.PlayStyle, "Chưa cập nhật", 120),
             FreeSlots = ParseFreeSlots(sp.PreferredFreeSlotsJson),
             ReadyToPlay = sp.IsReadyToPlay,
             IsSelf = acc.AccountId == viewerAccountId
@@ -648,6 +777,9 @@ public class SocialCourtSnapshotDto
 {
     public MySocialProfileDto MyProfile { get; set; } = new();
     public List<SocialCourtPlayerDto> Players { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 60;
 }
 
 public class MySocialProfileDto
@@ -655,14 +787,16 @@ public class MySocialProfileDto
     public int AccountId { get; set; }
     public string DisplayName { get; set; } = string.Empty;
     public string Avatar { get; set; } = string.Empty;
+    public string AvatarMode { get; set; } = "fallback";
     public bool IsVisibleOnCourt { get; set; }
     public bool IsReadyToPlay { get; set; }
     public bool AllowMatchSuggestion { get; set; }
     public string SpriteId { get; set; } = "maya";
     public bool SkillConfirmed { get; set; }
     public string ConfirmedSkillLevel { get; set; } = "Giao lưu (DUPR 3.0)";
+    public string DominantHand { get; set; } = "Chưa cập nhật";
+    public string PaddleBrand { get; set; } = "Chưa cập nhật";
     public string PlayStyle { get; set; } = string.Empty;
-    public string Bio { get; set; } = string.Empty;
     public List<string> FreeSlots { get; set; } = new();
 }
 
@@ -671,11 +805,13 @@ public class SocialCourtPlayerDto
     public int AccountId { get; set; }
     public string DisplayName { get; set; } = string.Empty;
     public string Avatar { get; set; } = string.Empty;
+    public string AvatarMode { get; set; } = "fallback";
     public string SpriteId { get; set; } = "maya";
-    public string Bio { get; set; } = string.Empty;
     public bool SkillConfirmed { get; set; }
     public string SkillLabel { get; set; } = "Chưa xác nhận trình độ";
-    public string PlayStyle { get; set; } = string.Empty;
+    public string DominantHand { get; set; } = "Chưa cập nhật";
+    public string PaddleBrand { get; set; } = "Chưa cập nhật";
+    public string PlayStyle { get; set; } = "Chưa cập nhật";
     public List<string> FreeSlots { get; set; } = new();
     public bool ReadyToPlay { get; set; }
     public bool IsSelf { get; set; }
@@ -686,7 +822,7 @@ public class UpdateSocialProfileRequest
     public bool IsVisibleOnCourt { get; set; }
     public bool IsReadyToPlay { get; set; }
     public bool AllowMatchSuggestion { get; set; }
-    public string SpriteId { get; set; } = "maya";
+    public string? SpriteId { get; set; }
     public bool SkillConfirmed { get; set; }
     public string? ConfirmedSkillLevel { get; set; }
     public List<string>? FreeSlots { get; set; }
@@ -697,6 +833,7 @@ public class SocialMatchSuggestionDto
     public int AccountId { get; set; }
     public string DisplayName { get; set; } = string.Empty;
     public string Avatar { get; set; } = string.Empty;
+    public string AvatarMode { get; set; } = "fallback";
     public string SpriteId { get; set; } = "maya";
     public string SkillLabel { get; set; } = string.Empty;
     public bool SkillConfirmed { get; set; }
