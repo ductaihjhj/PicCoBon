@@ -1,109 +1,180 @@
 {
-  "width": 96,
-  "height": 104,
+  "width": 108,
+  "height": 112,
+  "cols": 8,
+  "rows": 4,
   "anchor": [
-    48,
-    101
+    54,
+    108
   ],
+  "walkStepPx": 14,
   "actions": {
     "idle": [
       {
         "index": 0,
-        "ms": 620
+        "ms": 640
       },
       {
         "index": 1,
-        "ms": 520
+        "ms": 540
       }
     ],
     "walk": [
       {
-        "index": 2,
-        "ms": 155
+        "index": 8,
+        "ms": 130
       },
       {
-        "index": 3,
-        "ms": 145
+        "index": 9,
+        "ms": 100
       },
       {
-        "index": 4,
-        "ms": 155
+        "index": 10,
+        "ms": 130
       },
       {
-        "index": 5,
-        "ms": 145
+        "index": 11,
+        "ms": 130
+      },
+      {
+        "index": 12,
+        "ms": 100
+      },
+      {
+        "index": 13,
+        "ms": 130
       }
     ],
     "wave": [
       {
         "index": 0,
-        "ms": 110
-      },
-      {
-        "index": 6,
-        "ms": 260
-      },
-      {
-        "index": 0,
-        "ms": 115
-      },
-      {
-        "index": 6,
-        "ms": 340
-      },
-      {
-        "index": 0,
         "ms": 100
+      },
+      {
+        "index": 4,
+        "ms": 220
+      },
+      {
+        "index": 5,
+        "ms": 220
+      },
+      {
+        "index": 4,
+        "ms": 240
+      },
+      {
+        "index": 0,
+        "ms": 110
       }
     ],
     "swing": [
       {
         "index": 0,
-        "ms": 110
+        "ms": 95
+      },
+      {
+        "index": 6,
+        "ms": 160
       },
       {
         "index": 7,
-        "ms": 290
+        "ms": 240
       },
       {
         "index": 0,
         "ms": 130
       }
     ],
-    "ace_cap_tip": [
+    "blink": [
       {
-        "index": 8,
-        "ms": 180
-      },
-      {
-        "index": 9,
-        "ms": 260
-      },
-      {
-        "index": 10,
-        "ms": 220
+        "index": 2,
+        "ms": 135
       },
       {
         "index": 0,
-        "ms": 110
+        "ms": 90
+      }
+    ],
+    "wink": [
+      {
+        "index": 3,
+        "ms": 420
+      },
+      {
+        "index": 0,
+        "ms": 120
+      }
+    ],
+    "ace_cap_tip": [
+      {
+        "index": 16,
+        "ms": 160
+      },
+      {
+        "index": 17,
+        "ms": 280
+      },
+      {
+        "index": 18,
+        "ms": 240
+      },
+      {
+        "index": 19,
+        "ms": 120
       }
     ],
     "ace_serve": [
       {
-        "index": 11,
-        "ms": 170
+        "index": 20,
+        "ms": 160
       },
       {
-        "index": 12,
+        "index": 21,
         "ms": 280
       },
       {
-        "index": 13,
-        "ms": 220
+        "index": 22,
+        "ms": 240
       },
       {
-        "index": 0,
-        "ms": 110
+        "index": 23,
+        "ms": 120
+      }
+    ],
+    "ace_hold_pose": [
+      {
+        "index": 24,
+        "ms": 160
+      },
+      {
+        "index": 25,
+        "ms": 280
+      },
+      {
+        "index": 26,
+        "ms": 240
+      },
+      {
+        "index": 27,
+        "ms": 120
+      }
+    ],
+    "ace_regrip": [
+      {
+        "index": 28,
+        "ms": 160
+      },
+      {
+        "index": 29,
+        "ms": 280
+      },
+      {
+        "index": 30,
+        "ms": 240
+      },
+      {
+        "index": 31,
+        "ms": 120
       }
     ]
   },
@@ -116,6 +187,16 @@
     {
       "id": "ace_serve",
       "label": "Giao bóng",
+      "autonomous": true
+    },
+    {
+      "id": "ace_hold_pose",
+      "label": "Khoanh tay",
+      "autonomous": true
+    },
+    {
+      "id": "ace_regrip",
+      "label": "Xoay cán vợt",
       "autonomous": true
     }
   ]
