@@ -172,7 +172,7 @@
     }
 
     async loadManifest() {
-      const res = await fetch(`${this.assetBaseUrl}/manifest.json`);
+      const res = await fetch(`${this.assetBaseUrl}/manifest.json?v=sgl-v4`);
       if (!res.ok) throw new Error("Không tải được manifest sprite Sân giao lưu.");
       this.manifest = await res.json();
       return this.manifest;
@@ -336,8 +336,9 @@
           resolve({ img, blinkCanvas, meta: entry.animation, entry });
         };
         img.onerror = () => reject(new Error(`Không tải được atlas ${spriteId}`));
+        const ver = this.manifest?.version || "sgl-v4";
         img.src = entry.atlas.startsWith("/") && this.assetBaseUrl.startsWith(".")
-          ? `${this.assetBaseUrl}/${spriteId}-atlas.png`
+          ? `${this.assetBaseUrl}/${spriteId}-atlas.png?v=${encodeURIComponent(ver)}`
           : entry.atlas;
       });
       this.atlasCache.set(spriteId, promise);
@@ -430,15 +431,8 @@
         };
 
         btn.addEventListener("pointerenter", e => {
-          if (e.pointerType === "mouse" && !this.reduceMotion.matches) {
-            const t = performance.now();
-            actor.blinkUntil = t + 140;
-            if (actor.action === "walk") {
-              this._setActorAction(actor, "idle", t);
-            } else if (actor.action === "idle" && Math.random() < 0.55) {
-              this._setActorAction(actor, "wave", t);
-              actor.nextAutomatic = t + 1800;
-            }
+          if (e.pointerType === "mouse" && !this.reduceMotion.matches && actor.action === "idle") {
+            actor.blinkUntil = performance.now() + 140;
           }
         });
         btn.addEventListener("focus", () => {
@@ -548,49 +542,46 @@
     }
 
     _chooseDestination(actor) {
-      const zoneNames = ["left-court", "right-court", "bench-lounge"];
-      if (Math.random() < 0.25) {
-        actor.zoneKey = zoneNames[Math.floor(Math.random() * zoneNames.length)];
+      let targetZoneKey = actor.zoneKey;
+      if (Math.random() < 0.22) {
+        if (actor.zoneKey === "bench-lounge") {
+          targetZoneKey = Math.random() < 0.5 ? "left-court" : "right-court";
+        } else {
+          targetZoneKey = "bench-lounge";
+        }
       }
-      const zone = ZONES[actor.zoneKey];
-      for (let attempt = 0; attempt < MAX_DEST_ATTEMPTS; attempt++) {
-        const cand = { x: between(zone.left, zone.right), y: between(zone.top, zone.bottom) };
-        if (dist(actor.pos, cand) < MIN_STEP_DISTANCE) continue;
-        if (OBSTACLES.some(obs => segmentIntersectsRect(actor.pos, cand, obs))) continue;
 
-        const occupied = this.actors.some(other => {
-          if (other.id === actor.id) return false;
-          const otherTarget = other.action === "walk" && other.walk ? other.walk.to : other.pos;
-          return dist(otherTarget, cand) < MIN_SEPARATION || dist(other.pos, cand) < MIN_SEPARATION * 0.85;
-        });
-        if (!occupied) return cand;
+      const tryZones = targetZoneKey !== actor.zoneKey ? [targetZoneKey, actor.zoneKey] : [actor.zoneKey];
+      for (const zk of tryZones) {
+        const zone = ZONES[zk];
+        for (let attempt = 0; attempt < MAX_DEST_ATTEMPTS; attempt++) {
+          const cand = { x: between(zone.left, zone.right), y: between(zone.top, zone.bottom) };
+          if (dist(actor.pos, cand) < MIN_STEP_DISTANCE) continue;
+          if (OBSTACLES.some(obs => segmentIntersectsRect(actor.pos, cand, obs))) continue;
+
+          const occupied = this.actors.some(other => {
+            if (other.id === actor.id) return false;
+            const otherTarget = other.action === "walk" && other.walk ? other.walk.to : other.pos;
+            return dist(otherTarget, cand) < MIN_SEPARATION || dist(other.pos, cand) < MIN_SEPARATION * 0.85;
+          });
+          if (!occupied) {
+            actor.zoneKey = zk;
+            return cand;
+          }
+        }
       }
       return null;
     }
 
     _setActorAction(actor, name, now) {
-      if (name === "look") {
-        actor.facing = actor.facing > 0 ? -1 : 1;
-        actor.action = "idle";
-        actor.started = now;
-        actor.blinkUntil = now + 135;
-        actor.nextAutomatic = now + between(900, 1700);
-        return;
-      }
-      if (name === "hop") {
-        actor.hopUntil = now + 380;
-        actor.action = "idle";
-        actor.started = now;
-        actor.nextAutomatic = now + between(1000, 1900);
-        return;
-      }
       if (name === "walk") {
         const to = this._chooseDestination(actor);
         if (!to) {
           actor.action = "idle";
           actor.started = now;
+          actor.walk = null;
           actor.walkDistance = 0;
-          actor.nextAutomatic = now + between(900, 1700);
+          actor.nextAutomatic = now + between(1200, 2200);
           return;
         }
         const d = dist(actor.pos, to);
@@ -606,6 +597,7 @@
           actor.facing = dx >= 0 ? 1 : -1;
         }
       } else {
+        actor.walk = null;
         actor.walkDistance = 0;
       }
       if (name !== "idle" && name !== "walk") {
@@ -613,6 +605,7 @@
         if (!Array.isArray(seq) || seq.length === 0) {
           actor.action = "idle";
           actor.started = now;
+          actor.nextAutomatic = now + between(1400, 2600);
           return;
         }
       }
@@ -630,26 +623,18 @@
       if (this.reduceMotion.matches) {
         frame = seq[actor.action === "idle" ? 0 : Math.min(1, seq.length - 1)]?.index ?? 0;
       } else if (actor.action === "walk") {
-        const stepPx = meta.walkStepPx || 13;
+        const stepPx = meta.walkStepPx || 9.5;
         const stepIdx = Math.floor(actor.walkDistance / stepPx) % seq.length;
         frame = seq[stepIdx].index;
       } else {
         frame = frameAt(seq, elapsed);
       }
 
-      const dir = actor.facing || 1;
+      const dir = actor.action === "walk" ? (actor.facing || 1) : 1;
       const atlasBlinkFrame = meta.actions?.blink?.[0]?.index;
       const hasBlinkSource = atlasBlinkFrame != null || Boolean(blinkCanvas);
       const isBlinking = !this.reduceMotion.matches && now < actor.blinkUntil && actor.action === "idle" && hasBlinkSource;
       const drawFrame = isBlinking && atlasBlinkFrame != null ? atlasBlinkFrame : frame;
-
-      if (actor.hopUntil > now && !this.reduceMotion.matches) {
-        const p = 1 - (actor.hopUntil - now) / 380;
-        const hopOffset = Math.round(Math.sin(p * Math.PI) * 6);
-        actor.canvas.style.transform = `translateY(${-hopOffset}px)`;
-      } else if (actor.canvas.style.transform) {
-        actor.canvas.style.transform = "";
-      }
 
       if (drawFrame !== actor.paintedFrame || dir !== actor.paintedFacing || isBlinking !== actor.paintedBlink) {
         actor.paintedFrame = drawFrame;
@@ -671,7 +656,7 @@
         }
         if (actor.customPixelCanvas) {
           actor.ctx.setTransform(1, 0, 0, 1, 0, 0);
-          const bobY = drawFrame === 1 || drawFrame === 9 || drawFrame === 12 ? 1 : 0;
+          const bobY = drawFrame === 1 || drawFrame === 10 || drawFrame === 13 ? -1 : 0;
           const headX = Math.round((width - actor.customPixelCanvas.width) / 2);
           const headY = 12 + bobY;
           actor.ctx.drawImage(actor.customPixelCanvas, headX, headY);
@@ -685,7 +670,7 @@
         .filter(s => s && s.autonomous !== false && Array.isArray(actor.atlasData?.meta?.actions?.[s.id]) && actor.atlasData.meta.actions[s.id].length > 0)
         .map(s => s.id);
 
-      const pool = ["walk", "walk", "walk", "walk", "wave", "swing", "look", "hop"];
+      const pool = ["walk", "walk", "walk", "walk", "walk", "wave", "swing"];
       if (actor.atlasData?.meta?.actions?.wink?.length) {
         pool.push("wink");
       }
@@ -713,19 +698,20 @@
       const autoOn = !this.autoToggle || this.autoToggle.getAttribute("aria-pressed") === "true";
 
       for (const actor of this.actors) {
+        if (!actor.atlasData) continue;
+
         const isPausedByUser =
           actor.id === this.selectedId ||
-          actor.btn.matches(":focus-visible") ||
-          (this.canHover.matches && actor.btn.matches(":hover"));
+          actor.btn.matches(":focus-visible");
 
         if (!this.reduceMotion.matches && now >= actor.nextBlink) {
-          actor.blinkUntil = now + between(115, 155);
-          if (!actor.doubleBlinkQueued && Math.random() < 0.24) {
+          actor.blinkUntil = now + between(125, 165);
+          if (!actor.doubleBlinkQueued && Math.random() < 0.22) {
             actor.doubleBlinkQueued = true;
-            actor.nextBlink = now + between(240, 320);
+            actor.nextBlink = now + between(250, 330);
           } else {
             actor.doubleBlinkQueued = false;
-            actor.nextBlink = now + between(2400, 5200);
+            actor.nextBlink = now + between(2600, 5400);
           }
         }
 
@@ -733,14 +719,6 @@
           const nextAct = this._pickNextAutonomousAction(actor);
           actor.lastAutomatic = nextAct;
           this._setActorAction(actor, nextAct, now);
-
-          const meta = actor.atlasData?.meta;
-          const actMs = actor.action === "walk" && actor.walk
-            ? actor.walk.ms / this.timeScale
-            : (meta ? seqDuration(meta.actions[actor.action] || meta.actions.idle) / this.timeScale : 900);
-          if (actor.action !== "idle") {
-            actor.nextAutomatic = now + actMs + between(1100, 2900);
-          }
         }
 
         const elapsed = (now - actor.started) * this.timeScale;
@@ -753,9 +731,10 @@
               actor.pos.x = actor.walk.to.x;
               actor.pos.y = actor.walk.to.y;
               this._setActorAction(actor, "idle", now);
+              actor.nextAutomatic = now + between(1600, 3400);
             } else {
               const traveled = dist(actor.walk.from, actor.pos);
-              const ramp = Math.max(0.45, Math.min(1, traveled / 12 + 0.45, remDist / 12 + 0.45));
+              const ramp = Math.max(0.8, Math.min(1, traveled / 10 + 0.8, remDist / 10 + 0.8));
               const step = Math.min(remDist, actor.speedPxPerMs * dt * ramp);
               actor.pos.x += (remDx / remDist) * step;
               actor.pos.y += (remDy / remDist) * step;
@@ -767,13 +746,15 @@
                 actor.pos.x = actor.walk.to.x;
                 actor.pos.y = actor.walk.to.y;
                 this._setActorAction(actor, "idle", now);
+                actor.nextAutomatic = now + between(1600, 3400);
               }
             }
           }
-        } else if (actor.action !== "idle" && actor.atlasData) {
+        } else if (actor.action !== "idle") {
           const seq = actor.atlasData.meta.actions[actor.action];
-          if (seq && elapsed >= seqDuration(seq)) {
+          if (!seq || elapsed >= seqDuration(seq)) {
             this._setActorAction(actor, "idle", now);
+            actor.nextAutomatic = now + between(1600, 3400);
           }
         }
 
