@@ -183,7 +183,19 @@ public class GeminiAssistantTests : IAsyncLifetime
         };
         userB.Password = pwd.HashPassword(userB, "MemberBPass!2026");
 
-        db.TbAccounts.AddRange(userA, userB);
+        var admin = new TbAccount
+        {
+            Username = "ai_admin",
+            FullName = "Admin Spike AI",
+            Phone = "0977888999",
+            Email = "aiadmin@spike.test",
+            RoleId = 1,
+            IsActive = true,
+            SecurityStamp = Function.GenerateSecurityStamp()
+        };
+        admin.Password = pwd.HashPassword(admin, "AdminAiPass!2026");
+
+        db.TbAccounts.AddRange(userA, userB, admin);
         await db.SaveChangesAsync();
         _userAId = userA.AccountId;
         _userBId = userB.AccountId;
@@ -666,6 +678,63 @@ END";
         Assert.Equal(HttpStatusCode.BadRequest, longRes.StatusCode);
         string longBody = await longRes.Content.ReadAsStringAsync();
         Assert.Contains("MESSAGE_TOO_LONG", longBody);
+    }
+
+    [Fact]
+    public async Task AI07_AdminCanUpdateAssistantAvatar_AndLookupGuideReturnsLookupNavigationLink()
+    {
+        // 1. Non-admin member cannot update AI Assistant avatar
+        var memberClient = CreateCookieClient();
+        await LoginAsync(memberClient, "ai_member_a", "MemberAPass!2026");
+        string memberCsrf = await FetchCsrfTokenAsync(memberClient);
+
+        using (var forbiddenForm = new MultipartFormDataContent())
+        {
+            forbiddenForm.Add(new StringContent("/images/avatars/mochi.png"), "avatarUrl");
+            using var forbiddenReq = new HttpRequestMessage(HttpMethod.Post, "/api/assistant/avatar") { Content = forbiddenForm };
+            forbiddenReq.Headers.Add("RequestVerificationToken", memberCsrf);
+            var forbiddenRes = await memberClient.SendAsync(forbiddenReq);
+            Assert.True(forbiddenRes.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Redirect or HttpStatusCode.Unauthorized);
+        }
+
+        // 2. Admin updates AI Assistant avatar to preset /images/avatars/mochi.png
+        var adminClient = CreateCookieClient();
+        await LoginAsync(adminClient, "ai_admin", "AdminAiPass!2026");
+        string adminCsrf = await FetchCsrfTokenAsync(adminClient);
+
+        using (var adminForm = new MultipartFormDataContent())
+        {
+            adminForm.Add(new StringContent("/images/avatars/mochi.png"), "avatarUrl");
+            using var adminReq = new HttpRequestMessage(HttpMethod.Post, "/api/assistant/avatar") { Content = adminForm };
+            adminReq.Headers.Add("RequestVerificationToken", adminCsrf);
+            var adminRes = await adminClient.SendAsync(adminReq);
+            Assert.Equal(HttpStatusCode.OK, adminRes.StatusCode);
+
+            using var doc = JsonDocument.Parse(await adminRes.Content.ReadAsStringAsync());
+            Assert.True(doc.RootElement.GetProperty("ok").GetBoolean());
+            Assert.Equal("/images/avatars/mochi.png", doc.RootElement.GetProperty("avatarUrl").GetString());
+        }
+
+        // 3. Status endpoint and public Layout SSR reflect the new AI Assistant avatar
+        var statusRes = await memberClient.GetAsync("/api/assistant/status");
+        using (var statusDoc = JsonDocument.Parse(await statusRes.Content.ReadAsStringAsync()))
+        {
+            Assert.Equal("/images/avatars/mochi.png", statusDoc.RootElement.GetProperty("avatarUrl").GetString());
+        }
+
+        string homeHtml = await memberClient.GetStringAsync("/");
+        Assert.Contains("data-assistant-avatar=\"/images/avatars/mochi.png\"", homeHtml);
+
+        // 4. Asking about ticket lookup guide returns /Lookup as the first navigation button even if reply text omits the raw "/Lookup" string
+        _fakeGemini.SetHandler((_, _, _) => Task.FromResult(
+            ControllableGeminiClient.CreateTextResult("Để kiểm tra trạng thái vé và tải mã QR check-in, bạn hãy truy cập **Tra cứu vé QR** và nhập Mã đặt sân nhé!")));
+
+        var guideRes = await PostAssistantChatAsync(memberClient, "Hướng dẫn tra cứu vé QR của tôi");
+        Assert.Equal(HttpStatusCode.OK, guideRes.StatusCode);
+        using var guideDoc = JsonDocument.Parse(await guideRes.Content.ReadAsStringAsync());
+        var links = guideDoc.RootElement.GetProperty("links").EnumerateArray().ToList();
+        Assert.NotEmpty(links);
+        Assert.Equal("/Lookup", links[0].GetProperty("url").GetString());
     }
 
     private sealed class ControllableGeminiClient : IGeminiClient

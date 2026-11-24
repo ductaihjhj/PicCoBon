@@ -58,6 +58,10 @@ public partial class PickleballContext : DbContext
 
     public virtual DbSet<TbPayPalTransaction> TbPayPalTransactions { get; set; }
 
+    public virtual DbSet<TbSocialProfile> TbSocialProfiles { get; set; }
+
+    public virtual DbSet<TbSocialInvite> TbSocialInvites { get; set; }
+
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         SyncTypedColumns();
@@ -527,6 +531,56 @@ public partial class PickleballContext : DbContext
             entity.HasOne(d => d.CompensationRefundLedgerTx).WithMany()
                 .HasForeignKey(d => d.CompensationRefundLedgerTxId)
                 .HasConstraintName("FK_tb_PayPalTransaction_RefundLedger");
+        });
+
+        modelBuilder.Entity<TbSocialProfile>(entity =>
+        {
+            entity.HasKey(e => e.AccountId);
+            entity.ToTable("tb_SocialProfile");
+
+            entity.Property(e => e.AccountId).ValueGeneratedNever();
+            entity.Property(e => e.IsVisibleOnCourt).HasDefaultValue(false);
+            entity.Property(e => e.IsReadyToPlay).HasDefaultValue(false);
+            entity.Property(e => e.AllowMatchSuggestion).HasDefaultValue(false);
+            entity.Property(e => e.SpriteId).HasMaxLength(24);
+            entity.Property(e => e.SkillConfirmed).HasDefaultValue(false);
+            entity.Property(e => e.ConfirmedSkillLevel).HasMaxLength(40);
+            entity.Property(e => e.PreferredFreeSlotsJson).HasMaxLength(400).HasDefaultValue("[]");
+            entity.Property(e => e.UpdatedAtUtc).HasColumnType("datetime2");
+
+            entity.HasOne(d => d.Account).WithOne(p => p.SocialProfile)
+                .HasForeignKey<TbSocialProfile>(d => d.AccountId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_tb_SocialProfile_tb_Account");
+        });
+
+        modelBuilder.Entity<TbSocialInvite>(entity =>
+        {
+            entity.HasKey(e => e.InviteId);
+            entity.ToTable("tb_SocialInvite");
+
+            entity.Property(e => e.ProposedDate).HasColumnType("date");
+            entity.Property(e => e.ProposedStartTime).HasMaxLength(5);
+            entity.Property(e => e.DurationMinutes).HasDefaultValue(60);
+            entity.Property(e => e.Note).HasMaxLength(200);
+            entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("pending");
+            entity.Property(e => e.CounterDate).HasColumnType("date");
+            entity.Property(e => e.CounterStartTime).HasMaxLength(5);
+            entity.Property(e => e.CreatedAtUtc).HasColumnType("datetime2");
+            entity.Property(e => e.RespondedAtUtc).HasColumnType("datetime2");
+
+            entity.HasIndex(e => new { e.SenderAccountId, e.Status });
+            entity.HasIndex(e => new { e.ReceiverAccountId, e.Status });
+
+            entity.HasOne(d => d.SenderAccount).WithMany(p => p.SentSocialInvites)
+                .HasForeignKey(d => d.SenderAccountId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_tb_SocialInvite_SenderAccount");
+
+            entity.HasOne(d => d.ReceiverAccount).WithMany(p => p.ReceivedSocialInvites)
+                .HasForeignKey(d => d.ReceiverAccountId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_tb_SocialInvite_ReceiverAccount");
         });
 
         OnModelCreatingPartial(modelBuilder);

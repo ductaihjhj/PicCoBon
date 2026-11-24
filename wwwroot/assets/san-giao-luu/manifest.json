@@ -1,0 +1,662 @@
+{
+  "characters": {
+    "maya": {
+      "id": "maya",
+      "name": "Maya",
+      "atlas": "/assets/san-giao-luu/maya-atlas.png",
+      "profile": "/assets/san-giao-luu/maya-profile.webp",
+      "animation": {
+        "width": 83,
+        "height": 93,
+        "anchor": [
+          41,
+          91
+        ],
+        "actions": {
+          "idle": [
+            {
+              "index": 0,
+              "ms": 620
+            },
+            {
+              "index": 1,
+              "ms": 520
+            }
+          ],
+          "walk": [
+            {
+              "index": 2,
+              "ms": 160
+            },
+            {
+              "index": 3,
+              "ms": 150
+            },
+            {
+              "index": 4,
+              "ms": 160
+            },
+            {
+              "index": 5,
+              "ms": 150
+            }
+          ],
+          "wave": [
+            {
+              "index": 0,
+              "ms": 120
+            },
+            {
+              "index": 6,
+              "ms": 255
+            },
+            {
+              "index": 0,
+              "ms": 125
+            },
+            {
+              "index": 6,
+              "ms": 360
+            },
+            {
+              "index": 0,
+              "ms": 100
+            }
+          ],
+          "swing": [
+            {
+              "index": 0,
+              "ms": 115
+            },
+            {
+              "index": 7,
+              "ms": 295
+            },
+            {
+              "index": 0,
+              "ms": 140
+            }
+          ]
+        }
+      }
+    },
+    "sunny": {
+      "id": "sunny",
+      "name": "Sunny",
+      "atlas": "/assets/san-giao-luu/sunny-atlas.png",
+      "profile": "/assets/san-giao-luu/sunny-profile.webp",
+      "animation": {
+        "width": 96,
+        "height": 104,
+        "anchor": [
+          48,
+          101
+        ],
+        "actions": {
+          "idle": [
+            {
+              "index": 0,
+              "ms": 620
+            },
+            {
+              "index": 1,
+              "ms": 520
+            }
+          ],
+          "walk": [
+            {
+              "index": 2,
+              "ms": 160
+            },
+            {
+              "index": 3,
+              "ms": 150
+            },
+            {
+              "index": 4,
+              "ms": 160
+            },
+            {
+              "index": 5,
+              "ms": 150
+            }
+          ],
+          "wave": [
+            {
+              "index": 0,
+              "ms": 120
+            },
+            {
+              "index": 6,
+              "ms": 255
+            },
+            {
+              "index": 0,
+              "ms": 125
+            },
+            {
+              "index": 6,
+              "ms": 360
+            },
+            {
+              "index": 0,
+              "ms": 100
+            }
+          ],
+          "swing": [
+            {
+              "index": 0,
+              "ms": 115
+            },
+            {
+              "index": 7,
+              "ms": 295
+            },
+            {
+              "index": 0,
+              "ms": 140
+            }
+          ]
+        }
+      }
+    },
+    "ace": {
+      "id": "ace",
+      "name": "Ace",
+      "atlas": "/assets/san-giao-luu/ace-atlas.png",
+      "profile": "/assets/san-giao-luu/ace-profile.webp",
+      "animation": {
+        "width": 96,
+        "height": 104,
+        "anchor": [
+          48,
+          101
+        ],
+        "actions": {
+          "idle": [
+            {
+              "index": 0,
+              "ms": 620
+            },
+            {
+              "index": 1,
+              "ms": 520
+            }
+          ],
+          "walk": [
+            {
+              "index": 2,
+              "ms": 160
+            },
+            {
+              "index": 3,
+              "ms": 150
+            },
+            {
+              "index": 4,
+              "ms": 160
+            },
+            {
+              "index": 5,
+              "ms": 150
+            }
+          ],
+          "wave": [
+            {
+              "index": 0,
+              "ms": 120
+            },
+            {
+              "index": 6,
+              "ms": 255
+            },
+            {
+              "index": 0,
+              "ms": 125
+            },
+            {
+              "index": 6,
+              "ms": 360
+            },
+            {
+              "index": 0,
+              "ms": 100
+            }
+          ],
+          "swing": [
+            {
+              "index": 0,
+              "ms": 115
+            },
+            {
+              "index": 7,
+              "ms": 295
+            },
+            {
+              "index": 0,
+              "ms": 140
+            }
+          ]
+        }
+      }
+    },
+    "mochi": {
+      "id": "mochi",
+      "name": "Mochi",
+      "atlas": "/assets/san-giao-luu/mochi-atlas.png",
+      "profile": "/assets/san-giao-luu/mochi-profile.webp",
+      "animation": {
+        "width": 96,
+        "height": 104,
+        "anchor": [
+          48,
+          101
+        ],
+        "actions": {
+          "idle": [
+            {
+              "index": 0,
+              "ms": 620
+            },
+            {
+              "index": 1,
+              "ms": 520
+            }
+          ],
+          "walk": [
+            {
+              "index": 2,
+              "ms": 160
+            },
+            {
+              "index": 3,
+              "ms": 150
+            },
+            {
+              "index": 4,
+              "ms": 160
+            },
+            {
+              "index": 5,
+              "ms": 150
+            }
+          ],
+          "wave": [
+            {
+              "index": 0,
+              "ms": 120
+            },
+            {
+              "index": 6,
+              "ms": 255
+            },
+            {
+              "index": 0,
+              "ms": 125
+            },
+            {
+              "index": 6,
+              "ms": 360
+            },
+            {
+              "index": 0,
+              "ms": 100
+            }
+          ],
+          "swing": [
+            {
+              "index": 0,
+              "ms": 115
+            },
+            {
+              "index": 7,
+              "ms": 295
+            },
+            {
+              "index": 0,
+              "ms": 140
+            }
+          ]
+        }
+      }
+    },
+    "coco": {
+      "id": "coco",
+      "name": "Coco",
+      "atlas": "/assets/san-giao-luu/coco-atlas.png",
+      "profile": "/assets/san-giao-luu/coco-profile.webp",
+      "animation": {
+        "width": 96,
+        "height": 104,
+        "anchor": [
+          48,
+          101
+        ],
+        "actions": {
+          "idle": [
+            {
+              "index": 0,
+              "ms": 620
+            },
+            {
+              "index": 1,
+              "ms": 520
+            }
+          ],
+          "walk": [
+            {
+              "index": 2,
+              "ms": 160
+            },
+            {
+              "index": 3,
+              "ms": 150
+            },
+            {
+              "index": 4,
+              "ms": 160
+            },
+            {
+              "index": 5,
+              "ms": 150
+            }
+          ],
+          "wave": [
+            {
+              "index": 0,
+              "ms": 120
+            },
+            {
+              "index": 6,
+              "ms": 255
+            },
+            {
+              "index": 0,
+              "ms": 125
+            },
+            {
+              "index": 6,
+              "ms": 360
+            },
+            {
+              "index": 0,
+              "ms": 100
+            }
+          ],
+          "swing": [
+            {
+              "index": 0,
+              "ms": 115
+            },
+            {
+              "index": 7,
+              "ms": 295
+            },
+            {
+              "index": 0,
+              "ms": 140
+            }
+          ]
+        }
+      }
+    },
+    "leo": {
+      "id": "leo",
+      "name": "Leo",
+      "atlas": "/assets/san-giao-luu/leo-atlas.png",
+      "profile": "/assets/san-giao-luu/leo-profile.webp",
+      "animation": {
+        "width": 96,
+        "height": 104,
+        "anchor": [
+          48,
+          101
+        ],
+        "actions": {
+          "idle": [
+            {
+              "index": 0,
+              "ms": 620
+            },
+            {
+              "index": 1,
+              "ms": 520
+            }
+          ],
+          "walk": [
+            {
+              "index": 2,
+              "ms": 160
+            },
+            {
+              "index": 3,
+              "ms": 150
+            },
+            {
+              "index": 4,
+              "ms": 160
+            },
+            {
+              "index": 5,
+              "ms": 150
+            }
+          ],
+          "wave": [
+            {
+              "index": 0,
+              "ms": 120
+            },
+            {
+              "index": 6,
+              "ms": 255
+            },
+            {
+              "index": 0,
+              "ms": 125
+            },
+            {
+              "index": 6,
+              "ms": 360
+            },
+            {
+              "index": 0,
+              "ms": 100
+            }
+          ],
+          "swing": [
+            {
+              "index": 0,
+              "ms": 115
+            },
+            {
+              "index": 7,
+              "ms": 295
+            },
+            {
+              "index": 0,
+              "ms": 140
+            }
+          ]
+        }
+      }
+    },
+    "kiko": {
+      "id": "kiko",
+      "name": "Kiko",
+      "atlas": "/assets/san-giao-luu/kiko-atlas.png",
+      "profile": "/assets/san-giao-luu/kiko-profile.webp",
+      "animation": {
+        "width": 96,
+        "height": 104,
+        "anchor": [
+          48,
+          101
+        ],
+        "actions": {
+          "idle": [
+            {
+              "index": 0,
+              "ms": 620
+            },
+            {
+              "index": 1,
+              "ms": 520
+            }
+          ],
+          "walk": [
+            {
+              "index": 2,
+              "ms": 160
+            },
+            {
+              "index": 3,
+              "ms": 150
+            },
+            {
+              "index": 4,
+              "ms": 160
+            },
+            {
+              "index": 5,
+              "ms": 150
+            }
+          ],
+          "wave": [
+            {
+              "index": 0,
+              "ms": 120
+            },
+            {
+              "index": 6,
+              "ms": 255
+            },
+            {
+              "index": 0,
+              "ms": 125
+            },
+            {
+              "index": 6,
+              "ms": 360
+            },
+            {
+              "index": 0,
+              "ms": 100
+            }
+          ],
+          "swing": [
+            {
+              "index": 0,
+              "ms": 115
+            },
+            {
+              "index": 7,
+              "ms": 295
+            },
+            {
+              "index": 0,
+              "ms": 140
+            }
+          ]
+        }
+      }
+    },
+    "kai": {
+      "id": "kai",
+      "name": "Kai",
+      "atlas": "/assets/san-giao-luu/kai-atlas.png",
+      "profile": "/assets/san-giao-luu/kai-profile.webp",
+      "animation": {
+        "width": 96,
+        "height": 104,
+        "anchor": [
+          48,
+          101
+        ],
+        "actions": {
+          "idle": [
+            {
+              "index": 0,
+              "ms": 620
+            },
+            {
+              "index": 1,
+              "ms": 520
+            }
+          ],
+          "walk": [
+            {
+              "index": 2,
+              "ms": 160
+            },
+            {
+              "index": 3,
+              "ms": 150
+            },
+            {
+              "index": 4,
+              "ms": 160
+            },
+            {
+              "index": 5,
+              "ms": 150
+            }
+          ],
+          "wave": [
+            {
+              "index": 0,
+              "ms": 120
+            },
+            {
+              "index": 6,
+              "ms": 255
+            },
+            {
+              "index": 0,
+              "ms": 125
+            },
+            {
+              "index": 6,
+              "ms": 360
+            },
+            {
+              "index": 0,
+              "ms": 100
+            }
+          ],
+          "swing": [
+            {
+              "index": 0,
+              "ms": 115
+            },
+            {
+              "index": 7,
+              "ms": 295
+            },
+            {
+              "index": 0,
+              "ms": 140
+            }
+          ]
+        }
+      }
+    }
+  },
+  "presetMap": {
+    "/images/avatars/sunny.png": "sunny",
+    "/images/avatars/ace.png": "ace",
+    "/images/avatars/mochi.png": "mochi",
+    "/images/avatars/coco.png": "coco",
+    "/images/avatars/maya.png": "maya",
+    "/images/avatars/leo.png": "leo",
+    "/images/avatars/kiko.png": "kiko",
+    "/images/avatars/kai.png": "kai",
+    "/images/avatars/avatar-01.svg": "sunny",
+    "/images/avatars/avatar-02.svg": "ace",
+    "/images/avatars/avatar-03.svg": "mochi",
+    "/images/avatars/avatar-04.svg": "coco",
+    "/images/avatars/avatar-05.svg": "maya",
+    "/images/avatars/avatar-06.svg": "leo",
+    "/images/avatars/avatar-07.svg": "kiko",
+    "/images/avatars/avatar-08.svg": "kai"
+  }
+}

@@ -552,6 +552,7 @@ public class ApiDbController : ControllerBase
         cmsConfig["pendingHoldMinutes"] = settings.PendingHoldMinutes;
         cmsConfig["maxActivePendingPerActor"] = settings.MaxActivePendingPerActor;
         cmsConfig["hotline"] = settings.Hotline;
+        cmsConfig["assistantAvatar"] = settings.AssistantAvatar;
         cmsConfig["pricingVersion"] = settings.PricingVersion;
 
         var ordersDto = isStaffOrAdmin
@@ -697,6 +698,11 @@ public class ApiDbController : ControllerBase
             }
         }
 
+        if (updates.TryGetValue("assistantAvatar", out var rawAiAvatar))
+        {
+            updates["assistantAvatar"] = ClubSettingsService.ResolveSafeAssistantAvatarUrl(rawAiAvatar);
+        }
+
         var vnNow = BookingService.GetVietnamNow();
         string actor = Function._Username;
 
@@ -748,7 +754,8 @@ public class ApiDbController : ControllerBase
             openHours = $"{refreshed.OpenTime} – {refreshed.CloseTime}",
             peakStart = refreshed.PeakStart,
             courtPrice = refreshed.BaseCourtPrice,
-            peakSurcharge = refreshed.PeakSurchargePerHour
+            peakSurcharge = refreshed.PeakSurchargePerHour,
+            assistantAvatar = refreshed.AssistantAvatar
         });
     }
 

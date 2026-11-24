@@ -1,0 +1,246 @@
+@using System.Text.Json
+@model PickleballClub.Services.SocialCourtSnapshotDto
+@{
+    ViewData["Title"] = "Sân Giao Lưu — Spike Pickleball Club";
+    var jsonOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    var bootstrapJson = JsonSerializer.Serialize(new
+    {
+        myProfile = Model.MyProfile,
+        players = Model.Players
+    }, jsonOpts);
+
+    var sprites = new[]
+    {
+        new { Id = "sunny", Label = "Sunny" },
+        new { Id = "ace", Label = "Ace" },
+        new { Id = "mochi", Label = "Mochi" },
+        new { Id = "coco", Label = "Coco" },
+        new { Id = "maya", Label = "Maya" },
+        new { Id = "leo", Label = "Leo" },
+        new { Id = "kiko", Label = "Kiko" },
+        new { Id = "kai", Label = "Kai" }
+    };
+}
+
+<link rel="stylesheet" href="~/css/pages/san-giao-luu.css" asp-append-version="true" />
+
+<section class="page-hero">
+    <div class="container">
+        <div class="page-hero-inner">
+            <div>
+                <h1 class="page-hero-title">Sân giao lưu hội viên</h1>
+                <p class="page-hero-sub">Gặp gỡ hội viên cùng trình độ, chọn nhân vật pixel đại diện và hẹn lịch giao lưu trước khi đặt sân chính thức.</p>
+            </div>
+            <div class="sgl-hero-actions">
+                <span class="badge badge-success" id="visibleCountBadge">@Model.Players.Count hội viên trên sân</span>
+                <button type="button" class="btn btn-secondary btn-sm" id="openSocialSettingsBtn">
+                    <iconify-icon icon="lucide:sliders-horizontal" width="15"></iconify-icon>
+                    <span>Hồ sơ giao lưu của tôi</span>
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" id="findMatchBtn">
+                    <iconify-icon icon="lucide:sparkles" width="15"></iconify-icon>
+                    <span>Tìm người hợp trình</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<main class="page-main sgl-main">
+    <div class="container">
+        <div class="sgl-layout">
+            <div class="sgl-col-main">
+                <!-- 1. Sân Pickleball Pixel Tương Tác -->
+                <div class="card sgl-court-card">
+                    <div class="card-header sgl-court-head">
+                        <span class="card-header-title">
+                            <iconify-icon icon="lucide:users" width="17" style="color:var(--brand-primary);"></iconify-icon>
+                            <span>Không gian Sân giao lưu</span>
+                        </span>
+                        <span class="text-xs" style="color:var(--text-muted);">Nhấn vào nhân vật để xem hồ sơ hoặc nhấn Esc để đóng chọn</span>
+                    </div>
+
+                    <div class="sgl-court-stage" id="courtStage" aria-label="Sân Pickleball giao lưu">
+                        <canvas class="sgl-court-backdrop" id="courtMapCanvas" aria-hidden="true"></canvas>
+
+                        <div class="sgl-court-actors" id="courtActors"></div>
+
+                        <div class="sgl-court-empty" id="courtEmptyState" @(Model.Players.Count > 0 ? "hidden" : "")>
+                            <div class="sgl-court-empty-box">
+                                <h3>Sân giao lưu đang sẵn sàng đón bạn</h3>
+                                <p>Theo mặc định, hồ sơ hội viên được giữ riêng tư. Hãy bật hiển thị và chọn một nhân vật pixel để bắt đầu xuất hiện trên sân.</p>
+                                <button type="button" class="btn btn-primary btn-sm" id="emptyEnableCourtBtn">Bật hiển thị trên sân</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sgl-pose-bar">
+                        <div class="sgl-pose-group">
+                            <span class="sgl-pose-label">Thử động tác:</span>
+                            <button type="button" class="sgl-pose-btn is-active" data-pose="idle">Đứng</button>
+                            <button type="button" class="sgl-pose-btn" data-pose="walk">Đi bộ</button>
+                            <button type="button" class="sgl-pose-btn" data-pose="wave">Vẫy tay</button>
+                            <button type="button" class="sgl-pose-btn" data-pose="swing">Vung vợt</button>
+                        </div>
+                        <button type="button" class="sgl-pose-btn sgl-auto-btn is-active" id="autoRoamToggle" aria-pressed="true">Tự hoạt động</button>
+                    </div>
+                </div>
+
+                <!-- 2. Gợi ý đối thủ hợp trình -->
+                <div class="card" id="matchPanel" hidden>
+                    <div class="card-header">
+                        <span class="card-header-title">
+                            <iconify-icon icon="lucide:sparkles" width="17" style="color:var(--brand-primary);"></iconify-icon>
+                            <span>Gợi ý đối thủ hợp trình</span>
+                        </span>
+                        <button type="button" class="btn btn-ghost btn-xs" id="closeMatchPanel" aria-label="Đóng gợi ý">Đóng</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="sgl-match-grid" id="matchGrid"></div>
+                    </div>
+                </div>
+
+                <!-- 3. Quản lý lời mời giao lưu -->
+                <div class="card">
+                    <div class="card-header" style="flex-wrap:wrap;gap:10px;">
+                        <span class="card-header-title">
+                            <iconify-icon icon="lucide:calendar-heart" width="17" style="color:var(--brand-primary);"></iconify-icon>
+                            <span>Lời mời giao lưu</span>
+                        </span>
+                        <div class="sgl-tabs" role="tablist">
+                            <button type="button" class="sgl-tab-btn is-active" id="tabReceivedInvites" role="tab">
+                                Lời mời đến <span class="badge badge-success" id="receivedInvitesBadge" hidden>0</span>
+                            </button>
+                            <button type="button" class="sgl-tab-btn" id="tabSentInvites" role="tab">Đã gửi</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="sgl-invite-list" id="invitesContainer">
+                            <p class="text-sm" style="color:var(--text-muted);margin:0;">Đang tải danh sách lời mời...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="sgl-col-side">
+                <!-- 4. Danh sách hội viên trên sân -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-header-title">
+                            <iconify-icon icon="lucide:search" width="16" style="color:var(--brand-primary);"></iconify-icon>
+                            <span>Hội viên trên sân</span>
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="sgl-filter-row">
+                            <input type="search" id="searchMembers" class="form-input" placeholder="Tìm theo tên, trình độ, giờ rảnh..." aria-label="Tìm hội viên trên sân">
+                            <button type="button" class="sgl-pose-btn" id="readyOnlyFilter" aria-pressed="false" title="Chỉ lọc người đang sẵn sàng giao lưu">Sẵn sàng</button>
+                        </div>
+                        <div class="sgl-member-list" id="memberList"></div>
+                    </div>
+                </div>
+
+                <!-- 5. Hồ sơ giao lưu & Gửi lời mời -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-header-title">
+                            <iconify-icon icon="lucide:user-check" width="16" style="color:var(--brand-primary);"></iconify-icon>
+                            <span>Hồ sơ giao lưu</span>
+                        </span>
+                    </div>
+                    <div class="card-body" id="profileCardBody"></div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</main>
+
+<!-- Modal: Cài đặt hồ sơ giao lưu của tôi -->
+<div class="sgl-modal-backdrop" id="socialSettingsModal" hidden role="dialog" aria-modal="true" aria-labelledby="socialSettingsTitle">
+    <div class="sgl-modal">
+        <div class="sgl-modal-header">
+            <strong id="socialSettingsTitle" style="font-size:1.05rem;color:var(--text-primary);">Hồ sơ Sân giao lưu của tôi</strong>
+            <button type="button" class="btn btn-ghost btn-xs" data-close-settings aria-label="Đóng cửa sổ">Đóng</button>
+        </div>
+
+        <div class="sgl-modal-body">
+            <label class="sgl-switch-card">
+                <span>
+                    <strong>Hiển thị trên Sân giao lưu</strong>
+                    <span>Cho phép hội viên khác nhìn thấy bạn (chỉ hiển thị tên, trình độ tự khai, khung giờ rảnh và nhân vật pixel).</span>
+                </span>
+                <input type="checkbox" id="optVisibleOnCourt">
+            </label>
+
+            <label class="sgl-switch-card">
+                <span>
+                    <strong>Trạng thái Sẵn sàng giao lưu</strong>
+                    <span>Hiện chấm xanh nổi bật trên sân để mọi người biết bạn đang muốn hẹn trận.</span>
+                </span>
+                <input type="checkbox" id="optReadyToPlay">
+            </label>
+
+            <label class="sgl-switch-card">
+                <span>
+                    <strong>Cho phép xuất hiện trong gợi ý hợp trình</strong>
+                    <span>Hỗ trợ ghép cặp nhanh theo trình độ tự khai và khung giờ rảnh trùng nhau.</span>
+                </span>
+                <input type="checkbox" id="optAllowMatchSuggestion">
+            </label>
+
+            <div>
+                <label class="form-label">Chọn nhân vật pixel đại diện (8 nhân vật)</label>
+                <div class="sgl-sprite-grid" id="spritePickerGrid">
+                    @foreach (var sp in sprites)
+                    {
+                        <button type="button" class="sgl-sprite-option" data-sprite-id="@sp.Id">
+                            <div class="sgl-portrait">
+                                <img src="/assets/san-giao-luu/@(sp.Id)-profile.webp" alt="@sp.Label">
+                            </div>
+                            <span>@sp.Label</span>
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div class="sgl-switch-card" style="flex-direction:column;align-items:stretch;">
+                <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;">
+                    <span>
+                        <strong>Xác nhận trình độ giao lưu</strong>
+                        <span>Nếu chưa bật, hệ thống hiển thị “Chưa xác nhận trình độ” thay vì dùng mặc định.</span>
+                    </span>
+                    <input type="checkbox" id="optSkillConfirmed">
+                </label>
+                <select id="optConfirmedSkillLevel" class="form-select" style="margin-top:8px;">
+                    @foreach (var sk in PickleballClub.Services.SocialCourtService.ValidSkillLevels)
+                    {
+                        <option value="@sk">@sk</option>
+                    }
+                </select>
+            </div>
+
+            <div>
+                <label class="form-label">Khung giờ thường rảnh</label>
+                <div class="sgl-slot-chips">
+                    @foreach (var slot in PickleballClub.Services.SocialCourtService.ValidFreeSlots)
+                    {
+                        <button type="button" class="sgl-slot-chip" data-slot="@slot">@slot</button>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="sgl-modal-footer">
+            <button type="button" class="btn btn-ghost btn-sm" data-close-settings>Hủy</button>
+            <button type="button" class="btn btn-primary btn-sm" id="saveSocialSettingsBtn">Lưu thay đổi</button>
+        </div>
+    </div>
+</div>
+
+<div class="sgl-toast" id="sglToast" role="status" aria-live="polite" hidden></div>
+
+<script>
+    window.__SGL_BOOTSTRAP__ = @Html.Raw(bootstrapJson);
+</script>
+<script src="~/js/san-giao-luu-engine.js" asp-append-version="true"></script>
+<script src="~/js/san-giao-luu-page.js" asp-append-version="true"></script>

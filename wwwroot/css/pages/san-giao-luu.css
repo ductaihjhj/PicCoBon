@@ -1,0 +1,684 @@
+/* ==========================================================================
+   SPIKE OS — SÂN GIAO LƯU (SOCIAL COURT) PAGE STYLES
+   Synchronized with Spike OS Soft Green Design System (Light & Dark themes)
+   ========================================================================== */
+
+.sgl-main {
+  padding: 28px 0 72px;
+}
+
+.sgl-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sgl-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.95fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.sgl-col-main,
+.sgl-col-side {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+/* 1. Pixel Court Stage Card */
+.sgl-court-card {
+  overflow: hidden;
+  border-color: var(--border-default);
+}
+
+.sgl-court-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sgl-court-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  min-height: 360px;
+  background: linear-gradient(180deg, #1b3828 0%, #244a35 100%);
+  overflow: hidden;
+  user-select: none;
+}
+
+.sgl-court-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+.sgl-court-actors {
+  position: absolute;
+  inset: 0;
+}
+
+.sgl-court-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(12, 20, 16, 0.56);
+  backdrop-filter: blur(4px);
+  z-index: 600;
+}
+
+.sgl-court-empty[hidden] {
+  display: none;
+}
+
+.sgl-court-empty-box {
+  max-width: 400px;
+  padding: 20px 22px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border-default);
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+
+.sgl-court-empty-box h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.sgl-court-empty-box p {
+  margin: 0 0 14px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* Actor Layer (Engine Contract) */
+.sgl-actor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transform: translate(-50%, -100%);
+  transform-origin: center bottom;
+  appearance: none;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sgl-actor:focus-visible {
+  outline: none;
+}
+
+.sgl-actor:focus-visible .sgl-nameplate,
+.sgl-actor.is-selected .sgl-nameplate {
+  background: var(--brand-primary);
+  border-color: #d7f0df;
+  color: #ffffff;
+}
+
+.sgl-actor.is-highlighted .sgl-nameplate {
+  border-color: #f7df71;
+  box-shadow: 0 0 0 2px rgba(247, 223, 113, 0.45);
+}
+
+.sgl-sprite {
+  display: block;
+  width: 66px;
+  height: auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 5px 2px rgba(8, 22, 14, 0.45));
+  pointer-events: none;
+}
+
+.sgl-nameplate {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(15, 36, 25, 0.9);
+  color: #f4faf5;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+
+.sgl-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6bcb77;
+  box-shadow: 0 0 0 2px rgba(107, 203, 119, 0.35);
+  flex-shrink: 0;
+}
+
+/* Pose Bar */
+.sgl-pose-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  background: var(--surface-secondary);
+  border-top: 1px solid var(--border-default);
+}
+
+.sgl-pose-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sgl-pose-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+.sgl-pose-btn {
+  min-height: 32px;
+  padding: 4px 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--dur-fast) ease;
+}
+
+.sgl-pose-btn:hover {
+  border-color: var(--brand-primary-border);
+  color: var(--brand-primary-ink);
+  background: var(--brand-primary-tint);
+}
+
+.sgl-pose-btn.is-active {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: #ffffff;
+}
+
+.sgl-auto-btn.is-active {
+  background: var(--brand-primary-tint);
+  border-color: var(--brand-primary-border);
+  color: var(--brand-primary-ink);
+}
+
+/* 2. Match Suggestions Card */
+.sgl-match-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sgl-match-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--surface-subtle);
+}
+
+.sgl-match-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sgl-match-reason {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.48;
+  color: var(--text-secondary);
+}
+
+/* Portrait Thumb */
+.sgl-portrait {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--brand-primary-tint);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.sgl-portrait--lg {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-lg);
+}
+
+.sgl-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* 3. Directory & Member List */
+.sgl-filter-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.sgl-member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 310px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.sgl-member-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--surface);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+
+.sgl-member-item:hover {
+  border-color: var(--brand-primary-border);
+  background: var(--surface-subtle);
+}
+
+.sgl-member-item.is-selected {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-tint);
+}
+
+.sgl-member-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sgl-member-name {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sgl-member-sub {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 4. Selected Profile & Invite Form */
+.sgl-profile-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sgl-profile-bio {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.sgl-spec-list {
+  margin: 0 0 14px;
+  border-top: 1px solid var(--border-default);
+}
+
+.sgl-spec-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.835rem;
+}
+
+.sgl-spec-row dt {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.sgl-spec-row dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.sgl-invite-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+}
+
+.sgl-invite-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* 5. Invites Inbox / Sent */
+.sgl-tabs {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  gap: 4px;
+}
+
+.sgl-tab-btn {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.sgl-tab-btn.is-active {
+  background: var(--surface);
+  color: var(--brand-primary-ink);
+  box-shadow: var(--shadow-xs);
+}
+
+.sgl-invite-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sgl-invite-item {
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sgl-invite-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sgl-invite-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sgl-counter-box {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-default);
+}
+
+/* 6. Modal: Cài đặt hồ sơ giao lưu */
+.sgl-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(12, 20, 16, 0.58);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.sgl-modal-backdrop[hidden] {
+  display: none;
+}
+
+.sgl-modal {
+  width: 100%;
+  max-width: 680px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-overlay);
+}
+
+.sgl-modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.sgl-modal-body {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sgl-modal-footer {
+  padding: 14px 20px;
+  background: var(--surface-secondary);
+  border-top: 1px solid var(--border-default);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.sgl-switch-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--surface-subtle);
+}
+
+.sgl-switch-card strong {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.sgl-switch-card span {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.sgl-sprite-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sgl-sprite-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-default);
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--dur-fast) ease;
+}
+
+.sgl-sprite-option:hover {
+  border-color: var(--brand-primary-border);
+  background: var(--brand-primary-tint);
+}
+
+.sgl-sprite-option.is-selected {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-tint);
+  box-shadow: 0 0 0 2px rgba(46, 139, 87, 0.22);
+}
+
+.sgl-sprite-option span {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.sgl-slot-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sgl-slot-chip {
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-default);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sgl-slot-chip.is-selected {
+  background: var(--brand-primary-tint);
+  border-color: var(--brand-primary);
+  color: var(--brand-primary-ink);
+}
+
+/* Toast */
+.sgl-toast {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  z-index: 1400;
+  max-width: 360px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--brand-primary-border);
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-lg);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.sgl-toast[hidden] {
+  display: none;
+}
+
+.sgl-toast.is-error {
+  border-color: var(--status-danger-border);
+  background: var(--status-danger-bg);
+  color: var(--status-danger-text);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .sgl-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .sgl-court-stage {
+    min-height: 290px;
+  }
+
+  .sgl-match-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sgl-sprite-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sgl-invite-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sgl-auto-btn {
+    display: none;
+  }
+}

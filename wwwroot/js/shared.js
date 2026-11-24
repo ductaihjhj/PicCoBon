@@ -43,6 +43,7 @@ const DEFAULT_CMS = {
   clubDesc: 'Tích lũy chi tiêu thực thu trên sổ cái để nâng hạng Hội viên Bạc (giảm 5%) và Hội viên Vàng VIP (giảm 15% toàn bộ khung giờ đặt sân).',
   hotline: '0901 234 567',
   address: 'Thảo Điền, TP. Thủ Đức, TP.HCM',
+  assistantAvatar: '/assets/assistant/02_wave.png',
   pricingVersion: ''
 };
 
@@ -760,7 +761,8 @@ const WRITABLE_CMS_KEYS = new Set([
   'heroTag', 'heroSubtag', 'heroTitle', 'heroSubtitle', 'heroDesc',
   'courtPrice', 'peakStart', 'peakSurcharge', 'openTime', 'closeTime',
   'hotline', 'clubTitle', 'clubDesc', 'checkInEarlyMinutes',
-  'cancelCutoffMinutes', 'pendingHoldMinutes', 'maxActivePendingPerActor'
+  'cancelCutoffMinutes', 'pendingHoldMinutes', 'maxActivePendingPerActor',
+  'assistantAvatar'
 ]);
 
 async function saveCmsConfig(newConfig) {
@@ -792,6 +794,9 @@ async function saveCmsConfig(newConfig) {
 }
 
 function applyCmsToFooterAndGlobal() {
+  if (window.mascot && typeof window.mascot.setAssistantAvatar === 'function' && CMS_CONFIG.assistantAvatar) {
+    window.mascot.setAssistantAvatar(CMS_CONFIG.assistantAvatar);
+  }
   document.querySelectorAll('[data-cms="hotline"]').forEach(el => {
     if (CMS_CONFIG.hotline) el.textContent = CMS_CONFIG.hotline;
   });
