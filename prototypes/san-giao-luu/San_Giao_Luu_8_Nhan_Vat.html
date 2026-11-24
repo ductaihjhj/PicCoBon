@@ -211,12 +211,16 @@
             <div class="actors-layer" id="actorsLayer"></div>
           </div>
           <div class="controls" role="group" aria-label="Điều khiển chuyển động nhân vật đang chọn">
-            <span class="controls-hint">Thử động tác:</span>
+            <span class="controls-hint">Di chuyển:</span>
             <button type="button" data-action="idle">Đứng</button>
             <button type="button" data-action="walk">Đi bộ</button>
+            <span class="controls-hint" style="margin-left:4px;">Biểu cảm:</span>
+            <button type="button" data-action="blink">Chớp mắt</button>
+            <button type="button" data-action="wink">Nháy mắt</button>
             <button type="button" data-action="wave">Vẫy tay</button>
             <button type="button" data-action="swing">Vung vợt</button>
             <span id="signatureControls" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;" aria-label="Động tác riêng"></span>
+            <button type="button" id="slow-motion" aria-pressed="false" title="Xem chậm 0.35x">Chậm 0.35x</button>
             <button type="button" id="auto-motion" class="motion-toggle" aria-pressed="true">Tự hoạt động</button>
           </div>
         </section>
@@ -536,6 +540,13 @@
 
     document.querySelectorAll("[data-action]").forEach(btn => {
       btn.addEventListener("click", () => court.triggerSelectedAction(btn.dataset.action));
+    });
+
+    const slowBtn = document.getElementById("slow-motion");
+    slowBtn?.addEventListener("click", () => {
+      const next = slowBtn.getAttribute("aria-pressed") !== "true";
+      slowBtn.setAttribute("aria-pressed", String(next));
+      court.setTimeScale(next ? 0.35 : 1);
     });
 
     [filterReadyBtn, filterDoublesBtn, filterSinglesBtn].forEach(btn => {

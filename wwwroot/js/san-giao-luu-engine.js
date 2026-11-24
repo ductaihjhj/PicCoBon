@@ -154,6 +154,8 @@
       this.selectedId = null;
       this.highlightedIds = new Set();
       this.rafId = null;
+      this.lastTickNow = null;
+      this.timeScale = 1;
       this.isHidden = document.hidden;
 
       this.drawBackground();
@@ -413,6 +415,7 @@
           started: now,
           facing: pos.x < COURT_SIZE.width / 2 ? 1 : -1,
           walk: null,
+          walkDistance: 0,
           paintedFrame: -1,
           paintedFacing: 0,
           paintedBlink: false,
@@ -517,6 +520,11 @@
       }
     }
 
+    setTimeScale(scale) {
+      const n = Number(scale);
+      this.timeScale = Number.isFinite(n) && n > 0 ? Math.min(2, Math.max(0.15, n)) : 1;
+    }
+
     getSignatureActions(spriteId) {
       if (!spriteId || !this.manifest?.characters?.[spriteId]?.animation?.signatureActions) {
         return [];
@@ -581,6 +589,7 @@
         if (!to) {
           actor.action = "idle";
           actor.started = now;
+          actor.walkDistance = 0;
           actor.nextAutomatic = now + between(900, 1700);
           return;
         }
@@ -588,9 +597,16 @@
         actor.walk = {
           from: { ...actor.pos },
           to,
+          totalDist: d,
           ms: Math.max(760, d / actor.speedPxPerMs)
         };
-        actor.facing = to.x >= actor.pos.x ? 1 : -1;
+        actor.walkDistance = 0;
+        const dx = to.x - actor.pos.x;
+        if (Math.abs(dx) > 6) {
+          actor.facing = dx >= 0 ? 1 : -1;
+        }
+      } else {
+        actor.walkDistance = 0;
       }
       if (name !== "idle" && name !== "walk") {
         const seq = actor.atlasData?.meta?.actions?.[name];
@@ -609,12 +625,23 @@
       const { img, blinkCanvas, meta } = actor.atlasData;
       const rawSeq = meta.actions?.[actor.action] || meta.actions?.idle;
       const seq = Array.isArray(rawSeq) && rawSeq.length > 0 ? rawSeq : [{ index: 0, ms: 600 }];
-      const elapsed = Math.max(0, now - actor.started);
-      const frame = this.reduceMotion.matches
-        ? (seq[actor.action === "idle" ? 0 : Math.min(1, seq.length - 1)]?.index ?? 0)
-        : frameAt(seq, elapsed);
+      const elapsed = Math.max(0, (now - actor.started) * this.timeScale);
+      let frame;
+      if (this.reduceMotion.matches) {
+        frame = seq[actor.action === "idle" ? 0 : Math.min(1, seq.length - 1)]?.index ?? 0;
+      } else if (actor.action === "walk") {
+        const stepPx = meta.walkStepPx || 13;
+        const stepIdx = Math.floor(actor.walkDistance / stepPx) % seq.length;
+        frame = seq[stepIdx].index;
+      } else {
+        frame = frameAt(seq, elapsed);
+      }
+
       const dir = actor.facing || 1;
-      const isBlinking = !this.reduceMotion.matches && now < actor.blinkUntil && (frame === 0 || frame === 1) && Boolean(blinkCanvas);
+      const atlasBlinkFrame = meta.actions?.blink?.[0]?.index;
+      const hasBlinkSource = atlasBlinkFrame != null || Boolean(blinkCanvas);
+      const isBlinking = !this.reduceMotion.matches && now < actor.blinkUntil && actor.action === "idle" && hasBlinkSource;
+      const drawFrame = isBlinking && atlasBlinkFrame != null ? atlasBlinkFrame : frame;
 
       if (actor.hopUntil > now && !this.reduceMotion.matches) {
         const p = 1 - (actor.hopUntil - now) / 380;
@@ -624,23 +651,27 @@
         actor.canvas.style.transform = "";
       }
 
-      if (frame !== actor.paintedFrame || dir !== actor.paintedFacing || isBlinking !== actor.paintedBlink) {
-        actor.paintedFrame = frame;
+      if (drawFrame !== actor.paintedFrame || dir !== actor.paintedFacing || isBlinking !== actor.paintedBlink) {
+        actor.paintedFrame = drawFrame;
         actor.paintedFacing = dir;
         actor.paintedBlink = isBlinking;
         const { width, height } = meta;
+        const cols = meta.cols || Math.max(1, Math.floor(img.width / width));
+        const sx = (drawFrame % cols) * width;
+        const sy = Math.floor(drawFrame / cols) * height;
+
         actor.ctx.setTransform(1, 0, 0, 1, 0, 0);
         actor.ctx.clearRect(0, 0, width, height);
         if (dir < 0) actor.ctx.setTransform(-1, 0, 0, 1, width, 0);
-        if (isBlinking) {
+        if (isBlinking && atlasBlinkFrame == null && blinkCanvas) {
           const yShift = frame === 1 ? 1 : 0;
           actor.ctx.drawImage(blinkCanvas, 0, 0, width, height, 0, yShift, width, height);
         } else {
-          actor.ctx.drawImage(img, frame * width, 0, width, height, 0, 0, width, height);
+          actor.ctx.drawImage(img, sx, sy, width, height, 0, 0, width, height);
         }
         if (actor.customPixelCanvas) {
           actor.ctx.setTransform(1, 0, 0, 1, 0, 0);
-          const bobY = frame === 1 || frame === 3 || frame === 5 ? 1 : 0;
+          const bobY = drawFrame === 1 || drawFrame === 9 || drawFrame === 12 ? 1 : 0;
           const headX = Math.round((width - actor.customPixelCanvas.width) / 2);
           const headY = 12 + bobY;
           actor.ctx.drawImage(actor.customPixelCanvas, headX, headY);
@@ -654,7 +685,10 @@
         .filter(s => s && s.autonomous !== false && Array.isArray(actor.atlasData?.meta?.actions?.[s.id]) && actor.atlasData.meta.actions[s.id].length > 0)
         .map(s => s.id);
 
-      const pool = ["walk", "walk", "walk", "wave", "swing", "look", "hop"];
+      const pool = ["walk", "walk", "walk", "walk", "wave", "swing", "look", "hop"];
+      if (actor.atlasData?.meta?.actions?.wink?.length) {
+        pool.push("wink");
+      }
       if (hasNeighbor) pool.push("wave");
       for (const sig of sigActions) {
         pool.push(sig);
@@ -668,8 +702,13 @@
     _tick = now => {
       if (this.isHidden) {
         this.rafId = null;
+        this.lastTickNow = null;
         return;
       }
+
+      const rawDt = this.lastTickNow == null ? 16 : Math.min(50, Math.max(0, now - this.lastTickNow));
+      this.lastTickNow = now;
+      const dt = rawDt * this.timeScale;
 
       const autoOn = !this.autoToggle || this.autoToggle.getAttribute("aria-pressed") === "true";
 
@@ -697,25 +736,39 @@
 
           const meta = actor.atlasData?.meta;
           const actMs = actor.action === "walk" && actor.walk
-            ? actor.walk.ms
-            : (meta ? seqDuration(meta.actions[actor.action] || meta.actions.idle) : 900);
+            ? actor.walk.ms / this.timeScale
+            : (meta ? seqDuration(meta.actions[actor.action] || meta.actions.idle) / this.timeScale : 900);
           if (actor.action !== "idle") {
             actor.nextAutomatic = now + actMs + between(1100, 2900);
           }
         }
 
-        const elapsed = now - actor.started;
+        const elapsed = (now - actor.started) * this.timeScale;
         if (actor.action === "walk" && actor.walk) {
-          const progress = Math.min(1, elapsed / actor.walk.ms);
-          if (!this.reduceMotion.matches) {
-            actor.pos.x = actor.walk.from.x + (actor.walk.to.x - actor.walk.from.x) * progress;
-            actor.pos.y = actor.walk.from.y + (actor.walk.to.y - actor.walk.from.y) * progress;
-            actor.btn.style.left = `${(100 * actor.pos.x) / COURT_SIZE.width}%`;
-            actor.btn.style.top = `${(100 * actor.pos.y) / COURT_SIZE.height}%`;
-            actor.btn.style.zIndex = String(Math.round(actor.pos.y));
-          }
-          if (progress >= 1) {
-            this._setActorAction(actor, "idle", now);
+          if (!this.reduceMotion.matches && !isPausedByUser) {
+            const remDx = actor.walk.to.x - actor.pos.x;
+            const remDy = actor.walk.to.y - actor.pos.y;
+            const remDist = Math.hypot(remDx, remDy);
+            if (remDist <= 0.6) {
+              actor.pos.x = actor.walk.to.x;
+              actor.pos.y = actor.walk.to.y;
+              this._setActorAction(actor, "idle", now);
+            } else {
+              const traveled = dist(actor.walk.from, actor.pos);
+              const ramp = Math.max(0.45, Math.min(1, traveled / 12 + 0.45, remDist / 12 + 0.45));
+              const step = Math.min(remDist, actor.speedPxPerMs * dt * ramp);
+              actor.pos.x += (remDx / remDist) * step;
+              actor.pos.y += (remDy / remDist) * step;
+              actor.walkDistance += step;
+              actor.btn.style.left = `${(100 * actor.pos.x) / COURT_SIZE.width}%`;
+              actor.btn.style.top = `${(100 * actor.pos.y) / COURT_SIZE.height}%`;
+              actor.btn.style.zIndex = String(Math.round(actor.pos.y));
+              if (remDist - step <= 0.5) {
+                actor.pos.x = actor.walk.to.x;
+                actor.pos.y = actor.walk.to.y;
+                this._setActorAction(actor, "idle", now);
+              }
+            }
           }
         } else if (actor.action !== "idle" && actor.atlasData) {
           const seq = actor.atlasData.meta.actions[actor.action];
