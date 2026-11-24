@@ -15,10 +15,6 @@
   const matchGrid = document.getElementById("matchGrid");
   const findMatchBtn = document.getElementById("findMatchBtn");
   const closeMatchBtn = document.getElementById("closeMatchPanel");
-  const poseButtons = Array.from(document.querySelectorAll(".sgl-pose-btn[data-pose]"));
-  const signaturePoseGroup = document.getElementById("signaturePoseGroup");
-  const signaturePoseButtons = document.getElementById("signaturePoseButtons");
-  const autoToggleBtn = document.getElementById("autoRoamToggle");
 
   // Member Profile Card Modal
   const memberProfileModal = document.getElementById("memberProfileModal");
@@ -168,23 +164,7 @@
       if (selectedAccountId) {
         courtEngine.selectMember(String(selectedAccountId));
       }
-      const activePlayer = players.find((p) => Number(p.accountId) === Number(selectedAccountId)) || players[0];
-      renderSignaturePoseButtons(activePlayer ? activePlayer.spriteId : null);
     }
-  }
-
-  function renderSignaturePoseButtons(spriteId) {
-    if (!signaturePoseGroup || !signaturePoseButtons || !courtEngine) return;
-    const sigs = courtEngine.getSignatureActions(spriteId);
-    if (!sigs.length) {
-      signaturePoseGroup.hidden = true;
-      signaturePoseButtons.innerHTML = "";
-      return;
-    }
-    signaturePoseGroup.hidden = false;
-    signaturePoseButtons.innerHTML = sigs.map((s) => `
-      <button type="button" class="sgl-pose-btn" data-sig-pose="${escapeHtml(s.id)}">${escapeHtml(s.label)}</button>
-    `).join("");
   }
 
   function openMemberProfileModal(accountId, openerEl) {
@@ -610,32 +590,6 @@
     }
   });
 
-  poseButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      poseButtons.forEach((b) => b.classList.remove("is-active"));
-      signaturePoseButtons?.querySelectorAll(".sgl-pose-btn").forEach((b) => b.classList.remove("is-active"));
-      btn.classList.add("is-active");
-      const pose = btn.getAttribute("data-pose");
-      if (courtEngine && pose) {
-        courtEngine.triggerSelectedAction(pose);
-      }
-    });
-  });
-
-  signaturePoseButtons?.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-sig-pose]");
-    if (!btn || !courtEngine) return;
-    poseButtons.forEach((b) => b.classList.remove("is-active"));
-    signaturePoseButtons.querySelectorAll(".sgl-pose-btn").forEach((b) => b.classList.remove("is-active"));
-    btn.classList.add("is-active");
-    courtEngine.triggerSelectedAction(btn.getAttribute("data-sig-pose"));
-  });
-
-  autoToggleBtn?.addEventListener("click", () => {
-    const isPressed = autoToggleBtn.getAttribute("aria-pressed") === "true";
-    autoToggleBtn.classList.toggle("is-active", !isPressed);
-  });
-
   tabReceivedBtn?.addEventListener("click", () => {
     activeInviteTab = "received";
     syncInviteTabs();
@@ -784,14 +738,12 @@
     courtEngine = new window.SanGiaoLuuCourt({
       mapCanvas,
       actorsLayer,
-      autoToggle: autoToggleBtn,
       assetBaseUrl: assetBase,
       onSelectMember: (member, openerEl) => {
         if (!member) {
           closeMemberProfileModal(false);
           return;
         }
-        renderSignaturePoseButtons(member.spriteId);
         openMemberProfileModal(Number(member.id), openerEl);
       }
     });
