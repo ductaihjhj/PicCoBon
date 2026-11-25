@@ -404,5 +404,78 @@ END";
         });
         Assert.True(acceptRes.Ok, acceptRes.Error);
         Assert.Equal("accepted", acceptRes.Status);
+
+        // Verify counter-accepted invite updates proposedDate & proposedStartTime for both sender & receiver DTOs
+        var senderInvites = await service.GetInvitesAsync(_userAId);
+        var receiverInvites = await service.GetInvitesAsync(_userBId);
+        var senderAccepted = Assert.Single(senderInvites.Sent, i => i.InviteId == created.Invite.InviteId);
+        var receiverAccepted = Assert.Single(receiverInvites.Received, i => i.InviteId == created.Invite.InviteId);
+        Assert.Equal("accepted", senderAccepted.Status);
+        Assert.Equal("accepted", receiverAccepted.Status);
+        Assert.Equal(dayAfter, senderAccepted.ProposedDate);
+        Assert.Equal("20:00", senderAccepted.ProposedStartTime);
+        Assert.Equal(dayAfter, receiverAccepted.ProposedDate);
+        Assert.Equal("20:00", receiverAccepted.ProposedStartTime);
+    }
+
+    [Fact]
+    public async Task AcceptedSocialInvite_Supports150MinDuration_BookingPageMarkup_And_ServerQuoteWithoutCreatingBooking()
+    {
+        using var scope = _factory!.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PickleballContext>();
+        var service = scope.ServiceProvider.GetRequiredService<SocialCourtService>();
+
+        var court1 = new TbCourt
+        {
+            CourtName = "Sân Giao Lưu 01",
+            CourtType = "Indoor",
+            BasePrice = 140000,
+            Surcharge = 20000,
+            IsActive = true
+        };
+        var court2 = new TbCourt
+        {
+            CourtName = "Sân Giao Lưu 02",
+            CourtType = "Outdoor",
+            BasePrice = 120000,
+            Surcharge = 0,
+            IsActive = true
+        };
+        db.TbCourts.AddRange(court1, court2);
+        await db.SaveChangesAsync();
+
+        await service.UpdateMyProfileAsync(_userAId, new UpdateSocialProfileRequest { IsVisibleOnCourt = true, IsReadyToPlay = true });
+        await service.UpdateMyProfileAsync(_userBId, new UpdateSocialProfileRequest { IsVisibleOnCourt = true, IsReadyToPlay = true });
+
+        var targetDate = SocialCourtService.GetVietnamNow().Date.AddDays(2).ToString("yyyy-MM-dd");
+        var create150 = await service.CreateInviteAsync(_userAId, new CreateSocialInviteRequest
+        {
+            ReceiverAccountId = _userBId,
+            ProposedDate = targetDate,
+            ProposedStartTime = "18:00",
+            DurationMinutes = 150,
+            Note = "Kèo 150 phút"
+        });
+        Assert.True(create150.Ok, create150.Error);
+        Assert.Equal(150, create150.Invite!.DurationMinutes);
+
+        var accept150 = await service.RespondInviteAsync(_userBId, create150.Invite.InviteId, new RespondSocialInviteRequest { Action = "accept" });
+        Assert.True(accept150.Ok, accept150.Error);
+
+        var client = _factory!.CreateClient();
+        var bookingHtml = await client.GetStringAsync($"/Booking?source=social-invite&date={targetDate}&time=18:00&duration=150");
+        Assert.Contains("data-dur=\"150\"", bookingHtml);
+        Assert.Contains("id=\"socialInviteBannerHost\"", bookingHtml);
+
+        // Navigating to /Booking with social-invite params must NEVER create any booking or hold
+        Assert.Equal(0, await db.TbBookings.CountAsync());
+
+        // Server quote endpoint accurately prices 150 minutes
+        var quoteRes = await client.GetAsync($"/api/bookings/quote?courtId={court1.CourtId}&date={targetDate}&time=18:00&duration=150");
+        Assert.Equal(HttpStatusCode.OK, quoteRes.StatusCode);
+        using var quoteDoc = JsonDocument.Parse(await quoteRes.Content.ReadAsStringAsync());
+        Assert.True(quoteDoc.RootElement.GetProperty("ok").GetBoolean());
+        Assert.Equal(150, quoteDoc.RootElement.GetProperty("quote").GetProperty("durationMinutes").GetInt32());
+        Assert.Equal(0, await db.TbBookings.CountAsync());
     }
 }

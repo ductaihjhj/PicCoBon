@@ -873,6 +873,64 @@ body:not(.sh-admin-body) .page-hero .badge {
   color: var(--text-muted);
   cursor: not-allowed;
 }
+.sn-matrix-table tr.is-invite-row td {
+  background-color: rgba(46, 139, 87, 0.06);
+}
+.sn-matrix-table tr.is-invite-row .sn-matrix-time-col {
+  background-color: var(--brand-primary-tint);
+  color: var(--brand-primary-ink);
+  box-shadow: inset 3px 0 0 var(--brand-primary);
+}
+.sn-matrix-cell-btn.is-invite-match {
+  background-color: var(--brand-primary-tint);
+  border: 1.5px solid var(--brand-primary);
+  color: var(--brand-primary-ink);
+  font-weight: 700;
+}
+.sn-matrix-cell-btn.is-invite-match:hover {
+  background-color: var(--brand-primary-tint-hover);
+  border-color: var(--brand-deep);
+}
+.court-option.is-invite-match:not(.active) {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 1px var(--brand-primary-border);
+}
+.sn-social-invite-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--brand-primary-border);
+  background-color: var(--brand-primary-tint);
+  color: var(--text-primary);
+}
+.sn-social-invite-banner.is-warning {
+  border-color: var(--status-warning-border);
+  background-color: var(--status-warning-bg);
+}
+.sn-social-invite-banner.is-error {
+  border-color: var(--status-danger-border);
+  background-color: var(--status-danger-bg);
+}
+.sn-social-invite-banner-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+.sn-social-invite-banner-desc {
+  font-size: 0.83rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.sn-social-invite-quick-courts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
 
 .sn-summary-header {
   background-color: var(--surface-secondary) !important;

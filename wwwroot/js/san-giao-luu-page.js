@@ -259,6 +259,8 @@
               <option value="60" selected>60 phút</option>
               <option value="90">90 phút</option>
               <option value="120">120 phút</option>
+              <option value="150">150 phút</option>
+              <option value="180">180 phút</option>
             </select>
           </div>
           <div>
@@ -377,6 +379,16 @@
     }
   }
 
+  function buildAcceptedInviteBookingHref(inv) {
+    const params = new URLSearchParams({
+      source: "social-invite",
+      date: String(inv.proposedDate || "").trim(),
+      time: String(inv.proposedStartTime || "").trim(),
+      duration: String(Number(inv.durationMinutes) || 60)
+    });
+    return `/Booking?${params.toString()}`;
+  }
+
   function renderInvites() {
     const list = activeInviteTab === "received" ? (invites.received || []) : (invites.sent || []);
     const pendingReceivedCount = (invites.received || []).filter((i) => i.status === "pending").length;
@@ -391,10 +403,6 @@
     }
 
     invitesContainer.innerHTML = list.map((inv) => {
-      const bookingDate = inv.status === "countered" && inv.counterDate ? inv.counterDate : inv.proposedDate;
-      const bookingTime = inv.status === "countered" && inv.counterStartTime ? inv.counterStartTime : inv.proposedStartTime;
-      const bookingHref = `/Booking?date=${encodeURIComponent(bookingDate)}&time=${encodeURIComponent(bookingTime)}`;
-
       let actionsHtml = "";
       if (inv.direction === "received" && inv.status === "pending") {
         actionsHtml = `
@@ -423,9 +431,10 @@
           </div>
         `;
       } else if (inv.status === "accepted") {
+        const bookingHref = buildAcceptedInviteBookingHref(inv);
         actionsHtml = `
           <div class="sgl-invite-actions">
-            <a href="${bookingHref}" class="btn btn-primary btn-xs">Xem sân trống tại /Booking</a>
+            <a href="${escapeHtml(bookingHref)}" class="btn btn-primary btn-xs" data-social-booking-link>Xem sân trống</a>
           </div>
         `;
       }
