@@ -124,6 +124,7 @@ public class SpikeAssistantToolService
             ok = true,
             clubName = "Spike Pickleball Club",
             platformName = "Spike OS",
+            founderAndDeveloper = "Phùng Đức Tài",
             address,
             hotline = SanitizeUntrustedText(settings.Hotline, 40),
             email = "contact@spikepickleball.vn",

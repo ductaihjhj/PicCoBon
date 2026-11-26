@@ -1,61 +1,54 @@
 {
+  "version": "sgl-v4",
   "characters": {
     "sunny": {
       "id": "sunny",
       "name": "Sunny",
-      "atlas": "/assets/san-giao-luu/sunny-atlas.png",
-      "profile": "/assets/san-giao-luu/sunny-profile.webp",
+      "atlas": "/assets/san-giao-luu/sunny-atlas.png?v=sgl-v4",
+      "profile": "/assets/san-giao-luu/sunny-profile.webp?v=sgl-v4",
       "animation": {
-        "width": 108,
-        "height": 112,
+        "width": 96,
+        "height": 104,
         "cols": 8,
         "rows": 4,
         "anchor": [
-          54,
-          108
+          48,
+          100
         ],
-        "walkStepPx": 12,
+        "walkStepPx": 9,
         "actions": {
           "idle": [
             {
               "index": 0,
-              "ms": 640
+              "ms": 800
             },
             {
               "index": 1,
-              "ms": 540
+              "ms": 680
             }
           ],
           "walk": [
             {
               "index": 8,
-              "ms": 130
-            },
-            {
-              "index": 9,
-              "ms": 100
+              "ms": 150
             },
             {
               "index": 10,
-              "ms": 130
+              "ms": 150
             },
             {
               "index": 11,
-              "ms": 130
-            },
-            {
-              "index": 12,
-              "ms": 100
+              "ms": 150
             },
             {
               "index": 13,
-              "ms": 130
+              "ms": 150
             }
           ],
           "wave": [
             {
               "index": 0,
-              "ms": 100
+              "ms": 110
             },
             {
               "index": 4,
@@ -63,43 +56,43 @@
             },
             {
               "index": 5,
-              "ms": 220
+              "ms": 210
             },
             {
               "index": 4,
-              "ms": 240
+              "ms": 220
             },
             {
               "index": 0,
-              "ms": 110
+              "ms": 120
             }
           ],
           "swing": [
             {
               "index": 0,
-              "ms": 95
+              "ms": 110
             },
             {
               "index": 6,
-              "ms": 160
+              "ms": 200
             },
             {
               "index": 7,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 0,
-              "ms": 130
+              "ms": 140
             }
           ],
           "blink": [
             {
               "index": 2,
-              "ms": 135
+              "ms": 140
             },
             {
               "index": 0,
-              "ms": 90
+              "ms": 100
             }
           ],
           "wink": [
@@ -115,73 +108,73 @@
           "sunny_fix_band": [
             {
               "index": 16,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 17,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 18,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 19,
-              "ms": 120
+              "ms": 130
             }
           ],
           "sunny_ball_toss": [
             {
               "index": 20,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 21,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 22,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 23,
-              "ms": 120
+              "ms": 130
             }
           ],
           "sunny_peace_sign": [
             {
               "index": 24,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 25,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 26,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 27,
-              "ms": 120
+              "ms": 130
             }
           ],
           "sunny_pony_adjust": [
             {
               "index": 28,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 29,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 30,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 31,
-              "ms": 120
+              "ms": 130
             }
           ]
         },
@@ -212,59 +205,51 @@
     "ace": {
       "id": "ace",
       "name": "Ace",
-      "atlas": "/assets/san-giao-luu/ace-atlas.png",
-      "profile": "/assets/san-giao-luu/ace-profile.webp",
+      "atlas": "/assets/san-giao-luu/ace-atlas.png?v=sgl-v4",
+      "profile": "/assets/san-giao-luu/ace-profile.webp?v=sgl-v4",
       "animation": {
-        "width": 108,
-        "height": 112,
+        "width": 96,
+        "height": 104,
         "cols": 8,
         "rows": 4,
         "anchor": [
-          54,
-          108
+          48,
+          100
         ],
-        "walkStepPx": 14,
+        "walkStepPx": 9.5,
         "actions": {
           "idle": [
             {
               "index": 0,
-              "ms": 640
+              "ms": 800
             },
             {
               "index": 1,
-              "ms": 540
+              "ms": 680
             }
           ],
           "walk": [
             {
               "index": 8,
-              "ms": 130
-            },
-            {
-              "index": 9,
-              "ms": 100
+              "ms": 150
             },
             {
               "index": 10,
-              "ms": 130
+              "ms": 150
             },
             {
               "index": 11,
-              "ms": 130
-            },
-            {
-              "index": 12,
-              "ms": 100
+              "ms": 150
             },
             {
               "index": 13,
-              "ms": 130
+              "ms": 150
             }
           ],
           "wave": [
             {
               "index": 0,
-              "ms": 100
+              "ms": 110
             },
             {
               "index": 4,
@@ -272,43 +257,43 @@
             },
             {
               "index": 5,
-              "ms": 220
+              "ms": 210
             },
             {
               "index": 4,
-              "ms": 240
+              "ms": 220
             },
             {
               "index": 0,
-              "ms": 110
+              "ms": 120
             }
           ],
           "swing": [
             {
               "index": 0,
-              "ms": 95
+              "ms": 110
             },
             {
               "index": 6,
-              "ms": 160
+              "ms": 200
             },
             {
               "index": 7,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 0,
-              "ms": 130
+              "ms": 140
             }
           ],
           "blink": [
             {
               "index": 2,
-              "ms": 135
+              "ms": 140
             },
             {
               "index": 0,
-              "ms": 90
+              "ms": 100
             }
           ],
           "wink": [
@@ -324,73 +309,73 @@
           "ace_cap_tip": [
             {
               "index": 16,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 17,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 18,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 19,
-              "ms": 120
+              "ms": 130
             }
           ],
           "ace_serve": [
             {
               "index": 20,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 21,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 22,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 23,
-              "ms": 120
+              "ms": 130
             }
           ],
           "ace_hold_pose": [
             {
               "index": 24,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 25,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 26,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 27,
-              "ms": 120
+              "ms": 130
             }
           ],
           "ace_regrip": [
             {
               "index": 28,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 29,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 30,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 31,
-              "ms": 120
+              "ms": 130
             }
           ]
         },
@@ -421,59 +406,51 @@
     "mochi": {
       "id": "mochi",
       "name": "Mochi",
-      "atlas": "/assets/san-giao-luu/mochi-atlas.png",
-      "profile": "/assets/san-giao-luu/mochi-profile.webp",
+      "atlas": "/assets/san-giao-luu/mochi-atlas.png?v=sgl-v4",
+      "profile": "/assets/san-giao-luu/mochi-profile.webp?v=sgl-v4",
       "animation": {
-        "width": 108,
-        "height": 112,
+        "width": 96,
+        "height": 104,
         "cols": 8,
         "rows": 4,
         "anchor": [
-          54,
-          108
+          48,
+          100
         ],
-        "walkStepPx": 10,
+        "walkStepPx": 8,
         "actions": {
           "idle": [
             {
               "index": 0,
-              "ms": 640
+              "ms": 800
             },
             {
               "index": 1,
-              "ms": 540
+              "ms": 680
             }
           ],
           "walk": [
             {
               "index": 8,
-              "ms": 130
-            },
-            {
-              "index": 9,
-              "ms": 100
+              "ms": 150
             },
             {
               "index": 10,
-              "ms": 130
+              "ms": 150
             },
             {
               "index": 11,
-              "ms": 130
-            },
-            {
-              "index": 12,
-              "ms": 100
+              "ms": 150
             },
             {
               "index": 13,
-              "ms": 130
+              "ms": 150
             }
           ],
           "wave": [
             {
               "index": 0,
-              "ms": 100
+              "ms": 110
             },
             {
               "index": 4,
@@ -481,43 +458,43 @@
             },
             {
               "index": 5,
-              "ms": 220
+              "ms": 210
             },
             {
               "index": 4,
-              "ms": 240
+              "ms": 220
             },
             {
               "index": 0,
-              "ms": 110
+              "ms": 120
             }
           ],
           "swing": [
             {
               "index": 0,
-              "ms": 95
+              "ms": 110
             },
             {
               "index": 6,
-              "ms": 160
+              "ms": 200
             },
             {
               "index": 7,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 0,
-              "ms": 130
+              "ms": 140
             }
           ],
           "blink": [
             {
               "index": 2,
-              "ms": 135
+              "ms": 140
             },
             {
               "index": 0,
-              "ms": 90
+              "ms": 100
             }
           ],
           "wink": [
@@ -533,73 +510,73 @@
           "mochi_peekaboo": [
             {
               "index": 16,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 17,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 18,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 19,
-              "ms": 120
+              "ms": 130
             }
           ],
           "mochi_water_break": [
             {
               "index": 20,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 21,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 22,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 23,
-              "ms": 120
+              "ms": 130
             }
           ],
           "mochi_yawn": [
             {
               "index": 24,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 25,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 26,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 27,
-              "ms": 120
+              "ms": 130
             }
           ],
           "mochi_shy_nod": [
             {
               "index": 28,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 29,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 30,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 31,
-              "ms": 120
+              "ms": 130
             }
           ]
         },
@@ -630,59 +607,51 @@
     "coco": {
       "id": "coco",
       "name": "Coco",
-      "atlas": "/assets/san-giao-luu/coco-atlas.png",
-      "profile": "/assets/san-giao-luu/coco-profile.webp",
+      "atlas": "/assets/san-giao-luu/coco-atlas.png?v=sgl-v4",
+      "profile": "/assets/san-giao-luu/coco-profile.webp?v=sgl-v4",
       "animation": {
-        "width": 108,
-        "height": 112,
+        "width": 96,
+        "height": 104,
         "cols": 8,
         "rows": 4,
         "anchor": [
-          54,
-          108
+          48,
+          100
         ],
-        "walkStepPx": 13,
+        "walkStepPx": 9,
         "actions": {
           "idle": [
             {
               "index": 0,
-              "ms": 640
+              "ms": 800
             },
             {
               "index": 1,
-              "ms": 540
+              "ms": 680
             }
           ],
           "walk": [
             {
               "index": 8,
-              "ms": 130
-            },
-            {
-              "index": 9,
-              "ms": 100
+              "ms": 150
             },
             {
               "index": 10,
-              "ms": 130
+              "ms": 150
             },
             {
               "index": 11,
-              "ms": 130
-            },
-            {
-              "index": 12,
-              "ms": 100
+              "ms": 150
             },
             {
               "index": 13,
-              "ms": 130
+              "ms": 150
             }
           ],
           "wave": [
             {
               "index": 0,
-              "ms": 100
+              "ms": 110
             },
             {
               "index": 4,
@@ -690,43 +659,43 @@
             },
             {
               "index": 5,
-              "ms": 220
+              "ms": 210
             },
             {
               "index": 4,
-              "ms": 240
+              "ms": 220
             },
             {
               "index": 0,
-              "ms": 110
+              "ms": 120
             }
           ],
           "swing": [
             {
               "index": 0,
-              "ms": 95
+              "ms": 110
             },
             {
               "index": 6,
-              "ms": 160
+              "ms": 200
             },
             {
               "index": 7,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 0,
-              "ms": 130
+              "ms": 140
             }
           ],
           "blink": [
             {
               "index": 2,
-              "ms": 135
+              "ms": 140
             },
             {
               "index": 0,
-              "ms": 90
+              "ms": 100
             }
           ],
           "wink": [
@@ -742,73 +711,73 @@
           "coco_ear_perk": [
             {
               "index": 16,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 17,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 18,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 19,
-              "ms": 120
+              "ms": 130
             }
           ],
           "coco_dink": [
             {
               "index": 20,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 21,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 22,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 23,
-              "ms": 120
+              "ms": 130
             }
           ],
           "coco_look_back": [
             {
               "index": 24,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 25,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 26,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 27,
-              "ms": 120
+              "ms": 130
             }
           ],
           "coco_quick_salute": [
             {
               "index": 28,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 29,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 30,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 31,
-              "ms": 120
+              "ms": 130
             }
           ]
         },
@@ -836,62 +805,54 @@
         ]
       }
     },
-    "leo": {
-      "id": "leo",
-      "name": "Leo",
-      "atlas": "/assets/san-giao-luu/leo-atlas.png",
-      "profile": "/assets/san-giao-luu/leo-profile.webp",
+    "maya": {
+      "id": "maya",
+      "name": "Maya",
+      "atlas": "/assets/san-giao-luu/maya-atlas.png?v=sgl-v4",
+      "profile": "/assets/san-giao-luu/maya-profile.webp?v=sgl-v4",
       "animation": {
-        "width": 108,
-        "height": 112,
+        "width": 96,
+        "height": 104,
         "cols": 8,
         "rows": 4,
         "anchor": [
-          54,
-          108
+          48,
+          100
         ],
-        "walkStepPx": 12,
+        "walkStepPx": 9.5,
         "actions": {
           "idle": [
             {
               "index": 0,
-              "ms": 640
+              "ms": 800
             },
             {
               "index": 1,
-              "ms": 540
+              "ms": 680
             }
           ],
           "walk": [
             {
               "index": 8,
-              "ms": 130
-            },
-            {
-              "index": 9,
-              "ms": 100
+              "ms": 150
             },
             {
               "index": 10,
-              "ms": 130
+              "ms": 150
             },
             {
               "index": 11,
-              "ms": 130
-            },
-            {
-              "index": 12,
-              "ms": 100
+              "ms": 150
             },
             {
               "index": 13,
-              "ms": 130
+              "ms": 150
             }
           ],
           "wave": [
             {
               "index": 0,
-              "ms": 100
+              "ms": 110
             },
             {
               "index": 4,
@@ -899,43 +860,244 @@
             },
             {
               "index": 5,
-              "ms": 220
+              "ms": 210
             },
             {
               "index": 4,
-              "ms": 240
+              "ms": 220
             },
             {
               "index": 0,
-              "ms": 110
+              "ms": 120
             }
           ],
           "swing": [
             {
               "index": 0,
-              "ms": 95
+              "ms": 110
             },
             {
               "index": 6,
-              "ms": 160
+              "ms": 200
             },
             {
               "index": 7,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 0,
-              "ms": 130
+              "ms": 140
             }
           ],
           "blink": [
             {
               "index": 2,
-              "ms": 135
+              "ms": 140
             },
             {
               "index": 0,
-              "ms": 90
+              "ms": 100
+            }
+          ],
+          "wink": [
+            {
+              "index": 3,
+              "ms": 420
+            },
+            {
+              "index": 0,
+              "ms": 120
+            }
+          ],
+          "maya_paddle_twirl": [
+            {
+              "index": 16,
+              "ms": 150
+            },
+            {
+              "index": 17,
+              "ms": 290
+            },
+            {
+              "index": 18,
+              "ms": 260
+            },
+            {
+              "index": 19,
+              "ms": 130
+            }
+          ],
+          "maya_fist_pump": [
+            {
+              "index": 20,
+              "ms": 150
+            },
+            {
+              "index": 21,
+              "ms": 290
+            },
+            {
+              "index": 22,
+              "ms": 260
+            },
+            {
+              "index": 23,
+              "ms": 130
+            }
+          ],
+          "maya_backhand_ready": [
+            {
+              "index": 24,
+              "ms": 150
+            },
+            {
+              "index": 25,
+              "ms": 290
+            },
+            {
+              "index": 26,
+              "ms": 260
+            },
+            {
+              "index": 27,
+              "ms": 130
+            }
+          ],
+          "maya_shoulder_stretch": [
+            {
+              "index": 28,
+              "ms": 150
+            },
+            {
+              "index": 29,
+              "ms": 290
+            },
+            {
+              "index": 30,
+              "ms": 260
+            },
+            {
+              "index": 31,
+              "ms": 130
+            }
+          ]
+        },
+        "signatureActions": [
+          {
+            "id": "maya_paddle_twirl",
+            "label": "Xoay vợt",
+            "autonomous": true
+          },
+          {
+            "id": "maya_fist_pump",
+            "label": "Ăn mừng",
+            "autonomous": true
+          },
+          {
+            "id": "maya_backhand_ready",
+            "label": "Thế trái tay",
+            "autonomous": true
+          },
+          {
+            "id": "maya_shoulder_stretch",
+            "label": "Giãn vai",
+            "autonomous": true
+          }
+        ]
+      }
+    },
+    "leo": {
+      "id": "leo",
+      "name": "Leo",
+      "atlas": "/assets/san-giao-luu/leo-atlas.png?v=sgl-v4",
+      "profile": "/assets/san-giao-luu/leo-profile.webp?v=sgl-v4",
+      "animation": {
+        "width": 96,
+        "height": 104,
+        "cols": 8,
+        "rows": 4,
+        "anchor": [
+          48,
+          100
+        ],
+        "walkStepPx": 9,
+        "actions": {
+          "idle": [
+            {
+              "index": 0,
+              "ms": 800
+            },
+            {
+              "index": 1,
+              "ms": 680
+            }
+          ],
+          "walk": [
+            {
+              "index": 8,
+              "ms": 150
+            },
+            {
+              "index": 10,
+              "ms": 150
+            },
+            {
+              "index": 11,
+              "ms": 150
+            },
+            {
+              "index": 13,
+              "ms": 150
+            }
+          ],
+          "wave": [
+            {
+              "index": 0,
+              "ms": 110
+            },
+            {
+              "index": 4,
+              "ms": 220
+            },
+            {
+              "index": 5,
+              "ms": 210
+            },
+            {
+              "index": 4,
+              "ms": 220
+            },
+            {
+              "index": 0,
+              "ms": 120
+            }
+          ],
+          "swing": [
+            {
+              "index": 0,
+              "ms": 110
+            },
+            {
+              "index": 6,
+              "ms": 200
+            },
+            {
+              "index": 7,
+              "ms": 260
+            },
+            {
+              "index": 0,
+              "ms": 140
+            }
+          ],
+          "blink": [
+            {
+              "index": 2,
+              "ms": 140
+            },
+            {
+              "index": 0,
+              "ms": 100
             }
           ],
           "wink": [
@@ -951,73 +1113,73 @@
           "leo_fix_glasses": [
             {
               "index": 16,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 17,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 18,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 19,
-              "ms": 120
+              "ms": 130
             }
           ],
           "leo_call_play": [
             {
               "index": 20,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 21,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 22,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 23,
-              "ms": 120
+              "ms": 130
             }
           ],
           "leo_approve": [
             {
               "index": 24,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 25,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 26,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 27,
-              "ms": 120
+              "ms": 130
             }
           ],
           "leo_clipboard": [
             {
               "index": 28,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 29,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 30,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 31,
-              "ms": 120
+              "ms": 130
             }
           ]
         },
@@ -1048,59 +1210,51 @@
     "kiko": {
       "id": "kiko",
       "name": "Kiko",
-      "atlas": "/assets/san-giao-luu/kiko-atlas.png",
-      "profile": "/assets/san-giao-luu/kiko-profile.webp",
+      "atlas": "/assets/san-giao-luu/kiko-atlas.png?v=sgl-v4",
+      "profile": "/assets/san-giao-luu/kiko-profile.webp?v=sgl-v4",
       "animation": {
-        "width": 108,
-        "height": 112,
+        "width": 96,
+        "height": 104,
         "cols": 8,
         "rows": 4,
         "anchor": [
-          54,
-          108
+          48,
+          100
         ],
-        "walkStepPx": 12,
+        "walkStepPx": 9,
         "actions": {
           "idle": [
             {
               "index": 0,
-              "ms": 640
+              "ms": 800
             },
             {
               "index": 1,
-              "ms": 540
+              "ms": 680
             }
           ],
           "walk": [
             {
               "index": 8,
-              "ms": 130
-            },
-            {
-              "index": 9,
-              "ms": 100
+              "ms": 150
             },
             {
               "index": 10,
-              "ms": 130
+              "ms": 150
             },
             {
               "index": 11,
-              "ms": 130
-            },
-            {
-              "index": 12,
-              "ms": 100
+              "ms": 150
             },
             {
               "index": 13,
-              "ms": 130
+              "ms": 150
             }
           ],
           "wave": [
             {
               "index": 0,
-              "ms": 100
+              "ms": 110
             },
             {
               "index": 4,
@@ -1108,43 +1262,43 @@
             },
             {
               "index": 5,
-              "ms": 220
+              "ms": 210
             },
             {
               "index": 4,
-              "ms": 240
+              "ms": 220
             },
             {
               "index": 0,
-              "ms": 110
+              "ms": 120
             }
           ],
           "swing": [
             {
               "index": 0,
-              "ms": 95
+              "ms": 110
             },
             {
               "index": 6,
-              "ms": 160
+              "ms": 200
             },
             {
               "index": 7,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 0,
-              "ms": 130
+              "ms": 140
             }
           ],
           "blink": [
             {
               "index": 2,
-              "ms": 135
+              "ms": 140
             },
             {
               "index": 0,
-              "ms": 90
+              "ms": 100
             }
           ],
           "wink": [
@@ -1160,73 +1314,73 @@
           "kiko_paw_tap": [
             {
               "index": 16,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 17,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 18,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 19,
-              "ms": 120
+              "ms": 130
             }
           ],
           "kiko_ball_pounce": [
             {
               "index": 20,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 21,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 22,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 23,
-              "ms": 120
+              "ms": 130
             }
           ],
           "kiko_head_tilt": [
             {
               "index": 24,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 25,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 26,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 27,
-              "ms": 120
+              "ms": 130
             }
           ],
           "kiko_ear_flick": [
             {
               "index": 28,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 29,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 30,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 31,
-              "ms": 120
+              "ms": 130
             }
           ]
         },
@@ -1254,271 +1408,54 @@
         ]
       }
     },
-    "maya": {
-      "id": "maya",
-      "name": "Maya",
-      "atlas": "/assets/san-giao-luu/maya-atlas.png",
-      "profile": "/assets/san-giao-luu/maya-profile.webp",
-      "animation": {
-        "width": 108,
-        "height": 112,
-        "cols": 8,
-        "rows": 4,
-        "anchor": [
-          54,
-          108
-        ],
-        "walkStepPx": 14,
-        "actions": {
-          "idle": [
-            {
-              "index": 0,
-              "ms": 640
-            },
-            {
-              "index": 1,
-              "ms": 540
-            }
-          ],
-          "walk": [
-            {
-              "index": 8,
-              "ms": 130
-            },
-            {
-              "index": 9,
-              "ms": 100
-            },
-            {
-              "index": 10,
-              "ms": 130
-            },
-            {
-              "index": 11,
-              "ms": 130
-            },
-            {
-              "index": 12,
-              "ms": 100
-            },
-            {
-              "index": 13,
-              "ms": 130
-            }
-          ],
-          "wave": [
-            {
-              "index": 0,
-              "ms": 100
-            },
-            {
-              "index": 4,
-              "ms": 220
-            },
-            {
-              "index": 5,
-              "ms": 220
-            },
-            {
-              "index": 4,
-              "ms": 240
-            },
-            {
-              "index": 0,
-              "ms": 110
-            }
-          ],
-          "swing": [
-            {
-              "index": 0,
-              "ms": 95
-            },
-            {
-              "index": 6,
-              "ms": 160
-            },
-            {
-              "index": 7,
-              "ms": 240
-            },
-            {
-              "index": 0,
-              "ms": 130
-            }
-          ],
-          "blink": [
-            {
-              "index": 2,
-              "ms": 135
-            },
-            {
-              "index": 0,
-              "ms": 90
-            }
-          ],
-          "wink": [
-            {
-              "index": 3,
-              "ms": 420
-            },
-            {
-              "index": 0,
-              "ms": 120
-            }
-          ],
-          "maya_paddle_twirl": [
-            {
-              "index": 16,
-              "ms": 160
-            },
-            {
-              "index": 17,
-              "ms": 280
-            },
-            {
-              "index": 18,
-              "ms": 240
-            },
-            {
-              "index": 19,
-              "ms": 120
-            }
-          ],
-          "maya_fist_pump": [
-            {
-              "index": 20,
-              "ms": 160
-            },
-            {
-              "index": 21,
-              "ms": 280
-            },
-            {
-              "index": 22,
-              "ms": 240
-            },
-            {
-              "index": 23,
-              "ms": 120
-            }
-          ],
-          "maya_backhand_ready": [
-            {
-              "index": 24,
-              "ms": 160
-            },
-            {
-              "index": 25,
-              "ms": 280
-            },
-            {
-              "index": 26,
-              "ms": 240
-            },
-            {
-              "index": 27,
-              "ms": 120
-            }
-          ],
-          "maya_shoulder_stretch": [
-            {
-              "index": 28,
-              "ms": 160
-            },
-            {
-              "index": 29,
-              "ms": 280
-            },
-            {
-              "index": 30,
-              "ms": 240
-            },
-            {
-              "index": 31,
-              "ms": 120
-            }
-          ]
-        },
-        "signatureActions": [
-          {
-            "id": "maya_paddle_twirl",
-            "label": "Xoay vợt",
-            "autonomous": true
-          },
-          {
-            "id": "maya_fist_pump",
-            "label": "Ăn mừng",
-            "autonomous": true
-          },
-          {
-            "id": "maya_backhand_ready",
-            "label": "Thế trái tay",
-            "autonomous": true
-          },
-          {
-            "id": "maya_shoulder_stretch",
-            "label": "Giãn vai",
-            "autonomous": true
-          }
-        ]
-      }
-    },
     "kai": {
       "id": "kai",
       "name": "Kai",
-      "atlas": "/assets/san-giao-luu/kai-atlas.png",
-      "profile": "/assets/san-giao-luu/kai-profile.webp",
+      "atlas": "/assets/san-giao-luu/kai-atlas.png?v=sgl-v4",
+      "profile": "/assets/san-giao-luu/kai-profile.webp?v=sgl-v4",
       "animation": {
-        "width": 108,
-        "height": 112,
+        "width": 96,
+        "height": 104,
         "cols": 8,
         "rows": 4,
         "anchor": [
-          54,
-          108
+          48,
+          100
         ],
-        "walkStepPx": 16,
+        "walkStepPx": 10.5,
         "actions": {
           "idle": [
             {
               "index": 0,
-              "ms": 640
+              "ms": 800
             },
             {
               "index": 1,
-              "ms": 540
+              "ms": 680
             }
           ],
           "walk": [
             {
               "index": 8,
-              "ms": 130
-            },
-            {
-              "index": 9,
-              "ms": 100
+              "ms": 150
             },
             {
               "index": 10,
-              "ms": 130
+              "ms": 150
             },
             {
               "index": 11,
-              "ms": 130
-            },
-            {
-              "index": 12,
-              "ms": 100
+              "ms": 150
             },
             {
               "index": 13,
-              "ms": 130
+              "ms": 150
             }
           ],
           "wave": [
             {
               "index": 0,
-              "ms": 100
+              "ms": 110
             },
             {
               "index": 4,
@@ -1526,43 +1463,43 @@
             },
             {
               "index": 5,
-              "ms": 220
+              "ms": 210
             },
             {
               "index": 4,
-              "ms": 240
+              "ms": 220
             },
             {
               "index": 0,
-              "ms": 110
+              "ms": 120
             }
           ],
           "swing": [
             {
               "index": 0,
-              "ms": 95
+              "ms": 110
             },
             {
               "index": 6,
-              "ms": 160
+              "ms": 200
             },
             {
               "index": 7,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 0,
-              "ms": 130
+              "ms": 140
             }
           ],
           "blink": [
             {
               "index": 2,
-              "ms": 135
+              "ms": 140
             },
             {
               "index": 0,
-              "ms": 90
+              "ms": 100
             }
           ],
           "wink": [
@@ -1578,73 +1515,73 @@
           "kai_split_step": [
             {
               "index": 16,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 17,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 18,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 19,
-              "ms": 120
+              "ms": 130
             }
           ],
           "kai_overhead": [
             {
               "index": 20,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 21,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 22,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 23,
-              "ms": 120
+              "ms": 130
             }
           ],
           "kai_shoulder_roll": [
             {
               "index": 24,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 25,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 26,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 27,
-              "ms": 120
+              "ms": 130
             }
           ],
           "kai_ready_fist": [
             {
               "index": 28,
-              "ms": 160
+              "ms": 150
             },
             {
               "index": 29,
-              "ms": 280
+              "ms": 290
             },
             {
               "index": 30,
-              "ms": 240
+              "ms": 260
             },
             {
               "index": 31,
-              "ms": 120
+              "ms": 130
             }
           ]
         },

@@ -737,6 +737,35 @@ END";
         Assert.Equal("/Lookup", links[0].GetProperty("url").GetString());
     }
 
+    [Fact]
+    public async Task AI08_FounderAndDeveloperKnowledge_IsGroundedInSystemInstructionAndClubInfoTool()
+    {
+        string capturedSystemInstruction = string.Empty;
+        _fakeGemini.SetHandler((sysInstruction, contents, _) =>
+        {
+            capturedSystemInstruction = sysInstruction;
+            string serialized = SerializeContentsUnescaped(contents);
+            if (!serialized.Contains("functionResponse", StringComparison.Ordinal))
+            {
+                return Task.FromResult(ControllableGeminiClient.CreateToolCallResult(
+                    ("get_club_info", new { })));
+            }
+
+            Assert.Contains("Phùng Đức Tài", serialized);
+            return Task.FromResult(ControllableGeminiClient.CreateTextResult(
+                "Người sáng lập và phát triển Spike Pickleball Club (Spike OS) là **Phùng Đức Tài**."));
+        });
+
+        var client = CreateCookieClient();
+        var res = await PostAssistantChatAsync(client, "Ai là người sáng lập và phát triển Spike?");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+
+        Assert.Contains("Phùng Đức Tài", capturedSystemInstruction);
+        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+        Assert.True(doc.RootElement.GetProperty("ok").GetBoolean());
+        Assert.Contains("Phùng Đức Tài", doc.RootElement.GetProperty("reply").GetString());
+    }
+
     private sealed class ControllableGeminiClient : IGeminiClient
     {
         private Func<string, IReadOnlyList<object>, object?, Task<GeminiClientResult>> _handler =

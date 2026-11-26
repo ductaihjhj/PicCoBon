@@ -30,10 +30,12 @@ appsettings.Production.local.json
 *.key
 *.bak
 
-## Logs & caches
+## Logs, archives & caches
 *.log
+*.tmp
 .DS_Store
 Thumbs.db
+wwwroot/**/*.zip
 
 ## Temporary subagent / skill test directories
 .anthropic-skills-temp/

@@ -5,6 +5,8 @@
    Zero-Slot Reset & CTA Guard (UI-A08), Single QR DOM (UI-C01), Keyboard A11y (UI-C02)
    ================================================================ */
 
+const ALLOWED_BOOKING_DURATIONS = [60, 90, 120, 150, 180];
+
 let selectedCourtId = null;
 let selectedDate = getTodayStr();
 let selectedDuration = 60;
@@ -21,6 +23,207 @@ let requestedInvalidCourtId = null;
 let pendingDeepLinkTime = '';
 let selectedBookingPaymentMethod = 'cash';
 let bookingPayPalConfig = { enabled: false, vndPerUsd: 0 };
+let socialInviteState = null;
+
+function isSocialInviteOrigin() {
+  return Boolean(socialInviteState && socialInviteState.active);
+}
+
+function isSocialInvitePinned() {
+  return Boolean(socialInviteState && socialInviteState.active && !socialInviteState.departed);
+}
+
+function isValidHalfHourTimeParam(raw) {
+  return /^([01]\d|2[0-3]):(00|30)$/.test(String(raw || '').trim());
+}
+
+function evaluateSocialInviteAvailability() {
+  if (!isSocialInvitePinned()) {
+    return { status: 'inactive', matchingCourts: [], tone: 'ready', title: '', message: '' };
+  }
+
+  if (!socialInviteState.paramsValid) {
+    return {
+      status: 'invalid-params',
+      matchingCourts: [],
+      tone: 'error',
+      title: 'Liên kết lịch hẹn không hợp lệ',
+      message: socialInviteState.paramError || 'Thiếu hoặc sai định dạng ngày, giờ bắt đầu hoặc thời lượng. Bạn có thể tự chọn lịch đặt sân bên dưới.'
+    };
+  }
+
+  if (!HAS_SERVER_STATE) {
+    if (SPIKE_SYNC_STATE === 'offline' || SPIKE_SYNC_STATE === 'error') {
+      return {
+        status: 'offline',
+        matchingCourts: [],
+        tone: 'error',
+        title: 'Mất kết nối máy chủ khi tra lịch hẹn',
+        message: 'Chưa thể kiểm tra sân trống và báo giá cho lời mời giao lưu. Vui lòng kiểm tra kết nối rồi bấm Thử kết nối lại.'
+      };
+    }
+    return {
+      status: 'syncing',
+      matchingCourts: [],
+      tone: 'ready',
+      title: 'Đang kiểm tra sân trống theo lời mời giao lưu...',
+      message: 'Hệ thống đang tải lịch sân thực tế từ máy chủ.'
+    };
+  }
+
+  const targetDate = socialInviteState.targetDate;
+  const targetTime = socialInviteState.targetTime;
+  const targetDur = socialInviteState.targetDuration;
+  const endStr = getEndTime(targetTime, targetDur);
+  const openStr = CMS_CONFIG.openTime || '06:00';
+  const closeStr = CMS_CONFIG.closeTime || '22:00';
+  const openMins = timeToMinutes(openStr) || (6 * 60);
+  const closeMins = timeToMinutes(closeStr) || (22 * 60);
+  const startMins = timeToMinutes(targetTime);
+
+  if (startMins < openMins || (startMins + targetDur) > closeMins) {
+    return {
+      status: 'outside-hours',
+      matchingCourts: [],
+      tone: 'warning',
+      title: 'Giờ hẹn nằm ngoài khung hoạt động CLB',
+      message: `Khung giờ ${targetTime} – ${endStr} (${targetDur} phút) vượt ngoài giờ mở cửa (${openStr} – ${closeStr}). Bạn có thể chủ động chọn giờ hoặc thời lượng khác bên dưới.`
+    };
+  }
+
+  if (targetDate === getTodayStr() && startMins < (getNowMinutes() - 5)) {
+    return {
+      status: 'past-time',
+      matchingCourts: [],
+      tone: 'warning',
+      title: 'Khung giờ hẹn đã qua',
+      message: `Giờ hẹn ${targetTime} ngày ${formatDateVN(targetDate)} đã trôi qua. Bạn có thể chọn khung giờ trống khác bên dưới.`
+    };
+  }
+
+  if (COURTS.length === 0) {
+    return {
+      status: 'no-courts',
+      matchingCourts: [],
+      tone: 'warning',
+      title: 'Hiện chưa có sân mở đặt trực tuyến',
+      message: 'Câu lạc bộ đang cập nhật danh sách sân hoạt động. Vui lòng liên hệ lễ tân để được hỗ trợ.'
+    };
+  }
+
+  const matchingCourts = [];
+  let lockedCount = 0;
+  COURTS.forEach(c => {
+    const check = checkCourtConflict(c.id, targetDate, targetTime, targetDur);
+    if (!check.conflict) {
+      matchingCourts.push(c);
+    } else if (check.type === 'lock') {
+      lockedCount++;
+    }
+  });
+
+  if (matchingCourts.length > 0) {
+    return {
+      status: 'available',
+      matchingCourts,
+      tone: 'ready',
+      title: `Lịch hẹn Sân giao lưu: ${formatDateVN(targetDate)} · ${targetTime} – ${endStr} (${targetDur} phút)`,
+      message: `Có ${matchingCourts.length}/${COURTS.length} sân còn trống đúng khung giờ đã thống nhất. Hãy chọn một sân bên dưới để nhận báo giá máy chủ và xác nhận đặt sân.`
+    };
+  }
+
+  if (lockedCount === COURTS.length) {
+    return {
+      status: 'all-locked',
+      matchingCourts: [],
+      tone: 'warning',
+      title: 'Tất cả sân đang bảo trì trong khung giờ hẹn',
+      message: `Khung giờ ${targetTime} – ${endStr} ngày ${formatDateVN(targetDate)} hiện đang khóa bảo trì trên toàn bộ sân. Bạn có thể chủ động chọn giờ hoặc ngày khác.`
+    };
+  }
+
+  return {
+    status: 'all-busy',
+    matchingCourts: [],
+    tone: 'warning',
+    title: 'Hết sân trống đúng khung giờ hẹn',
+    message: `Khung giờ ${targetTime} – ${endStr} (${targetDur} phút) ngày ${formatDateVN(targetDate)} hiện đã kín lịch hoặc đang bảo trì. Bạn có thể chủ động chọn khung giờ hoặc ngày khác trên ma trận.`
+  };
+}
+
+function selectSocialInviteCourt(courtId) {
+  if (!isSocialInvitePinned() || !socialInviteState.targetTime) return;
+  selectMatrixSlot(courtId, socialInviteState.targetTime);
+}
+
+function renderSocialInviteBanner() {
+  const host = document.getElementById('socialInviteBannerHost');
+  if (!host) return;
+
+  if (!isSocialInvitePinned()) {
+    host.hidden = true;
+    host.innerHTML = '';
+    return;
+  }
+
+  const evalRes = evaluateSocialInviteAvailability();
+  if (evalRes.status === 'inactive') {
+    host.hidden = true;
+    host.innerHTML = '';
+    return;
+  }
+
+  let toneClass = '';
+  let iconName = 'lucide:calendar-check-2';
+  if (evalRes.tone === 'warning') {
+    toneClass = 'is-warning';
+    iconName = 'lucide:calendar-clock';
+  } else if (evalRes.tone === 'error') {
+    toneClass = 'is-error';
+    iconName = 'lucide:alert-circle';
+  }
+
+  let bodyDesc = escapeHtml(evalRes.message);
+  let quickActionsHtml = '';
+
+  if (evalRes.status === 'available') {
+    const chosenCourt = getCourtById(selectedCourtId);
+    const chosenMatches = chosenCourt && evalRes.matchingCourts.some(c => Number(c.id) === Number(chosenCourt.id));
+    if (chosenMatches) {
+      bodyDesc = `Đã chọn <strong>${escapeHtml(chosenCourt.name)}</strong> cho khung <strong>${escapeHtml(socialInviteState.targetTime)} – ${escapeHtml(getEndTime(socialInviteState.targetTime, socialInviteState.targetDuration))}</strong> (${Number(socialInviteState.targetDuration)} phút). Kiểm tra báo giá bên phải và bấm xác nhận khi sẵn sàng.`;
+    } else if (chosenCourt && !chosenMatches) {
+      toneClass = 'is-warning';
+      iconName = 'lucide:alert-triangle';
+      bodyDesc = `<strong>${escapeHtml(chosenCourt.name)}</strong> hiện không trống khung <strong>${escapeHtml(socialInviteState.targetTime)}</strong>. Hãy chọn một sân còn trống đúng hẹn bên dưới hoặc chủ động chọn giờ khác.`;
+    }
+
+    if (!chosenMatches) {
+      quickActionsHtml = `<div class="sn-social-invite-quick-courts">${evalRes.matchingCourts.map(c => `
+        <button type="button" class="btn btn-primary btn-xs" onclick="selectSocialInviteCourt(${Number(c.id)})">
+          Chọn ${escapeHtml(c.name)}
+        </button>
+      `).join('')}</div>`;
+    }
+  } else if (evalRes.status === 'offline') {
+    quickActionsHtml = `<div class="sn-social-invite-quick-courts">
+      <button type="button" class="btn btn-primary btn-xs" onclick="retryServerSync()">Thử kết nối lại</button>
+    </div>`;
+  }
+
+  host.hidden = false;
+  host.innerHTML = `
+    <div class="sn-social-invite-banner ${toneClass}" role="status" aria-live="polite" data-invite-status="${escapeAttr(evalRes.status)}">
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <iconify-icon icon="${iconName}" width="19" style="margin-top:2px;flex-shrink:0;color:var(--brand-primary);"></iconify-icon>
+        <div>
+          <div class="sn-social-invite-banner-title">${escapeHtml(evalRes.title)}</div>
+          <div class="sn-social-invite-banner-desc">${bodyDesc}</div>
+          ${quickActionsHtml}
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 async function initBookingPayPalOption() {
   if (!window.SpikePayPal) return;
@@ -220,10 +423,19 @@ function syncBookingUrlState() {
   if (typeof window === 'undefined' || !window.history || typeof window.history.replaceState !== 'function') return;
   try {
     const url = new URL(window.location.href);
-    if (selectedCourtId) url.searchParams.set('court', String(Number(selectedCourtId)));
+    if (isSocialInviteOrigin() && socialInviteState.departed) {
+      url.searchParams.delete('source');
+    }
+    if (selectedCourtId) {
+      url.searchParams.set('court', String(Number(selectedCourtId)));
+    } else {
+      url.searchParams.delete('court');
+    }
     if (selectedDate) url.searchParams.set('date', selectedDate);
     if (selectedStartTime) {
       url.searchParams.set('time', selectedStartTime);
+    } else if (isSocialInvitePinned() && socialInviteState.paramsValid && socialInviteState.targetTime) {
+      url.searchParams.set('time', socialInviteState.targetTime);
     } else {
       url.searchParams.delete('time');
     }
@@ -243,10 +455,26 @@ function invalidateServerQuote() {
 
 /**
  * UI-A08: Ensures selectedStartTime only ever points to an AVAILABLE slot.
- * If all slots for the selected court & date are occupied/locked/past, resets selectedStartTime = ''!
+ * In social-invite context, never silently falls back to 17:00 or the first available slot.
  */
 function ensureValidSelectedTime() {
-  if (!HAS_SERVER_STATE || !getCourtById(selectedCourtId)) {
+  if (!HAS_SERVER_STATE) {
+    selectedStartTime = '';
+    return;
+  }
+
+  if (isSocialInvitePinned()) {
+    const evalRes = evaluateSocialInviteAvailability();
+    if (evalRes.status !== 'available' || !getCourtById(selectedCourtId)) {
+      selectedStartTime = '';
+      return;
+    }
+    const courtHasTargetSlot = evalRes.matchingCourts.some(c => Number(c.id) === Number(selectedCourtId));
+    selectedStartTime = courtHasTargetSlot ? socialInviteState.targetTime : '';
+    return;
+  }
+
+  if (!getCourtById(selectedCourtId)) {
     selectedStartTime = '';
     return;
   }
@@ -264,6 +492,13 @@ function ensureValidSelectedTime() {
   }
   pendingDeepLinkTime = '';
 
+  if (isSocialInviteOrigin()) {
+    if (!selectedStartTime || !available.includes(selectedStartTime)) {
+      selectedStartTime = '';
+    }
+    return;
+  }
+
   if (!selectedStartTime || !available.includes(selectedStartTime)) {
     selectedStartTime = available.includes('17:00') ? '17:00' : available[0];
   }
@@ -271,9 +506,68 @@ function ensureValidSelectedTime() {
 
 function applyUrlParamsOnce() {
   const params = new URLSearchParams(window.location.search);
+  const sourceParam = (params.get('source') || '').trim().toLowerCase();
   const dateParam = params.get('date');
   const timeParam = params.get('time');
-  const durParam = parseInt(params.get('duration') || '', 10);
+  const rawDurStr = (params.get('duration') || '').trim();
+  const durParam = /^\d+$/.test(rawDurStr) ? parseInt(rawDurStr, 10) : NaN;
+
+  if (sourceParam === 'social-invite') {
+    const issues = [];
+    let dateOk = false;
+    let normalizedInviteDate = getTodayStr();
+
+    if (!dateParam || !dateParam.trim()) {
+      issues.push('Thiếu ngày hẹn trong liên kết.');
+    } else {
+      const checkDate = validateAndNormalizeBookingDate(dateParam);
+      normalizedInviteDate = checkDate.normalizedDate;
+      if (checkDate.valid) {
+        dateOk = true;
+      } else {
+        issues.push(checkDate.reason);
+      }
+    }
+    selectedDate = normalizedInviteDate;
+
+    let timeOk = false;
+    let cleanInviteTime = '';
+    if (!timeParam || !timeParam.trim()) {
+      issues.push('Thiếu giờ bắt đầu trong liên kết.');
+    } else if (!isValidHalfHourTimeParam(timeParam)) {
+      issues.push(`Giờ bắt đầu "${timeParam.trim()}" không hợp lệ (cần theo mốc 30 phút dạng HH:mm).`);
+    } else {
+      timeOk = true;
+      cleanInviteTime = timeParam.trim();
+    }
+
+    let durOk = false;
+    let cleanInviteDur = 60;
+    if (!rawDurStr) {
+      issues.push('Thiếu thời lượng chơi trong liên kết.');
+    } else if (!ALLOWED_BOOKING_DURATIONS.includes(durParam)) {
+      issues.push(`Thời lượng "${rawDurStr}" không được hỗ trợ (chấp nhận 60, 90, 120, 150 hoặc 180 phút).`);
+    } else {
+      durOk = true;
+      cleanInviteDur = durParam;
+    }
+    selectedDuration = cleanInviteDur;
+
+    const allValid = dateOk && timeOk && durOk;
+    socialInviteState = {
+      active: true,
+      departed: false,
+      paramsValid: allValid,
+      paramError: issues.join(' '),
+      targetDate: allValid ? normalizedInviteDate : '',
+      targetTime: allValid ? cleanInviteTime : '',
+      targetDuration: cleanInviteDur,
+      scrolledMatrixOnce: false
+    };
+
+    setDateNotice('');
+    return;
+  }
 
   if (dateParam) {
     const checkDate = validateAndNormalizeBookingDate(dateParam);
@@ -283,7 +577,7 @@ function applyUrlParamsOnce() {
     }
   }
 
-  if ([60, 90, 120, 180].includes(durParam)) {
+  if (ALLOWED_BOOKING_DURATIONS.includes(durParam)) {
     selectedDuration = durParam;
   }
 
@@ -297,6 +591,30 @@ function resolveCourtSelectionAfterSync() {
 
   const params = new URLSearchParams(window.location.search);
   const rawCourtParam = params.get('court');
+
+  if (isSocialInvitePinned()) {
+    if (!initialUrlParamsApplied) {
+      initialUrlParamsApplied = true;
+      if (rawCourtParam !== null && rawCourtParam.trim() !== '') {
+        const parsedCourtId = Number(rawCourtParam);
+        const matchedCourt = getCourtById(parsedCourtId);
+        if (matchedCourt) {
+          selectedCourtId = Number(matchedCourt.id);
+          requestedInvalidCourtId = null;
+        } else {
+          requestedInvalidCourtId = rawCourtParam.trim();
+          selectedCourtId = null;
+        }
+      } else {
+        selectedCourtId = null;
+      }
+      return;
+    }
+
+    const existingInviteCourt = getCourtById(selectedCourtId);
+    selectedCourtId = existingInviteCourt ? Number(existingInviteCourt.id) : null;
+    return;
+  }
 
   if (!initialUrlParamsApplied) {
     initialUrlParamsApplied = true;
@@ -347,6 +665,7 @@ function initBookingPage() {
   }
 
   renderPeakBadge();
+  renderSocialInviteBanner();
   renderDateStrip();
   renderCourtOptions();
   renderDurationPills();
@@ -428,9 +747,17 @@ function selectBookingDate(dateStr) {
   selectedDate = check.normalizedDate;
   setDateNotice(check.valid ? '' : check.reason);
 
+  if (isSocialInvitePinned() && selectedDate !== socialInviteState.targetDate) {
+    socialInviteState.departed = true;
+    if (!getCourtById(selectedCourtId) && COURTS.length > 0) {
+      selectedCourtId = Number(COURTS[0].id);
+    }
+  }
+
   invalidateServerQuote();
   ensureValidSelectedTime();
   syncBookingUrlState();
+  renderSocialInviteBanner();
   renderDateStrip();
   renderCourtOptions();
   renderTimeline();
@@ -457,16 +784,23 @@ function renderCourtOptions() {
     return;
   }
 
+  const fallbackCourtText = getCourtById(selectedCourtId)
+    ? `Hệ thống đã chọn <strong>${escapeHtml(getCourtDisplayName(selectedCourtId))}</strong>.`
+    : 'Vui lòng chọn một sân đang hoạt động bên dưới.';
   const invalidCourtBanner = requestedInvalidCourtId
     ? `<div class="conflict-banner show" style="grid-column:1/-1;margin-bottom:0.5rem;" role="alert">
          <iconify-icon icon="lucide:alert-triangle" width="16"></iconify-icon>
-         <span>Sân <strong>#${escapeHtml(requestedInvalidCourtId)}</strong> trong liên kết không tồn tại hoặc đã ngừng hoạt động. Hệ thống đã chọn <strong>${escapeHtml(getCourtDisplayName(selectedCourtId))}</strong>.</span>
+         <span>Sân <strong>#${escapeHtml(requestedInvalidCourtId)}</strong> trong liên kết không tồn tại hoặc đã ngừng hoạt động. ${fallbackCourtText}</span>
        </div>`
     : '';
 
+  const inviteEval = isSocialInvitePinned() ? evaluateSocialInviteAvailability() : null;
+  const hasInviteTarget = Boolean(inviteEval && inviteEval.status === 'available');
+
   const cardsHtml = COURTS.map(court => {
     const isActive = Number(court.id) === Number(selectedCourtId);
-    const activeClass = isActive ? 'active' : '';
+    const matchesInvite = hasInviteTarget && inviteEval.matchingCourts.some(c => Number(c.id) === Number(court.id));
+    const activeClass = `${isActive ? 'active' : ''} ${matchesInvite ? 'is-invite-match' : ''}`.trim();
     const freeSlotsCount = getAvailableTimeSlots(court.id, selectedDate, selectedDuration).length;
     const bookingsCount = BOOKINGS.filter(b =>
       Number(b.courtId) === Number(court.id) &&
@@ -478,9 +812,22 @@ function renderCourtOptions() {
     const stdRate = resolveNumericConfig(court.basePrice, resolveNumericConfig(CMS_CONFIG.courtPrice, 120000)) + resolveNumericConfig(court.surcharge, 0);
     const peakRate = stdRate + resolveNumericConfig(CMS_CONFIG.peakSurcharge, 30000);
     const cleanSurface = String(court.surface || 'Acrylic Cushion 8 lớp').replace(/USAPA\s*/gi, '');
-    const slotStatusHtml = freeSlotsCount > 0
+
+    let slotStatusHtml = freeSlotsCount > 0
       ? `<span class="text-xs font-semibold" style="color:var(--color-success)">Còn ${freeSlotsCount} khung giờ trống</span>`
       : `<span class="text-xs font-semibold" style="color:var(--color-danger)">Kín lịch hôm nay (${bookingsCount} ca)</span>`;
+
+    if (hasInviteTarget) {
+      const invTime = socialInviteState.targetTime;
+      const invEnd = getEndTime(invTime, socialInviteState.targetDuration);
+      if (matchesInvite) {
+        slotStatusHtml = `<span class="text-xs font-semibold" style="color:var(--color-success)">★ Trống khung ${escapeHtml(invTime)} – ${escapeHtml(invEnd)}</span>`;
+      } else {
+        const conflictCheck = checkCourtConflict(court.id, selectedDate, invTime, socialInviteState.targetDuration);
+        const busyReason = conflictCheck.type === 'lock' ? `Bảo trì khung ${invTime}` : `Đã kín khung ${invTime}`;
+        slotStatusHtml = `<span class="text-xs font-semibold" style="color:var(--text-muted)">${escapeHtml(busyReason)}</span>`;
+      }
+    }
 
     return `
       <button type="button"
@@ -488,6 +835,7 @@ function renderCourtOptions() {
         role="radio"
         aria-checked="${isActive ? 'true' : 'false'}"
         data-court-id="${Number(court.id)}"
+        data-invite-match="${matchesInvite ? 'true' : 'false'}"
         onclick="selectCourt(${Number(court.id)})">
         <div class="flex-between mb-sm" style="width:100%;">
           <span class="badge ${court.type === 'Indoor' ? 'badge-primary' : 'badge-neutral'}">${escapeHtml(court.type === 'Indoor' ? 'Trong nhà VIP' : 'Ngoài trời')}</span>
@@ -514,6 +862,7 @@ function selectCourt(courtId) {
   invalidateServerQuote();
   ensureValidSelectedTime();
   syncBookingUrlState();
+  renderSocialInviteBanner();
   renderCourtOptions();
   renderTimeline();
   renderTimeSlotGrid();
@@ -530,10 +879,18 @@ function renderDurationPills() {
 }
 
 function setDuration(dur) {
-  selectedDuration = Number(dur) || 60;
+  const nextDur = ALLOWED_BOOKING_DURATIONS.includes(Number(dur)) ? Number(dur) : 60;
+  selectedDuration = nextDur;
+  if (isSocialInvitePinned() && nextDur !== socialInviteState.targetDuration) {
+    socialInviteState.departed = true;
+    if (!getCourtById(selectedCourtId) && COURTS.length > 0) {
+      selectedCourtId = Number(COURTS[0].id);
+    }
+  }
   invalidateServerQuote();
   ensureValidSelectedTime();
   syncBookingUrlState();
+  renderSocialInviteBanner();
   renderDurationPills();
   renderCourtOptions();
   renderTimeline();
@@ -612,19 +969,25 @@ function renderTimeSlotGrid() {
       select.innerHTML = '<option value="">Đang đồng bộ dữ liệu...</option>';
       select.disabled = true;
     }
+    renderBookingCourtMatrix();
     return;
   }
 
   if (!getCourtById(selectedCourtId)) {
+    const hasCourts = COURTS.length > 0;
     grid.innerHTML = `<div style="grid-column:1/-1;">${renderUiStateBanner('empty', {
       compact: true,
-      title: 'Chưa có sân thi đấu khả dụng',
-      message: 'Vui lòng chọn một sân thi đấu đang hoạt động để xem khung giờ.'
+      icon: hasCourts ? 'lucide:mouse-pointer-click' : 'lucide:inbox',
+      title: hasCourts ? 'Chọn sân thi đấu để xem khung giờ chi tiết & báo giá' : 'Chưa có sân thi đấu khả dụng',
+      message: hasCourts
+        ? 'Hãy chọn một sân còn trống trên Ma trận lịch (mục 2) hoặc bấm vào thẻ sân ở trên để tải báo giá máy chủ.'
+        : 'Vui lòng chọn một sân thi đấu đang hoạt động để xem khung giờ.'
     })}</div>`;
     if (select) {
-      select.innerHTML = '<option value="">Chưa có sân</option>';
+      select.innerHTML = `<option value="">${hasCourts ? 'Chọn sân thi đấu trước' : 'Chưa có sân'}</option>`;
       select.disabled = true;
     }
+    renderBookingCourtMatrix();
     return;
   }
 
@@ -718,13 +1081,16 @@ function renderTimeSlotGrid() {
       select.disabled = true;
     } else {
       select.disabled = false;
-      select.innerHTML = slots.map(t => {
+      const placeholderOpt = !selectedStartTime
+        ? '<option value="" selected>— Chọn khung giờ trống —</option>'
+        : '';
+      select.innerHTML = placeholderOpt + slots.map(t => {
         const c = checkCourtConflict(selectedCourtId, selectedDate, t, selectedDuration);
         const isPast = selectedDate === todayStr && timeToMinutes(t) < (nowMins - 5);
         const st = isPast ? 'Qua giờ' : (c.conflict ? 'Đã kín' : 'Còn trống');
         return `<option value="${t}" ${t === selectedStartTime ? 'selected' : ''} ${isPast || c.conflict ? 'disabled' : ''}>${t} (${st})</option>`;
       }).join('');
-      select.value = selectedStartTime;
+      select.value = selectedStartTime || '';
     }
   }
 
@@ -733,15 +1099,18 @@ function renderTimeSlotGrid() {
 
 function selectMatrixSlot(courtId, time) {
   if (!isSlotAvailable(courtId, selectedDate, time, selectedDuration)) return;
-  const parsedId = Number(courtId);
-  if (Number(selectedCourtId) !== parsedId) {
-    selectedCourtId = parsedId;
-    renderCourtOptions();
-    renderTimeline();
+  if (isSocialInvitePinned() && time !== socialInviteState.targetTime) {
+    socialInviteState.departed = true;
   }
+  const parsedId = Number(courtId);
+  selectedCourtId = parsedId;
   selectedStartTime = time;
+  requestedInvalidCourtId = null;
   invalidateServerQuote();
   syncBookingUrlState();
+  renderSocialInviteBanner();
+  renderCourtOptions();
+  renderTimeline();
   renderTimeSlotGrid();
   updatePriceBreakdown(true);
 }
@@ -751,7 +1120,8 @@ function renderBookingCourtMatrix() {
   if (!table) return;
 
   if (!HAS_SERVER_STATE) {
-    table.innerHTML = `<tbody><tr><td style="padding:16px;">${renderUiStateBanner('loading', { compact: true })}</td></tr></tbody>`;
+    const stateType = (SPIKE_SYNC_STATE === 'offline' || SPIKE_SYNC_STATE === 'error') ? SPIKE_SYNC_STATE : 'loading';
+    table.innerHTML = `<tbody><tr><td style="padding:16px;">${renderUiStateBanner(stateType, { compact: true })}</td></tr></tbody>`;
     return;
   }
 
@@ -768,6 +1138,8 @@ function renderBookingCourtMatrix() {
 
   const todayStr = getTodayStr();
   const nowMins = getNowMinutes();
+  const inviteEval = isSocialInvitePinned() ? evaluateSocialInviteAvailability() : null;
+  const inviteTargetTime = (inviteEval && inviteEval.status === 'available') ? socialInviteState.targetTime : '';
 
   let html = '<thead><tr><th class="sn-matrix-time-col">Giờ</th>';
   COURTS.forEach(c => {
@@ -777,7 +1149,8 @@ function renderBookingCourtMatrix() {
   html += '</tr></thead><tbody>';
 
   slots.forEach(time => {
-    html += `<tr><td class="sn-matrix-time-col">${escapeHtml(time)}</td>`;
+    const isInviteRow = Boolean(inviteTargetTime && time === inviteTargetTime);
+    html += `<tr class="${isInviteRow ? 'is-invite-row' : ''}" data-matrix-time="${escapeAttr(time)}"><td class="sn-matrix-time-col">${escapeHtml(time)}</td>`;
     COURTS.forEach(c => {
       const check = checkCourtConflict(c.id, selectedDate, time, selectedDuration);
       const isPast = selectedDate === todayStr && timeToMinutes(time) < (nowMins - 5);
@@ -789,6 +1162,9 @@ function renderBookingCourtMatrix() {
       if (isSel) {
         stateClass = 'is-selected';
         label = '● Đã chọn';
+      } else if (isInviteRow && !isPast && !check.conflict) {
+        stateClass = 'is-invite-match';
+        label = '★ Chọn sân';
       } else if (isPast) {
         stateClass = 'is-past';
         label = '— Qua';
@@ -807,18 +1183,34 @@ function renderBookingCourtMatrix() {
         }
       }
 
-      html += `<td><button type="button" class="sn-matrix-cell-btn ${stateClass}" ${disabled} onclick="selectMatrixSlot(${Number(c.id)}, '${escapeAttr(time)}')" aria-label="${escapeAttr(c.name)} ${time}">${label}</button></td>`;
+      html += `<td><button type="button" class="sn-matrix-cell-btn ${stateClass}" ${disabled} data-matrix-court="${Number(c.id)}" data-matrix-slot="${escapeAttr(time)}" onclick="selectMatrixSlot(${Number(c.id)}, '${escapeAttr(time)}')" aria-label="${escapeAttr(c.name)} ${time}">${label}</button></td>`;
     });
     html += '</tr>';
   });
 
   html += '</tbody>';
   table.innerHTML = html;
+
+  if (inviteTargetTime && socialInviteState && !socialInviteState.scrolledMatrixOnce) {
+    socialInviteState.scrolledMatrixOnce = true;
+    const rowEl = table.querySelector(`tr[data-matrix-time="${inviteTargetTime}"]`);
+    if (rowEl && typeof rowEl.scrollIntoView === 'function') {
+      try {
+        rowEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } catch (_) {}
+    }
+  }
 }
 
 function selectStartTime(time) {
+  if (!time || !getCourtById(selectedCourtId)) {
+    return;
+  }
   if (!isSlotAvailable(selectedCourtId, selectedDate, time, selectedDuration)) {
     return;
+  }
+  if (isSocialInvitePinned() && time !== socialInviteState.targetTime) {
+    socialInviteState.departed = true;
   }
   if (selectedStartTime === time && quoteStatus === 'ready' && latestQuoteKey === makeQuoteKey(selectedCourtId, selectedDate, time, selectedDuration)) {
     return;
@@ -826,6 +1218,8 @@ function selectStartTime(time) {
   selectedStartTime = time;
   invalidateServerQuote();
   syncBookingUrlState();
+  renderSocialInviteBanner();
+  renderCourtOptions();
   renderTimeSlotGrid();
   updatePriceBreakdown(true);
 }
@@ -893,13 +1287,17 @@ function syncSubmitButtonState() {
 
   if (!getCourtById(selectedCourtId)) {
     btn.disabled = true;
-    labelSpan.textContent = 'Chưa có sân thi đấu khả dụng';
+    labelSpan.textContent = COURTS.length > 0
+      ? 'Chọn sân trống để xem báo giá & xác nhận'
+      : 'Chưa có sân thi đấu khả dụng';
     return;
   }
 
   if (!selectedStartTime) {
     btn.disabled = true;
-    labelSpan.textContent = 'Hết khung giờ trống — Chọn sân/ngày khác';
+    labelSpan.textContent = isSocialInviteOrigin()
+      ? 'Chọn khung giờ trống để xem báo giá'
+      : 'Hết khung giờ trống — Chọn sân/ngày khác';
     return;
   }
 
@@ -1050,7 +1448,14 @@ function applyQuoteToDom(quote) {
   const conflictText = document.getElementById('conflictBannerText');
 
   if (!HAS_SERVER_STATE || !court || !selectedStartTime || !quote) {
-    if (dtEl) dtEl.textContent = selectedStartTime ? `${selectedStartTime} · ${formatDateVN(selectedDate)}` : `Chưa chọn giờ · ${formatDateVN(selectedDate)}`;
+    const invitePreviewTime = (isSocialInvitePinned() && socialInviteState.paramsValid && socialInviteState.targetTime)
+      ? `${socialInviteState.targetTime} → ${getEndTime(socialInviteState.targetTime, selectedDuration)}`
+      : '';
+    if (dtEl) {
+      dtEl.textContent = selectedStartTime
+        ? `${selectedStartTime} · ${formatDateVN(selectedDate)}`
+        : (invitePreviewTime ? `${invitePreviewTime} · ${formatDateVN(selectedDate)}` : `Chưa chọn giờ · ${formatDateVN(selectedDate)}`);
+    }
     if (rateEl) rateEl.textContent = '--';
     if (feeEl) feeEl.textContent = '--';
     if (totalEl) totalEl.textContent = '0 đ';
@@ -1059,13 +1464,22 @@ function applyQuoteToDom(quote) {
       if (!HAS_SERVER_STATE) {
         conflictText.textContent = 'Đang đồng bộ trạng thái sân và bảng giá trực tiếp từ máy chủ...';
         conflictBanner.classList.add('show');
+      } else if (!court && COURTS.length > 0) {
+        conflictBanner.classList.remove('show');
       } else if (!selectedStartTime) {
-        conflictText.textContent = 'Sân đã kín toàn bộ khung giờ trong ngày này. Vui lòng chọn sân khác hoặc ngày khác.';
+        const courtSlots = court ? getAvailableTimeSlots(court.id, selectedDate, selectedDuration) : [];
+        conflictText.textContent = courtSlots.length > 0
+          ? 'Vui lòng chọn một khung giờ còn trống hoặc chọn sân khác phù hợp.'
+          : 'Sân đã kín toàn bộ khung giờ trong ngày này. Vui lòng chọn sân khác hoặc ngày khác.';
         conflictBanner.classList.add('show');
       } else {
         conflictBanner.classList.remove('show');
       }
     }
+    const mobDtEmpty = document.getElementById('mobileBookingDateTime');
+    const mobTotEmpty = document.getElementById('mobileBookingTotal');
+    if (mobDtEmpty) mobDtEmpty.textContent = court ? `${court.name} · Chưa chọn giờ` : 'Chưa chọn sân & khung giờ';
+    if (mobTotEmpty) mobTotEmpty.textContent = '0 đ';
     updateQuoteBadgeDom();
     syncSubmitButtonState();
     return;
@@ -1299,6 +1713,7 @@ async function submitBooking() {
       showToast('Không thể đặt sân!', data.error || 'Khung giờ hoặc bảng giá vừa thay đổi, vui lòng kiểm tra lại.', 'error');
       await syncDatabaseFromServer(true);
       ensureValidSelectedTime();
+      renderSocialInviteBanner();
       renderCourtOptions();
       renderTimeline();
       renderTimeSlotGrid();
@@ -1411,14 +1826,17 @@ window.addEventListener('pickleball:db-synced', () => {
   resolveCourtSelectionAfterSync();
   ensureValidSelectedTime();
   renderPeakBadge();
+  renderSocialInviteBanner();
   renderDateStrip();
   renderCourtOptions();
+  renderDurationPills();
   renderTimeline();
   renderTimeSlotGrid();
   updatePriceBreakdown(true);
 });
 window.addEventListener('pickleball:sync-status', () => {
   if (!HAS_SERVER_STATE) {
+    renderSocialInviteBanner();
     renderCourtOptions();
     renderTimeline();
     renderTimeSlotGrid();
