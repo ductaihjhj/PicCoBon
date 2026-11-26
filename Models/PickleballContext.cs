@@ -62,6 +62,10 @@ public partial class PickleballContext : DbContext
 
     public virtual DbSet<TbSocialInvite> TbSocialInvites { get; set; }
 
+    public virtual DbSet<TbRegistrationVerification> TbRegistrationVerifications { get; set; }
+
+    public virtual DbSet<TbRegistrationEmailLog> TbRegistrationEmailLogs { get; set; }
+
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         SyncTypedColumns();
@@ -148,6 +152,7 @@ public partial class PickleballContext : DbContext
             entity.Property(e => e.Bio).HasMaxLength(500);
             entity.Property(e => e.MemberTier).HasMaxLength(50);
             entity.Property(e => e.SecurityStamp).HasMaxLength(64);
+            entity.Property(e => e.EmailVerifiedAtUtc).HasColumnType("datetime2");
             entity.Property(e => e.MustChangePassword).HasDefaultValue(false);
 
             entity.HasOne(d => d.Role).WithMany(p => p.TbAccounts)
@@ -581,6 +586,64 @@ public partial class PickleballContext : DbContext
                 .HasForeignKey(d => d.ReceiverAccountId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("FK_tb_SocialInvite_ReceiverAccount");
+        });
+
+        modelBuilder.Entity<TbRegistrationVerification>(entity =>
+        {
+            entity.HasKey(e => e.VerificationId);
+            entity.ToTable("tb_RegistrationVerification");
+
+            entity.HasIndex(e => e.RequestToken).IsUnique();
+            entity.HasIndex(e => new { e.SessionBindingHash, e.Status });
+            entity.HasIndex(e => new { e.Status, e.RequestExpiresAtUtc });
+            entity.HasIndex(e => e.CreatedAccountId)
+                .IsUnique()
+                .HasFilter("[CreatedAccountId] IS NOT NULL");
+
+            entity.Property(e => e.RequestToken).HasMaxLength(64);
+            entity.Property(e => e.SessionBindingHash).HasMaxLength(64);
+            entity.Property(e => e.FullName).HasMaxLength(150);
+            entity.Property(e => e.Username).HasMaxLength(50);
+            entity.Property(e => e.Phone).HasMaxLength(50);
+            entity.Property(e => e.Email).HasMaxLength(150);
+            entity.Property(e => e.EmailHash).HasMaxLength(64);
+            entity.Property(e => e.PasswordHash).HasMaxLength(256);
+            entity.Property(e => e.OtpHmac).HasMaxLength(128);
+            entity.Property(e => e.OtpVersion).HasDefaultValue(1);
+            entity.Property(e => e.AttemptCount).HasDefaultValue(0);
+            entity.Property(e => e.SendCount).HasDefaultValue(0);
+            entity.Property(e => e.Status).HasMaxLength(24).HasDefaultValue("Pending");
+            entity.Property(e => e.LastDeliveryStatus).HasMaxLength(24).HasDefaultValue("PendingSend");
+            entity.Property(e => e.ClientIpHash).HasMaxLength(64);
+            entity.Property(e => e.CreatedAtUtc).HasColumnType("datetime2");
+            entity.Property(e => e.UpdatedAtUtc).HasColumnType("datetime2");
+            entity.Property(e => e.LastSentAtUtc).HasColumnType("datetime2");
+            entity.Property(e => e.OtpExpiresAtUtc).HasColumnType("datetime2");
+            entity.Property(e => e.RequestExpiresAtUtc).HasColumnType("datetime2");
+            entity.Property(e => e.ConsumedAtUtc).HasColumnType("datetime2");
+            entity.Property(e => e.RowVersion).IsRowVersion().IsRequired(false);
+
+            entity.HasOne(d => d.CreatedAccount).WithMany()
+                .HasForeignKey(d => d.CreatedAccountId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_tb_RegistrationVerification_tb_Account");
+        });
+
+        modelBuilder.Entity<TbRegistrationEmailLog>(entity =>
+        {
+            entity.HasKey(e => e.LogId);
+            entity.ToTable("tb_RegistrationEmailLog");
+
+            entity.HasIndex(e => e.CreatedAtUtc);
+            entity.HasIndex(e => new { e.SessionBindingHash, e.CreatedAtUtc });
+            entity.HasIndex(e => new { e.EmailHash, e.CreatedAtUtc });
+            entity.HasIndex(e => new { e.ClientIpHash, e.CreatedAtUtc });
+
+            entity.Property(e => e.SessionBindingHash).HasMaxLength(64);
+            entity.Property(e => e.EmailHash).HasMaxLength(64);
+            entity.Property(e => e.ClientIpHash).HasMaxLength(64);
+            entity.Property(e => e.Outcome).HasMaxLength(24).HasDefaultValue("Sent");
+            entity.Property(e => e.CreatedAtUtc).HasColumnType("datetime2");
         });
 
         OnModelCreatingPartial(modelBuilder);

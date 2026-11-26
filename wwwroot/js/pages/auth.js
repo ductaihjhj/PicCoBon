@@ -1,12 +1,16 @@
 /* ==========================================================================
    SPIKE OS — MODERN SPORTS MANAGEMENT PLATFORM
-   Authentication Controller (/Account/Login — Login, Register & OTP Notice)
+   Authentication Controller (/Account/Login — Login, Register & Email OTP)
    ========================================================================== */
 
 let currentAuthMode = 'login';
 let redirectTargetUrl = '';
+let regOtpTimerHandle = null;
+let regOtpExpiresAtMs = 0;
+let regResendAvailableAtMs = 0;
+let lastSubmittedRegisterEmail = '';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(window.location.search);
   redirectTargetUrl = params.get('redirect') || '';
   const requestedMode = params.get('mode') || '';
@@ -33,12 +37,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  if (requestedMode === 'register') {
-    switchAuthMode('register');
+  const initialOtp = window.__INITIAL_REG_OTP_STATE__ || null;
+  if (initialOtp && initialOtp.verifiedSuccess) {
+    switchAuthMode('register', true);
+    showRegistrationSuccessStage(initialOtp.verifiedMessage);
+    return;
+  }
+
+  if (initialOtp && initialOtp.hasPending) {
+    switchAuthMode('register', true);
+    activateOtpVerificationStage(initialOtp, { preserveServerAlerts: true });
+    return;
+  }
+
+  if (requestedMode === 'register' || (initialOtp && (initialOtp.registerError || initialOtp.registerInfo))) {
+    switchAuthMode('register', true);
+  }
+
+  // Double-check live session state on back/forward cache restore
+  if (typeof fetchRegistrationSession === 'function') {
+    const livePending = await fetchRegistrationSession();
+    if (livePending && livePending.hasPending) {
+      switchAuthMode('register', true);
+      activateOtpVerificationStage(livePending, { preserveServerAlerts: true });
+    }
   }
 });
 
-function switchAuthMode(mode) {
+function switchAuthMode(mode, keepRegisterAlerts = false) {
   currentAuthMode = mode === 'register' ? 'register' : 'login';
   const stageBox = document.getElementById('authStageBox');
   const mobLogin = document.getElementById('mobTabLogin');
@@ -46,7 +72,9 @@ function switchAuthMode(mode) {
   const loginPanel = document.getElementById('authPanelLogin');
   const regPanel = document.getElementById('authPanelRegister');
 
-  hideLoginError();
+  if (!keepRegisterAlerts) {
+    hideLoginError();
+  }
 
   if (currentAuthMode === 'register') {
     if (stageBox) stageBox.classList.add('right-panel-active');
@@ -60,6 +88,178 @@ function switchAuthMode(mode) {
     if (mobLogin) mobLogin.classList.add('active');
     if (regPanel) regPanel.style.display = 'none';
     if (loginPanel) loginPanel.style.display = 'block';
+  }
+}
+
+function setRegisterStageView(stageName) {
+  const formStep = document.getElementById('regStepForm');
+  const otpStep = document.getElementById('regStepVerifyOtp');
+  const successStep = document.getElementById('regStepSuccess');
+
+  if (formStep) formStep.style.display = stageName === 'form' ? 'block' : 'none';
+  if (otpStep) otpStep.style.display = stageName === 'otp' ? 'block' : 'none';
+  if (successStep) successStep.style.display = stageName === 'success' ? 'block' : 'none';
+}
+
+function showRegisterInfo(message) {
+  const box = document.getElementById('registerInfoAlert');
+  const txt = document.getElementById('registerInfoText');
+  if (box && txt) {
+    if (message) {
+      txt.textContent = message;
+      box.style.display = 'flex';
+    } else {
+      box.style.display = 'none';
+    }
+  }
+}
+
+function formatSecondsMMSS(totalSec) {
+  const clamped = Math.max(0, Math.floor(Number(totalSec) || 0));
+  const mins = Math.floor(clamped / 60);
+  const secs = clamped % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function startOtpCountdownLoop() {
+  if (regOtpTimerHandle) {
+    clearInterval(regOtpTimerHandle);
+    regOtpTimerHandle = null;
+  }
+
+  const tick = () => {
+    const now = Date.now();
+    const expiryEl = document.getElementById('otpExpiryCountdown');
+    if (expiryEl) {
+      const remExp = Math.max(0, Math.ceil((regOtpExpiresAtMs - now) / 1000));
+      expiryEl.textContent = remExp > 0 ? formatSecondsMMSS(remExp) : 'Đã hết hạn';
+    }
+
+    const resendBtn = document.getElementById('btnResendOtp');
+    const resendTxt = document.getElementById('btnResendOtpText');
+    const remCooldown = Math.max(0, Math.ceil((regResendAvailableAtMs - now) / 1000));
+    if (resendBtn && resendTxt) {
+      if (remCooldown > 0) {
+        resendBtn.disabled = true;
+        resendTxt.textContent = `Gửi lại mã (${remCooldown}s)`;
+      } else {
+        resendBtn.disabled = false;
+        resendTxt.textContent = 'Gửi lại mã';
+      }
+    }
+  };
+
+  tick();
+  regOtpTimerHandle = setInterval(tick, 1000);
+}
+
+function stopOtpCountdownLoop() {
+  if (regOtpTimerHandle) {
+    clearInterval(regOtpTimerHandle);
+    regOtpTimerHandle = null;
+  }
+}
+
+function activateOtpVerificationStage(state, options = {}) {
+  if (!options.preserveServerAlerts) {
+    hideLoginError();
+  }
+
+  setRegisterStageView('otp');
+
+  const tokenInput = document.getElementById('otpVerificationToken');
+  if (tokenInput && state.verificationToken) {
+    tokenInput.value = state.verificationToken;
+  }
+
+  const emailEl = document.getElementById('otpMaskedEmailDisplay');
+  if (emailEl && state.maskedEmail) {
+    emailEl.textContent = state.maskedEmail;
+  }
+
+  const attemptsEl = document.getElementById('otpRemainingAttemptsText');
+  if (attemptsEl) {
+    const rem = typeof state.remainingAttempts === 'number' ? state.remainingAttempts : 5;
+    attemptsEl.textContent = `Còn ${rem} lần thử`;
+  }
+
+  const now = Date.now();
+  const expSeconds = Number(state.expiresInSeconds) || 0;
+  const cdSeconds = Number(state.resendCooldownSeconds) || 0;
+  regOtpExpiresAtMs = now + expSeconds * 1000;
+  regResendAvailableAtMs = now + cdSeconds * 1000;
+  startOtpCountdownLoop();
+
+  if (state.deliveryFailed && !options.preserveServerAlerts) {
+    showLoginError('Lần gửi mã trước chưa thành công do lỗi kết nối máy chủ thư. Vui lòng bấm Gửi lại mã.', true);
+  } else if (state.message && !options.preserveServerAlerts) {
+    showRegisterInfo(state.message);
+  }
+
+  const otpInput = document.getElementById('regOtpInput');
+  if (otpInput) {
+    otpInput.value = '';
+    clearFieldError('regOtpInput');
+    setTimeout(() => {
+      try { otpInput.focus(); } catch (_) {}
+    }, 30);
+  }
+}
+
+function showRegistrationSuccessStage(message) {
+  stopOtpCountdownLoop();
+  hideLoginError();
+  showRegisterInfo('');
+  setRegisterStageView('success');
+
+  const descEl = document.getElementById('regSuccessDesc');
+  if (descEl && message) {
+    descEl.textContent = message;
+  }
+
+  const regPassword = document.getElementById('regPassword');
+  const regConfirm = document.getElementById('regConfirmPassword');
+  if (regPassword) regPassword.value = '';
+  if (regConfirm) regConfirm.value = '';
+}
+
+function switchToLoginAfterRegisterSuccess() {
+  setRegisterStageView('form');
+  switchAuthMode('login');
+
+  const loginInput = document.getElementById('loginEmail');
+  const passInput = document.getElementById('loginPassword');
+  if (loginInput && lastSubmittedRegisterEmail && !loginInput.value) {
+    loginInput.value = lastSubmittedRegisterEmail;
+  }
+
+  setTimeout(() => {
+    const target = (loginInput && loginInput.value) ? passInput : loginInput;
+    if (target) {
+      try { target.focus(); } catch (_) {}
+    }
+  }, 30);
+}
+
+function handleOtpDigitInput(inputEl) {
+  if (!inputEl) return;
+  const digitsOnly = String(inputEl.value || '').replace(/\D+/g, '').slice(0, 6);
+  if (inputEl.value !== digitsOnly) {
+    inputEl.value = digitsOnly;
+  }
+  clearFieldError('regOtpInput');
+}
+
+function handleOtpPaste(event) {
+  if (!event || !event.clipboardData) return;
+  const pasted = event.clipboardData.getData('text') || '';
+  const digits = pasted.replace(/\D+/g, '').slice(0, 6);
+  if (!digits) return;
+  event.preventDefault();
+  const inputEl = document.getElementById('regOtpInput');
+  if (inputEl) {
+    inputEl.value = digits;
+    clearFieldError('regOtpInput');
   }
 }
 
@@ -120,6 +320,9 @@ function clearFieldError(fieldId) {
 }
 
 function showLoginError(message, isRegister = false) {
+  if (isRegister) {
+    showRegisterInfo('');
+  }
   const boxId = isRegister ? 'registerErrorAlert' : 'loginErrorAlert';
   const txtId = isRegister ? 'registerErrorText' : 'loginErrorText';
   const box = document.getElementById(boxId);
@@ -133,8 +336,10 @@ function showLoginError(message, isRegister = false) {
 function hideLoginError() {
   const b1 = document.getElementById('loginErrorAlert');
   const b2 = document.getElementById('registerErrorAlert');
+  const b3 = document.getElementById('registerInfoAlert');
   if (b1) b1.style.display = 'none';
   if (b2) b2.style.display = 'none';
+  if (b3) b3.style.display = 'none';
 }
 
 async function triggerAnimatedLogin(emailVal, passVal) {
@@ -195,13 +400,13 @@ async function handleFormRegister(event) {
     hasError = true;
   }
 
-  if (!/^[0-9]{9,11}$/.test(phone.replace(/\s+/g, ''))) {
-    showFieldError('regPhone', 'SĐT gồm 9–11 chữ số.');
+  if (!isValidVietnamPhone(phone)) {
+    showFieldError('regPhone', 'SĐT gồm 9–11 chữ số (bắt đầu bằng 0 hoặc +84).');
     hasError = true;
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    showFieldError('regEmail', 'Địa chỉ Email không hợp lệ.');
+    showFieldError('regEmail', 'Vui lòng nhập địa chỉ Email hợp lệ.');
     hasError = true;
   }
 
@@ -225,9 +430,121 @@ async function handleFormRegister(event) {
     return;
   }
 
-  const res = await registerUser({ name: fullName, phone, email, password }, redirectTargetUrl);
+  const btn = document.getElementById('btnSubmitRegister');
+  const btnTxt = document.getElementById('btnSubmitRegisterText');
+  if (btn) btn.disabled = true;
+  if (btnTxt) btnTxt.textContent = 'Đang gửi mã xác minh...';
+
+  lastSubmittedRegisterEmail = email.toLowerCase();
+  const res = await registerUser({ name: fullName, phone, email, password, confirmPassword });
+
+  if (btn) btn.disabled = false;
+  if (btnTxt) btnTxt.textContent = 'Gửi mã xác minh';
+
   if (!res || !res.ok) {
-    showLoginError((res && res.error) || 'Không thể đăng ký tài khoản.', true);
+    if (res && res.verificationToken && res.canResend) {
+      activateOtpVerificationStage({
+        verificationToken: res.verificationToken,
+        maskedEmail: res.maskedEmail,
+        expiresInSeconds: 0,
+        resendCooldownSeconds: res.resendCooldownSeconds || res.retryAfterSeconds || 15,
+        remainingAttempts: 5,
+        deliveryFailed: true
+      }, { preserveServerAlerts: true });
+    }
+    showLoginError((res && res.error) || 'Không thể gửi mã xác minh đăng ký.', true);
+    return;
+  }
+
+  activateOtpVerificationStage(res);
+}
+
+async function handleVerifyOtpSubmit(event) {
+  event.preventDefault();
+  hideLoginError();
+
+  const token = (document.getElementById('otpVerificationToken')?.value || '').trim();
+  const otpRaw = (document.getElementById('regOtpInput')?.value || '').replace(/\D+/g, '');
+
+  if (otpRaw.length !== 6) {
+    showFieldError('regOtpInput', 'Mã xác minh phải gồm đúng 6 chữ số.');
+    return;
+  }
+
+  const btn = document.getElementById('btnVerifyOtpSubmit');
+  const btnTxt = document.getElementById('btnVerifyOtpSubmitText');
+  if (btn) btn.disabled = true;
+  if (btnTxt) btnTxt.textContent = 'Đang kiểm tra mã...';
+
+  const res = await verifyRegistrationOtp(token, otpRaw);
+
+  if (btn) btn.disabled = false;
+  if (btnTxt) btnTxt.textContent = 'Xác nhận mã & Tạo tài khoản';
+
+  if (!res || !res.ok) {
+    if (res && typeof res.remainingAttempts === 'number') {
+      const attemptsEl = document.getElementById('otpRemainingAttemptsText');
+      if (attemptsEl) {
+        attemptsEl.textContent = `Còn ${res.remainingAttempts} lần thử`;
+      }
+    }
+    showLoginError((res && res.error) || 'Mã xác minh không chính xác.', true);
+    if (res && res.code === 'OTP_ALREADY_USED') {
+      showRegistrationSuccessStage(res.error);
+    }
+    return;
+  }
+
+  showRegistrationSuccessStage(res.message);
+}
+
+async function handleResendOtpClick() {
+  hideLoginError();
+  const token = (document.getElementById('otpVerificationToken')?.value || '').trim();
+  const resendBtn = document.getElementById('btnResendOtp');
+  const resendTxt = document.getElementById('btnResendOtpText');
+
+  if (resendBtn) resendBtn.disabled = true;
+  if (resendTxt) resendTxt.textContent = 'Đang gửi lại...';
+
+  const res = await resendRegistrationOtp(token);
+  if (!res || !res.ok) {
+    const waitSec = (res && res.retryAfterSeconds) ? Number(res.retryAfterSeconds) : 0;
+    if (waitSec > 0) {
+      regResendAvailableAtMs = Date.now() + waitSec * 1000;
+      startOtpCountdownLoop();
+    } else if (resendBtn && resendTxt) {
+      resendBtn.disabled = false;
+      resendTxt.textContent = 'Gửi lại mã';
+    }
+    showLoginError((res && res.error) || 'Chưa thể gửi lại mã xác minh.', true);
+    return;
+  }
+
+  activateOtpVerificationStage(res);
+}
+
+async function handleChangeRegisterEmail() {
+  stopOtpCountdownLoop();
+  hideLoginError();
+
+  const token = (document.getElementById('otpVerificationToken')?.value || '').trim();
+  if (typeof cancelRegistrationOtp === 'function') {
+    await cancelRegistrationOtp(token);
+  }
+
+  const tokenInput = document.getElementById('otpVerificationToken');
+  if (tokenInput) tokenInput.value = '';
+
+  setRegisterStageView('form');
+  const emailInput = document.getElementById('regEmail');
+  if (emailInput) {
+    setTimeout(() => {
+      try {
+        emailInput.focus();
+        emailInput.select();
+      } catch (_) {}
+    }, 30);
   }
 }
 

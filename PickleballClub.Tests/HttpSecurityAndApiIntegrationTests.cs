@@ -41,6 +41,8 @@ public sealed class SpikeWebAppFactory : WebApplicationFactory<Program>, IAsyncL
     public int Court2Id { get; private set; }
     public int Product1Id { get; private set; }
 
+    public FakeEmailSender FakeEmails { get; } = new();
+
     public SpikeWebAppFactory()
     {
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
@@ -55,6 +57,7 @@ public sealed class SpikeWebAppFactory : WebApplicationFactory<Program>, IAsyncL
             {
                 ["ConnectionStrings:DefaultConnection"] = ConnectionString,
                 ["Security:QrSigningKey"] = "HttpIntegration-HMAC-SecretKey-2026-SpikePickleball-32CharsPlus!",
+                ["RegistrationOtp:HmacKey"] = "HttpIntegration-Dedicated-OtpHmacKey-2026-SpikeClub-32BytesMin!",
                 ["BackgroundWorkers:Enabled"] = "false",
                 ["RateLimiting:AuthPermitLimit"] = "500",
                 ["RateLimiting:CheckInPermitLimit"] = "500",
@@ -66,6 +69,9 @@ public sealed class SpikeWebAppFactory : WebApplicationFactory<Program>, IAsyncL
         {
             services.RemoveAll<DbContextOptions<PickleballContext>>();
             services.AddDbContext<PickleballContext>(opts => opts.UseSqlServer(ConnectionString));
+            services.RemoveAll<IEmailSender>();
+            services.AddSingleton(FakeEmails);
+            services.AddSingleton<IEmailSender>(FakeEmails);
         });
     }
 
@@ -405,7 +411,8 @@ public class HttpSecurityAndApiIntegrationTests : IClassFixture<SpikeWebAppFacto
     [Fact]
     public async Task Rbac_RegisterForcesCustomer_StaffBlockedFromAdminEndpoints_AdminUpdatesCmsPricing_And_LiveLockRevokesCookie()
     {
-        // A. Public registration attempting privilege escalation -> strictly Customer ("user")
+        // A. Public registration attempting privilege escalation -> pending OTP -> verify OTP -> strictly Customer ("user")
+        _factory.FakeEmails.Clear();
         using var regClient = CreateCookieClient();
         var regResp = await PostJsonWithCsrfAsync(regClient, "/api/auth/register", new
         {
@@ -417,9 +424,32 @@ public class HttpSecurityAndApiIntegrationTests : IClassFixture<SpikeWebAppFacto
             role = "admin"
         });
         Assert.Equal(HttpStatusCode.OK, regResp.StatusCode);
+        string verificationToken;
         using (var regDoc = JsonDocument.Parse(await regResp.Content.ReadAsStringAsync()))
         {
-            Assert.Equal("user", regDoc.RootElement.GetProperty("user").GetProperty("role").GetString());
+            Assert.Equal("pending_otp", regDoc.RootElement.GetProperty("status").GetString());
+            verificationToken = regDoc.RootElement.GetProperty("verificationToken").GetString()!;
+        }
+
+        var sentMail = Assert.Single(_factory.FakeEmails.SentMessages, m => m.ToEmail == "escalate@spike.test");
+        string otpCode = sentMail.ExtractOtpCode();
+
+        var verifyResp = await PostJsonWithCsrfAsync(regClient, "/api/auth/register/verify-otp", new
+        {
+            verificationToken,
+            otp = otpCode
+        });
+        Assert.Equal(HttpStatusCode.OK, verifyResp.StatusCode);
+
+        var loginAfterVerifyResp = await PostJsonWithCsrfAsync(regClient, "/api/auth/login", new
+        {
+            identifier = "escalate@spike.test",
+            password = "StrongUser!123"
+        });
+        Assert.Equal(HttpStatusCode.OK, loginAfterVerifyResp.StatusCode);
+        using (var loginDoc = JsonDocument.Parse(await loginAfterVerifyResp.Content.ReadAsStringAsync()))
+        {
+            Assert.Equal("user", loginDoc.RootElement.GetProperty("user").GetProperty("role").GetString());
         }
 
         // Registered Customer blocked from /api/admin/reports/summary (403)

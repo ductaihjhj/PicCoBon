@@ -1,10 +1,33 @@
+@using System.Text.Json
 @using Microsoft.EntityFrameworkCore
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @inject PickleballClub.Models.PickleballContext SsrDb
+@inject PickleballClub.Services.RegistrationOtpService RegOtpService
 @{
     ViewData["Title"] = "Đăng nhập & Đăng ký Hội viên — Spike OS";
     var serverAuthError = TempData["AuthError"] as string;
+    var serverRegisterError = TempData["RegisterError"] as string;
+    var serverRegisterInfo = TempData["RegisterInfo"] as string;
+    bool serverRegisterVerified = string.Equals(TempData["RegisterVerified"] as string, "true", StringComparison.OrdinalIgnoreCase);
+    var serverRegisterSuccessMsg = TempData["RegisterSuccessMessage"] as string;
+    var pendingRegState = await RegOtpService.GetPendingSessionStateAsync(SsrDb, Context);
     int activeCourtCount = await SsrDb.TbCourts.AsNoTracking().CountAsync(c => c.IsActive);
+
+    string initialOtpStateJson = JsonSerializer.Serialize(new
+    {
+        hasPending = pendingRegState.HasPending,
+        verificationToken = pendingRegState.VerificationToken ?? string.Empty,
+        maskedEmail = pendingRegState.MaskedEmail ?? string.Empty,
+        expiresInSeconds = pendingRegState.ExpiresInSeconds,
+        resendCooldownSeconds = pendingRegState.ResendCooldownSeconds,
+        remainingAttempts = pendingRegState.RemainingAttempts,
+        maxAttempts = pendingRegState.MaxAttempts,
+        deliveryFailed = pendingRegState.DeliveryFailed,
+        verifiedSuccess = serverRegisterVerified,
+        verifiedMessage = serverRegisterSuccessMsg ?? string.Empty,
+        registerError = serverRegisterError ?? string.Empty,
+        registerInfo = serverRegisterInfo ?? string.Empty
+    });
 }
 
 <main class="spk-auth-page">
@@ -147,99 +170,184 @@
                     </form>
                 </div>
 
-                <!-- PANEL 2: REGISTER FORM -->
+                <!-- PANEL 2: REGISTER & EMAIL OTP VERIFICATION -->
                 <div id="authPanelRegister" class="sign-up-panel" style="display:none;">
-                    <div style="margin-bottom:14px;">
-                        <h2 style="font-size:1.45rem;font-weight:800;margin-bottom:4px;">Tạo Tài Khoản Hội Viên</h2>
-                        <p class="text-sm text-muted">Nhận thẻ QR định danh, quản lý lịch đặt sân và tích điểm DUPR tại CLB.</p>
-                    </div>
-
-                    <div id="registerErrorAlert" class="sn-alert sn-alert-danger" style="display:none;">
+                    <div id="registerErrorAlert" class="sn-alert sn-alert-danger" style="@(!string.IsNullOrEmpty(serverRegisterError) ? "display:flex;" : "display:none;")">
                         <iconify-icon icon="lucide:alert-triangle" width="17"></iconify-icon>
-                        <span id="registerErrorText">Vui lòng kiểm tra lại thông tin đăng ký.</span>
+                        <span id="registerErrorText">@(serverRegisterError ?? "Vui lòng kiểm tra lại thông tin đăng ký.")</span>
                     </div>
 
-                    <form id="registerForm" onsubmit="handleFormRegister(event)" novalidate>
-                        <div class="form-row">
-                            <div class="form-group" id="fieldWrapRegFullName">
-                                <label class="form-label" for="regFullName">Họ và tên *</label>
-                                <div class="spk-auth-input-wrap">
-                                    <span class="spk-auth-input-icon"><iconify-icon icon="lucide:user" width="16"></iconify-icon></span>
-                                    <input type="text" id="regFullName" class="form-input" placeholder="Nguyễn Văn A" oninput="clearFieldError('regFullName')">
-                                </div>
-                                <span class="field-error-msg" id="regFullNameError">Nhập tối thiểu 2 ký tự.</span>
-                            </div>
+                    <div id="registerInfoAlert" class="sn-alert sn-alert-success" style="@(!string.IsNullOrEmpty(serverRegisterInfo) ? "display:flex;" : "display:none;")">
+                        <iconify-icon icon="lucide:mail-check" width="17"></iconify-icon>
+                        <span id="registerInfoText">@(serverRegisterInfo ?? "")</span>
+                    </div>
 
-                            <div class="form-group" id="fieldWrapRegPhone">
-                                <label class="form-label" for="regPhone">Số điện thoại *</label>
-                                <div class="spk-auth-input-wrap">
-                                    <span class="spk-auth-input-icon"><iconify-icon icon="lucide:phone" width="16"></iconify-icon></span>
-                                    <input type="tel" id="regPhone" class="form-input" placeholder="0901234567" oninput="clearFieldError('regPhone')">
-                                </div>
-                                <span class="field-error-msg" id="regPhoneError">SĐT gồm 9–11 chữ số.</span>
-                            </div>
+                    <!-- STEP 2A: REGISTRATION DETAILS FORM -->
+                    <div id="regStepForm" style="@(pendingRegState.HasPending || serverRegisterVerified ? "display:none;" : "display:block;")">
+                        <div style="margin-bottom:14px;">
+                            <h2 style="font-size:1.45rem;font-weight:800;margin-bottom:4px;">Tạo Tài Khoản Hội Viên</h2>
+                            <p class="text-sm text-muted">Điền thông tin và xác minh email chính chủ để kích hoạt thẻ hội viên CLB.</p>
                         </div>
 
-                        <div class="form-group" id="fieldWrapRegEmail">
-                            <label class="form-label" for="regEmail">Địa chỉ Email nhận vé QR *</label>
-                            <div class="spk-auth-input-wrap">
-                                <span class="spk-auth-input-icon"><iconify-icon icon="lucide:at-sign" width="16"></iconify-icon></span>
-                                <input type="email" id="regEmail" class="form-input" placeholder="athlete@spike.vn" oninput="clearFieldError('regEmail')">
-                            </div>
-                            <span class="field-error-msg" id="regEmailError">Email chưa đúng định dạng.</span>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group" id="fieldWrapRegPassword">
-                                <label class="form-label" for="regPassword">Mật khẩu *</label>
-                                <div class="spk-auth-input-wrap">
-                                    <span class="spk-auth-input-icon"><iconify-icon icon="lucide:key-round" width="16"></iconify-icon></span>
-                                    <input type="password"
-                                           id="regPassword"
-                                           class="form-input"
-                                           placeholder="Tối thiểu 6 ký tự"
-                                           oninput="clearFieldError('regPassword'); updatePasswordStrength(this.value)">
-                                    <button type="button" class="spk-pass-toggle" onclick="toggleAnimatedPassword('regPassword', 'eyeIconReg')">
-                                        <iconify-icon id="eyeIconReg" icon="lucide:eye" width="16"></iconify-icon>
-                                    </button>
+                        <form id="registerForm" action="/Account/Register" method="post" onsubmit="handleFormRegister(event)" novalidate>
+                            @Html.AntiForgeryToken()
+                            <div class="form-row">
+                                <div class="form-group" id="fieldWrapRegFullName">
+                                    <label class="form-label" for="regFullName">Họ và tên *</label>
+                                    <div class="spk-auth-input-wrap">
+                                        <span class="spk-auth-input-icon"><iconify-icon icon="lucide:user" width="16"></iconify-icon></span>
+                                        <input type="text" id="regFullName" name="FullName" class="form-input" placeholder="Nguyễn Văn A" autocomplete="name" oninput="clearFieldError('regFullName')">
+                                    </div>
+                                    <span class="field-error-msg" id="regFullNameError">Nhập tối thiểu 2 ký tự.</span>
                                 </div>
-                                <span class="field-error-msg" id="regPasswordError">Tối thiểu 6 ký tự.</span>
-                            </div>
 
-                            <div class="form-group" id="fieldWrapRegConfirmPassword">
-                                <label class="form-label" for="regConfirmPassword">Xác nhận MK *</label>
-                                <div class="spk-auth-input-wrap">
-                                    <span class="spk-auth-input-icon"><iconify-icon icon="lucide:check-circle-2" width="16"></iconify-icon></span>
-                                    <input type="password"
-                                           id="regConfirmPassword"
-                                           class="form-input"
-                                           placeholder="Nhập lại mật khẩu"
-                                           oninput="clearFieldError('regConfirmPassword')">
+                                <div class="form-group" id="fieldWrapRegPhone">
+                                    <label class="form-label" for="regPhone">Số điện thoại *</label>
+                                    <div class="spk-auth-input-wrap">
+                                        <span class="spk-auth-input-icon"><iconify-icon icon="lucide:phone" width="16"></iconify-icon></span>
+                                        <input type="tel" id="regPhone" name="Phone" class="form-input" placeholder="0901234567" autocomplete="tel" oninput="clearFieldError('regPhone')">
+                                    </div>
+                                    <span class="field-error-msg" id="regPhoneError">SĐT gồm 9–11 chữ số.</span>
                                 </div>
-                                <span class="field-error-msg" id="regConfirmPasswordError">Mật khẩu chưa khớp.</span>
                             </div>
+
+                            <div class="form-group" id="fieldWrapRegEmail">
+                                <label class="form-label" for="regEmail">Địa chỉ Email xác minh &amp; nhận vé QR *</label>
+                                <div class="spk-auth-input-wrap">
+                                    <span class="spk-auth-input-icon"><iconify-icon icon="lucide:at-sign" width="16"></iconify-icon></span>
+                                    <input type="email" id="regEmail" name="Email" class="form-input" placeholder="athlete@spike.vn" autocomplete="email" oninput="clearFieldError('regEmail')">
+                                </div>
+                                <span class="field-error-msg" id="regEmailError">Email chưa đúng định dạng.</span>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group" id="fieldWrapRegPassword">
+                                    <label class="form-label" for="regPassword">Mật khẩu *</label>
+                                    <div class="spk-auth-input-wrap">
+                                        <span class="spk-auth-input-icon"><iconify-icon icon="lucide:key-round" width="16"></iconify-icon></span>
+                                        <input type="password"
+                                               id="regPassword"
+                                               name="Password"
+                                               class="form-input"
+                                               placeholder="Tối thiểu 6 ký tự"
+                                               autocomplete="new-password"
+                                               oninput="clearFieldError('regPassword'); updatePasswordStrength(this.value)">
+                                        <button type="button" class="spk-pass-toggle" onclick="toggleAnimatedPassword('regPassword', 'eyeIconReg')" title="Hiện / Ẩn mật khẩu">
+                                            <iconify-icon id="eyeIconReg" icon="lucide:eye" width="16"></iconify-icon>
+                                        </button>
+                                    </div>
+                                    <span class="field-error-msg" id="regPasswordError">Tối thiểu 6 ký tự.</span>
+                                </div>
+
+                                <div class="form-group" id="fieldWrapRegConfirmPassword">
+                                    <label class="form-label" for="regConfirmPassword">Xác nhận MK *</label>
+                                    <div class="spk-auth-input-wrap">
+                                        <span class="spk-auth-input-icon"><iconify-icon icon="lucide:check-circle-2" width="16"></iconify-icon></span>
+                                        <input type="password"
+                                               id="regConfirmPassword"
+                                               name="ConfirmPassword"
+                                               class="form-input"
+                                               placeholder="Nhập lại mật khẩu"
+                                               autocomplete="new-password"
+                                               oninput="clearFieldError('regConfirmPassword')">
+                                    </div>
+                                    <span class="field-error-msg" id="regConfirmPasswordError">Mật khẩu chưa khớp.</span>
+                                </div>
+                            </div>
+
+                            <div class="pass-strength-wrap" style="margin-bottom:12px;">
+                                <div class="pass-strength-bars">
+                                    <div class="pass-strength-seg" id="passSeg1"></div>
+                                    <div class="pass-strength-seg" id="passSeg2"></div>
+                                    <div class="pass-strength-seg" id="passSeg3"></div>
+                                    <div class="pass-strength-seg" id="passSeg4"></div>
+                                </div>
+                                <div id="passStrengthLabel" class="pass-strength-text">Độ mạnh mật khẩu: Chưa nhập</div>
+                            </div>
+
+                            <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--text-secondary);margin-bottom:16px;cursor:pointer;">
+                                <input type="checkbox" id="regAgreeTerms" checked style="accent-color:var(--brand-primary);">
+                                <span>Tôi đồng ý với <strong style="color:var(--brand-primary-ink);">Nội quy Sân đấu</strong> &amp; Chính sách CLB</span>
+                            </label>
+
+                            <button type="submit" id="btnSubmitRegister" class="btn btn-primary btn-lg btn-block">
+                                <iconify-icon icon="lucide:send" width="17"></iconify-icon>
+                                <span id="btnSubmitRegisterText">Gửi mã xác minh</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- STEP 2B: 6-DIGIT EMAIL OTP VERIFICATION -->
+                    <div id="regStepVerifyOtp" class="spk-otp-stage" style="@(pendingRegState.HasPending && !serverRegisterVerified ? "display:block;" : "display:none;")">
+                        <div class="spk-otp-header">
+                            <div class="spk-otp-badge">
+                                <iconify-icon icon="lucide:mail-check" width="16"></iconify-icon>
+                                <span>Xác minh hộp thư điện tử</span>
+                            </div>
+                            <h2 style="font-size:1.4rem;font-weight:800;margin:6px 0 4px;">Nhập mã xác minh 6 chữ số</h2>
+                            <p class="text-sm text-muted" style="line-height:1.55;">
+                                Mã đã được gửi tới <strong id="otpMaskedEmailDisplay" class="spk-otp-email-pill">@(pendingRegState.MaskedEmail ?? "---")</strong>.
+                                Mã có hiệu lực trong <span id="otpExpiryCountdown" class="spk-otp-mono">10:00</span>.
+                            </p>
                         </div>
 
-                        <div class="pass-strength-wrap" style="margin-bottom:12px;">
-                            <div class="pass-strength-bars">
-                                <div class="pass-strength-seg" id="passSeg1"></div>
-                                <div class="pass-strength-seg" id="passSeg2"></div>
-                                <div class="pass-strength-seg" id="passSeg3"></div>
-                                <div class="pass-strength-seg" id="passSeg4"></div>
+                        <form id="verifyOtpForm" action="/Account/VerifyRegisterOtp" method="post" onsubmit="handleVerifyOtpSubmit(event)" novalidate>
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" id="otpVerificationToken" name="verificationToken" value="@(pendingRegState.VerificationToken ?? "")" />
+
+                            <div class="form-group" id="fieldWrapRegOtpInput" style="margin-bottom:14px;">
+                                <label class="form-label" for="regOtpInput">Mã xác minh OTP (6 chữ số) *</label>
+                                <input type="text"
+                                       id="regOtpInput"
+                                       name="otp"
+                                       class="form-input spk-otp-code-input"
+                                       inputmode="numeric"
+                                       pattern="[0-9]*"
+                                       maxlength="6"
+                                       autocomplete="one-time-code"
+                                       placeholder="000000"
+                                       aria-describedby="otpAssistHint regOtpInputError"
+                                       oninput="handleOtpDigitInput(this)"
+                                       onpaste="handleOtpPaste(event)">
+                                <div id="otpAssistHint" class="spk-otp-meta-row">
+                                    <span>Hỗ trợ dán trực tiếp mã 6 số từ email</span>
+                                    <span id="otpRemainingAttemptsText" class="spk-otp-mono">Tối đa @(pendingRegState.MaxAttempts > 0 ? pendingRegState.MaxAttempts : 5) lần thử</span>
+                                </div>
+                                <span class="field-error-msg" id="regOtpInputError">Vui lòng nhập đủ 6 chữ số xác minh.</span>
                             </div>
-                            <div id="passStrengthLabel" class="pass-strength-text">Độ mạnh mật khẩu: Chưa nhập</div>
+
+                            <button type="submit" id="btnVerifyOtpSubmit" class="btn btn-primary btn-lg btn-block">
+                                <iconify-icon icon="lucide:shield-check" width="18"></iconify-icon>
+                                <span id="btnVerifyOtpSubmitText">Xác nhận mã &amp; Tạo tài khoản</span>
+                            </button>
+                        </form>
+
+                        <div class="spk-otp-actions">
+                            <button type="button" id="btnResendOtp" class="btn btn-secondary btn-sm" onclick="handleResendOtpClick()">
+                                <iconify-icon icon="lucide:refresh-cw" width="15"></iconify-icon>
+                                <span id="btnResendOtpText">Gửi lại mã</span>
+                            </button>
+                            <button type="button" id="btnChangeRegEmail" class="spk-otp-link-btn" onclick="handleChangeRegisterEmail()">
+                                <iconify-icon icon="lucide:arrow-left" width="15"></iconify-icon>
+                                <span>Đổi email khác</span>
+                            </button>
                         </div>
+                    </div>
 
-                        <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--text-secondary);margin-bottom:16px;cursor:pointer;">
-                            <input type="checkbox" id="regAgreeTerms" checked style="accent-color:var(--brand-primary);">
-                            <span>Tôi đồng ý với <strong style="color:var(--brand-primary-ink);">Nội quy Sân đấu</strong> &amp; Chính sách CLB</span>
-                        </label>
-
-                        <button type="submit" class="btn btn-primary btn-lg btn-block">
-                            <iconify-icon icon="lucide:sparkles" width="18"></iconify-icon>
-                            <span>Khởi tạo Thẻ Hội Viên Ngay</span>
+                    <!-- STEP 2C: REGISTRATION COMPLETED -->
+                    <div id="regStepSuccess" class="spk-otp-success-card" style="@(serverRegisterVerified ? "display:block;" : "display:none;")">
+                        <div class="spk-otp-success-icon">
+                            <iconify-icon icon="lucide:check-circle-2" width="32"></iconify-icon>
+                        </div>
+                        <h2 style="font-size:1.45rem;font-weight:800;margin:0 0 8px;color:var(--text-primary);">Đăng ký thành công</h2>
+                        <p id="regSuccessDesc" class="text-sm text-muted" style="margin:0 0 20px;line-height:1.6;">
+                            @(serverRegisterSuccessMsg ?? "Email của bạn đã được xác minh và tài khoản hội viên đã sẵn sàng. Vui lòng đăng nhập để bắt đầu đặt sân.")
+                        </p>
+                        <button type="button" id="btnGoToLoginAfterVerify" class="btn btn-primary btn-lg btn-block" onclick="switchToLoginAfterRegisterSuccess()">
+                            <iconify-icon icon="lucide:log-in" width="18"></iconify-icon>
+                            <span>Đăng nhập</span>
                         </button>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -272,5 +380,8 @@
 </div>
 
 @section Scripts {
+    <script>
+        window.__INITIAL_REG_OTP_STATE__ = @Html.Raw(initialOtpStateJson);
+    </script>
     <script src="~/js/pages/auth.js" asp-append-version="true"></script>
 }

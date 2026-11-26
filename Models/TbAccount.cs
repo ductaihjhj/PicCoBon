@@ -49,6 +49,8 @@ public partial class TbAccount
 
     public string? SecurityStamp { get; set; }
 
+    public DateTime? EmailVerifiedAtUtc { get; set; }
+
     public virtual TbRole? Role { get; set; }
 
     public virtual ICollection<TbBooking> TbBookings { get; set; } = new List<TbBooking>();
