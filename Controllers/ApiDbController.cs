@@ -1877,84 +1877,250 @@ public class ApiDbController : ControllerBase
     [ValidateAntiForgeryToken]
     [HttpPost("/api/auth/register")]
     [EnableRateLimiting("AuthAndLookup")]
-    public async Task<IActionResult> RegisterApi([FromBody] JsonElement payload)
+    public async Task<IActionResult> RegisterApi(
+        [FromBody] JsonElement payload,
+        [FromServices] RegistrationOtpService registrationOtpService)
     {
         string name = payload.TryGetProperty("name", out var nProp) ? (nProp.GetString() ?? string.Empty).Trim() : string.Empty;
+        string? username = payload.TryGetProperty("username", out var uProp) && uProp.ValueKind == JsonValueKind.String
+            ? uProp.GetString()
+            : null;
         string phone = payload.TryGetProperty("phone", out var pProp) ? (pProp.GetString() ?? string.Empty).Trim() : string.Empty;
-        string email = payload.TryGetProperty("email", out var eProp) ? (eProp.GetString() ?? string.Empty).Trim().ToLowerInvariant() : string.Empty;
+        string email = payload.TryGetProperty("email", out var eProp) ? (eProp.GetString() ?? string.Empty) : string.Empty;
         string password = payload.TryGetProperty("password", out var pwProp) ? (pwProp.GetString() ?? string.Empty) : string.Empty;
+        string? confirmPassword = payload.TryGetProperty("confirmPassword", out var cpProp) && cpProp.ValueKind == JsonValueKind.String
+            ? cpProp.GetString()
+            : null;
 
-        if (string.IsNullOrEmpty(name) || name.Length < 2 || name.Length > 100)
-        {
-            return BadRequest(new { ok = false, error = "Họ và tên phải từ 2 đến 100 ký tự." });
-        }
+        var result = await registrationOtpService.StartRegistrationAsync(
+            _context,
+            HttpContext,
+            new RegistrationStartInput
+            {
+                FullName = name,
+                Username = username,
+                Phone = phone,
+                Email = email,
+                Password = password,
+                ConfirmPassword = confirmPassword,
+                ClientIp = registrationOtpService.ResolveClientIp(HttpContext)
+            },
+            HttpContext.RequestAborted);
 
-        if (!BookingService.IsValidPhone(phone))
-        {
-            return BadRequest(new { ok = false, error = "Số điện thoại không hợp lệ (10 chữ số Việt Nam)." });
-        }
-
-        if (string.IsNullOrEmpty(password) || password.Length < 6)
-        {
-            return BadRequest(new { ok = false, error = "Mật khẩu phải có tối thiểu 6 ký tự." });
-        }
-
-        string normalizedPhone = BookingService.NormalizePhone(phone);
-        string desiredUsername = !string.IsNullOrEmpty(email) ? email.Split('@')[0] : normalizedPhone;
-
-        bool exists = await _context.TbAccounts.AnyAsync(a =>
-            (a.Phone != null && a.Phone == normalizedPhone) ||
-            (!string.IsNullOrEmpty(email) && a.Email != null && a.Email.ToLower() == email));
-
-        if (exists)
-        {
-            return Conflict(new { ok = false, error = "Số điện thoại hoặc Email này đã được đăng ký." });
-        }
-
-        if (await _context.TbAccounts.AnyAsync(a => a.Username == desiredUsername))
-        {
-            desiredUsername = $"{desiredUsername}_{RandomNumberGenerator.GetInt32(100, 999)}";
-        }
-
-        var newAccount = new TbAccount
-        {
-            Username = desiredUsername,
-            FullName = name,
-            Phone = normalizedPhone,
-            Email = string.IsNullOrEmpty(email) ? null : email,
-            SkillLevel = "Giao lưu (DUPR 3.0)",
-            MemberTier = "Hội viên Tiêu chuẩn",
-            DominantHand = "Tay phải",
-            RoleId = 2, // Strictly Customer (P0-03)
-            IsActive = true,
-            MustChangePassword = false,
-            SecurityStamp = Function.GenerateSecurityStamp(),
-            LastLogin = BookingService.GetVietnamNow().ToString("yyyy-MM-dd")
-        };
-
-        newAccount.Password = _passwordService.HashPassword(newAccount, password);
-
-        _context.TbAccounts.Add(newAccount);
-        await _context.SaveChangesAsync();
-
-        await Function.SignInAccountAsync(HttpContext, newAccount);
-        _logger.LogInformation("New member account registered (AccountId={AccountId})", newAccount.AccountId);
         var csrfTokens = _antiforgery.GetAndStoreTokens(HttpContext);
+
+        if (!result.Success)
+        {
+            if (result.RetryAfterSeconds.HasValue && result.RetryAfterSeconds.Value > 0)
+            {
+                Response.Headers.RetryAfter = result.RetryAfterSeconds.Value.ToString(CultureInfo.InvariantCulture);
+            }
+
+            return StatusCode(result.StatusCode, new
+            {
+                ok = false,
+                code = result.ErrorCode,
+                error = result.ErrorMessage,
+                retryAfterSeconds = result.RetryAfterSeconds,
+                verificationToken = result.VerificationToken,
+                maskedEmail = result.MaskedEmail,
+                resendCooldownSeconds = result.ResendCooldownSeconds,
+                canResend = result.CanResend,
+                csrfToken = csrfTokens.RequestToken
+            });
+        }
 
         return Ok(new
         {
             ok = true,
-            csrfToken = csrfTokens.RequestToken,
-            user = new
+            status = result.Status,
+            message = result.Message,
+            verificationToken = result.VerificationToken,
+            maskedEmail = result.MaskedEmail,
+            expiresInSeconds = result.ExpiresInSeconds,
+            resendCooldownSeconds = result.ResendCooldownSeconds,
+            remainingAttempts = result.RemainingAttempts,
+            maxAttempts = result.MaxAttempts,
+            canResend = result.CanResend,
+            csrfToken = csrfTokens.RequestToken
+        });
+    }
+
+    [HttpGet("/api/auth/register/session")]
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    public async Task<IActionResult> GetRegisterSessionApi(
+        [FromServices] RegistrationOtpService registrationOtpService)
+    {
+        var state = await registrationOtpService.GetPendingSessionStateAsync(
+            _context,
+            HttpContext,
+            explicitToken: null,
+            HttpContext.RequestAborted);
+
+        var csrfTokens = _antiforgery.GetAndStoreTokens(HttpContext);
+
+        if (!state.HasPending)
+        {
+            return Ok(new
             {
-                id = newAccount.AccountId,
-                name = newAccount.FullName,
-                email = newAccount.Email ?? string.Empty,
-                phone = newAccount.Phone,
-                role = "user",
-                roleLabel = "Hội viên CLB",
-                avatar = string.Empty
+                ok = true,
+                hasPending = false,
+                csrfToken = csrfTokens.RequestToken
+            });
+        }
+
+        return Ok(new
+        {
+            ok = true,
+            hasPending = true,
+            status = "pending_otp",
+            verificationToken = state.VerificationToken,
+            maskedEmail = state.MaskedEmail,
+            expiresInSeconds = state.ExpiresInSeconds,
+            resendCooldownSeconds = state.ResendCooldownSeconds,
+            remainingAttempts = state.RemainingAttempts,
+            maxAttempts = state.MaxAttempts,
+            deliveryFailed = state.DeliveryFailed,
+            csrfToken = csrfTokens.RequestToken
+        });
+    }
+
+    [ValidateAntiForgeryToken]
+    [HttpPost("/api/auth/register/verify-otp")]
+    [EnableRateLimiting("AuthAndLookup")]
+    public async Task<IActionResult> VerifyRegisterOtpApi(
+        [FromBody] JsonElement payload,
+        [FromServices] RegistrationOtpService registrationOtpService)
+    {
+        string? verificationToken = payload.TryGetProperty("verificationToken", out var vtProp) && vtProp.ValueKind == JsonValueKind.String
+            ? vtProp.GetString()
+            : null;
+        string? otp = payload.TryGetProperty("otp", out var otpProp) && otpProp.ValueKind == JsonValueKind.String
+            ? otpProp.GetString()
+            : (payload.TryGetProperty("code", out var codeProp) && codeProp.ValueKind == JsonValueKind.String
+                ? codeProp.GetString()
+                : null);
+
+        var result = await registrationOtpService.VerifyOtpAndCreateAccountAsync(
+            _context,
+            HttpContext,
+            verificationToken,
+            otp,
+            HttpContext.RequestAborted);
+
+        var csrfTokens = _antiforgery.GetAndStoreTokens(HttpContext);
+
+        if (!result.Success)
+        {
+            return StatusCode(result.StatusCode, new
+            {
+                ok = false,
+                code = result.ErrorCode,
+                error = result.ErrorMessage,
+                verificationToken = result.VerificationToken,
+                maskedEmail = result.MaskedEmail,
+                canResend = result.CanResend,
+                remainingAttempts = result.ErrorCode is "OTP_INVALID" or "OTP_MAX_ATTEMPTS"
+                    ? (int?)result.RemainingAttempts
+                    : null,
+                csrfToken = csrfTokens.RequestToken
+            });
+        }
+
+        return Ok(new
+        {
+            ok = true,
+            status = result.Status,
+            message = result.Message,
+            maskedEmail = result.MaskedEmail,
+            loginUrl = "/Account/Login",
+            csrfToken = csrfTokens.RequestToken
+        });
+    }
+
+    [ValidateAntiForgeryToken]
+    [HttpPost("/api/auth/register/resend-otp")]
+    [EnableRateLimiting("AuthAndLookup")]
+    public async Task<IActionResult> ResendRegisterOtpApi(
+        [FromBody] JsonElement payload,
+        [FromServices] RegistrationOtpService registrationOtpService)
+    {
+        string? verificationToken = payload.ValueKind == JsonValueKind.Object &&
+                                    payload.TryGetProperty("verificationToken", out var vtProp) &&
+                                    vtProp.ValueKind == JsonValueKind.String
+            ? vtProp.GetString()
+            : null;
+
+        var result = await registrationOtpService.ResendOtpAsync(
+            _context,
+            HttpContext,
+            verificationToken,
+            registrationOtpService.ResolveClientIp(HttpContext),
+            HttpContext.RequestAborted);
+
+        var csrfTokens = _antiforgery.GetAndStoreTokens(HttpContext);
+
+        if (!result.Success)
+        {
+            if (result.RetryAfterSeconds.HasValue && result.RetryAfterSeconds.Value > 0)
+            {
+                Response.Headers.RetryAfter = result.RetryAfterSeconds.Value.ToString(CultureInfo.InvariantCulture);
             }
+
+            return StatusCode(result.StatusCode, new
+            {
+                ok = false,
+                code = result.ErrorCode,
+                error = result.ErrorMessage,
+                retryAfterSeconds = result.RetryAfterSeconds,
+                verificationToken = result.VerificationToken,
+                maskedEmail = result.MaskedEmail,
+                resendCooldownSeconds = result.ResendCooldownSeconds,
+                canResend = result.CanResend,
+                csrfToken = csrfTokens.RequestToken
+            });
+        }
+
+        return Ok(new
+        {
+            ok = true,
+            status = result.Status,
+            message = result.Message,
+            verificationToken = result.VerificationToken,
+            maskedEmail = result.MaskedEmail,
+            expiresInSeconds = result.ExpiresInSeconds,
+            resendCooldownSeconds = result.ResendCooldownSeconds,
+            remainingAttempts = result.RemainingAttempts,
+            maxAttempts = result.MaxAttempts,
+            canResend = result.CanResend,
+            csrfToken = csrfTokens.RequestToken
+        });
+    }
+
+    [ValidateAntiForgeryToken]
+    [HttpPost("/api/auth/register/cancel")]
+    [EnableRateLimiting("AuthAndLookup")]
+    public async Task<IActionResult> CancelRegisterOtpApi(
+        [FromBody] JsonElement payload,
+        [FromServices] RegistrationOtpService registrationOtpService)
+    {
+        string? verificationToken = payload.ValueKind == JsonValueKind.Object &&
+                                    payload.TryGetProperty("verificationToken", out var vtProp) &&
+                                    vtProp.ValueKind == JsonValueKind.String
+            ? vtProp.GetString()
+            : null;
+
+        await registrationOtpService.CancelPendingAsync(
+            _context,
+            HttpContext,
+            verificationToken,
+            HttpContext.RequestAborted);
+
+        var csrfTokens = _antiforgery.GetAndStoreTokens(HttpContext);
+        return Ok(new
+        {
+            ok = true,
+            csrfToken = csrfTokens.RequestToken
         });
     }
 

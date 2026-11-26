@@ -1587,7 +1587,7 @@ async function login(identifier, password, redirectUrl = '') {
   }
 }
 
-async function registerUser(payload, redirectUrl = '') {
+async function registerUser(payload, _redirectUrl = '') {
   try {
     const res = await apiFetch('/api/auth/register', {
       method: 'POST',
@@ -1595,14 +1595,133 @@ async function registerUser(payload, redirectUrl = '') {
       body: JSON.stringify(payload)
     });
     const data = await res.json().catch(() => ({}));
+    if (data && data.csrfToken) setCsrfToken(data.csrfToken);
     if (!res.ok || !data.ok) {
-      return { ok: false, error: data.error || 'Không thể đăng ký tài khoản.' };
+      return {
+        ok: false,
+        status: res.status,
+        code: data.code || '',
+        error: data.error || 'Không thể gửi mã xác minh đăng ký.',
+        retryAfterSeconds: data.retryAfterSeconds || 0,
+        verificationToken: data.verificationToken || '',
+        maskedEmail: data.maskedEmail || '',
+        resendCooldownSeconds: data.resendCooldownSeconds || 0,
+        canResend: Boolean(data.canResend)
+      };
     }
-    if (data.csrfToken) setCsrfToken(data.csrfToken);
-    window.location.href = isSafeLocalUrl(redirectUrl) ? redirectUrl : '/';
-    return { ok: true };
+    return {
+      ok: true,
+      status: data.status || 'pending_otp',
+      message: data.message || '',
+      verificationToken: data.verificationToken || '',
+      maskedEmail: data.maskedEmail || '',
+      expiresInSeconds: Number(data.expiresInSeconds) || 600,
+      resendCooldownSeconds: Number(data.resendCooldownSeconds) || 60,
+      remainingAttempts: Number(data.remainingAttempts) || 5,
+      maxAttempts: Number(data.maxAttempts) || 5,
+      canResend: data.canResend !== false
+    };
   } catch (_) {
-    return { ok: false, error: 'Lỗi kết nối máy chủ khi đăng ký tài khoản.' };
+    return { ok: false, error: 'Lỗi kết nối máy chủ khi gửi yêu cầu đăng ký.' };
+  }
+}
+
+async function verifyRegistrationOtp(verificationToken, otp) {
+  try {
+    const res = await apiFetch('/api/auth/register/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verificationToken, otp })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data && data.csrfToken) setCsrfToken(data.csrfToken);
+    if (!res.ok || !data.ok) {
+      return {
+        ok: false,
+        status: res.status,
+        code: data.code || '',
+        error: data.error || 'Mã xác minh chưa hợp lệ.',
+        canResend: Boolean(data.canResend),
+        remainingAttempts: typeof data.remainingAttempts === 'number' ? data.remainingAttempts : null
+      };
+    }
+    return {
+      ok: true,
+      status: data.status || 'registered',
+      message: data.message || 'Đăng ký thành công!',
+      maskedEmail: data.maskedEmail || '',
+      loginUrl: data.loginUrl || '/Account/Login'
+    };
+  } catch (_) {
+    return { ok: false, error: 'Lỗi kết nối máy chủ khi xác minh mã OTP.' };
+  }
+}
+
+async function resendRegistrationOtp(verificationToken) {
+  try {
+    const res = await apiFetch('/api/auth/register/resend-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verificationToken })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data && data.csrfToken) setCsrfToken(data.csrfToken);
+    if (!res.ok || !data.ok) {
+      return {
+        ok: false,
+        status: res.status,
+        code: data.code || '',
+        error: data.error || 'Chưa thể gửi lại mã xác minh.',
+        retryAfterSeconds: data.retryAfterSeconds || data.resendCooldownSeconds || 0,
+        canResend: Boolean(data.canResend)
+      };
+    }
+    return {
+      ok: true,
+      status: data.status || 'pending_otp',
+      message: data.message || 'Đã gửi mã xác minh mới.',
+      verificationToken: data.verificationToken || verificationToken,
+      maskedEmail: data.maskedEmail || '',
+      expiresInSeconds: Number(data.expiresInSeconds) || 600,
+      resendCooldownSeconds: Number(data.resendCooldownSeconds) || 60,
+      remainingAttempts: Number(data.remainingAttempts) || 5,
+      maxAttempts: Number(data.maxAttempts) || 5,
+      canResend: data.canResend !== false
+    };
+  } catch (_) {
+    return { ok: false, error: 'Lỗi kết nối máy chủ khi gửi lại mã OTP.' };
+  }
+}
+
+async function cancelRegistrationOtp(verificationToken) {
+  try {
+    const res = await apiFetch('/api/auth/register/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verificationToken })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data && data.csrfToken) setCsrfToken(data.csrfToken);
+    return { ok: res.ok && Boolean(data.ok) };
+  } catch (_) {
+    return { ok: false };
+  }
+}
+
+async function fetchRegistrationSession() {
+  try {
+    const res = await fetch('/api/auth/register/session', {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store'
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data && data.csrfToken) setCsrfToken(data.csrfToken);
+    if (!res.ok || !data.ok) return { hasPending: false };
+    return data;
+  } catch (_) {
+    return { hasPending: false };
   }
 }
 

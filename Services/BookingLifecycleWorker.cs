@@ -45,11 +45,18 @@ public class BookingLifecycleWorker : BackgroundService
                     using var scope = _scopeFactory.CreateScope();
                     var db = scope.ServiceProvider.GetRequiredService<PickleballContext>();
                     var bookingService = scope.ServiceProvider.GetRequiredService<BookingService>();
+                    var registrationOtpService = scope.ServiceProvider.GetRequiredService<RegistrationOtpService>();
 
                     int reconciled = await bookingService.ReconcileBookingLifecycleAsync(db);
                     if (reconciled > 0)
                     {
                         _logger.LogInformation("BookingLifecycleWorker reconciled {Count} expired/no_show booking(s)", reconciled);
+                    }
+
+                    int cleanedOtp = await registrationOtpService.CleanupExpiredVerificationsAsync(db, stoppingToken);
+                    if (cleanedOtp > 0)
+                    {
+                        _logger.LogInformation("BookingLifecycleWorker cleaned up {Count} expired registration verification(s)", cleanedOtp);
                     }
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)

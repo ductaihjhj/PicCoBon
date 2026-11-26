@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using PickleballClub.Configuration;
 using PickleballClub.Logging;
 using PickleballClub.Models;
 using PickleballClub.Services;
@@ -87,13 +88,14 @@ public class AccountController : Controller
         }
 
         string u = username.Trim();
+        string lowerU = u.ToLowerInvariant();
         string normPhone = BookingService.NormalizePhone(u);
         var check = await _context.TbAccounts
             .FirstOrDefaultAsync(m =>
-                m.Username == u ||
+                (m.Username != null && m.Username.ToLower() == lowerU) ||
                 m.Phone == u ||
                 (!string.IsNullOrEmpty(normPhone) && m.Phone == normPhone) ||
-                m.Email == u);
+                (m.Email != null && m.Email.ToLower() == lowerU));
 
         if (check == null)
         {
@@ -150,78 +152,96 @@ public class AccountController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [EnableRateLimiting("AuthAndLookup")]
-    public async Task<IActionResult> Register(TbAccount account, string? ConfirmPassword)
+    public async Task<IActionResult> Register(
+        TbAccount account,
+        string? ConfirmPassword,
+        [FromServices] RegistrationOtpService registrationOtpService)
     {
-        if (account == null || string.IsNullOrWhiteSpace(account.Username) || string.IsNullOrEmpty(account.Password))
+        if (account == null)
         {
-            TempData["AuthError"] = "Vui lòng điền đầy đủ tên đăng nhập và mật khẩu!";
-            return RedirectToAction("Login", "Account");
+            TempData["RegisterError"] = "Vui lòng điền đầy đủ thông tin đăng ký.";
+            return RedirectToAction("Login", "Account", new { mode = "register" });
         }
 
-        string username = account.Username.Trim();
-        if (username.Length < 3 || username.Length > 50)
+        string effectiveFullName = !string.IsNullOrWhiteSpace(account.FullName)
+            ? account.FullName.Trim()
+            : (account.Username ?? string.Empty).Trim();
+
+        var result = await registrationOtpService.StartRegistrationAsync(
+            _context,
+            HttpContext,
+            new RegistrationStartInput
+            {
+                FullName = effectiveFullName,
+                Username = string.IsNullOrWhiteSpace(account.Username) ? null : account.Username.Trim(),
+                Phone = account.Phone ?? string.Empty,
+                Email = account.Email ?? string.Empty,
+                Password = account.Password ?? string.Empty,
+                ConfirmPassword = ConfirmPassword,
+                ClientIp = registrationOtpService.ResolveClientIp(HttpContext)
+            },
+            HttpContext.RequestAborted);
+
+        if (!result.Success)
         {
-            TempData["AuthError"] = "Tên đăng nhập phải từ 3 đến 50 ký tự!";
-            return RedirectToAction("Login", "Account");
+            TempData["RegisterError"] = result.ErrorMessage ?? "Không thể gửi mã xác minh đăng ký.";
+            return RedirectToAction("Login", "Account", new { mode = "register" });
         }
 
-        if (account.Password.Length < 6)
+        TempData["RegisterInfo"] = result.Message;
+        return RedirectToAction("Login", "Account", new { mode = "register" });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("AuthAndLookup")]
+    public async Task<IActionResult> VerifyRegisterOtp(
+        string? verificationToken,
+        string? otp,
+        [FromServices] RegistrationOtpService registrationOtpService)
+    {
+        var result = await registrationOtpService.VerifyOtpAndCreateAccountAsync(
+            _context,
+            HttpContext,
+            verificationToken,
+            otp,
+            HttpContext.RequestAborted);
+
+        if (!result.Success)
         {
-            TempData["AuthError"] = "Mật khẩu phải có tối thiểu 6 ký tự!";
-            return RedirectToAction("Login", "Account");
+            TempData["RegisterError"] = result.ErrorMessage ?? "Không thể xác minh mã OTP.";
+            return RedirectToAction("Login", "Account", new { mode = "register" });
         }
 
-        if (!string.IsNullOrEmpty(ConfirmPassword) && account.Password != ConfirmPassword)
+        TempData["RegisterVerified"] = "true";
+        TempData["RegisterSuccessMessage"] = result.Message ?? "Đăng ký thành công! Bạn có thể đăng nhập ngay.";
+        return RedirectToAction("Login", "Account", new { mode = "register" });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("AuthAndLookup")]
+    public async Task<IActionResult> ResendRegisterOtp(
+        string? verificationToken,
+        [FromServices] RegistrationOtpService registrationOtpService)
+    {
+        var result = await registrationOtpService.ResendOtpAsync(
+            _context,
+            HttpContext,
+            verificationToken,
+            registrationOtpService.ResolveClientIp(HttpContext),
+            HttpContext.RequestAborted);
+
+        if (!result.Success)
         {
-            TempData["AuthError"] = "Mật khẩu xác nhận không khớp!";
-            return RedirectToAction("Login", "Account");
+            TempData["RegisterError"] = result.ErrorMessage ?? "Chưa thể gửi lại mã xác minh.";
+        }
+        else
+        {
+            TempData["RegisterInfo"] = result.Message;
         }
 
-        if (!BookingService.IsValidPhone(account.Phone))
-        {
-            TempData["AuthError"] = "Số điện thoại không hợp lệ (gồm 10 chữ số, bắt đầu bằng 0 hoặc +84)!";
-            return RedirectToAction("Login", "Account");
-        }
-
-        string normalizedPhone = BookingService.NormalizePhone(account.Phone);
-        string? normalizedEmail = string.IsNullOrWhiteSpace(account.Email) ? null : account.Email.Trim().ToLowerInvariant();
-
-        var existing = await _context.TbAccounts.FirstOrDefaultAsync(m =>
-            m.Username == username ||
-            m.Phone == normalizedPhone ||
-            (normalizedEmail != null && m.Email == normalizedEmail));
-
-        if (existing != null)
-        {
-            TempData["AuthError"] = "Tên đăng nhập, Email hoặc Số điện thoại đã được đăng ký!";
-            return RedirectToAction("Login", "Account");
-        }
-
-        var newAccount = new TbAccount
-        {
-            Username = username,
-            FullName = string.IsNullOrWhiteSpace(account.FullName) ? username : account.FullName.Trim(),
-            Phone = normalizedPhone,
-            Email = normalizedEmail,
-            SkillLevel = "Giao lưu (DUPR 3.0)",
-            MemberTier = "Hội viên Tiêu chuẩn",
-            DominantHand = "Tay phải",
-            RoleId = 2, // Strictly Customer role (P0-03)
-            IsActive = true,
-            MustChangePassword = false,
-            SecurityStamp = Function.GenerateSecurityStamp(),
-            LastLogin = BookingService.GetVietnamNow().ToString("yyyy-MM-dd")
-        };
-
-        newAccount.Password = _passwordService.HashPassword(newAccount, account.Password);
-
-        _context.TbAccounts.Add(newAccount);
-        await _context.SaveChangesAsync();
-
-        await Function.SignInAccountAsync(HttpContext, newAccount);
-
-        TempData["ProfileSuccess"] = "Chào mừng hội viên mới! Hãy hoàn thiện hồ sơ VĐV của bạn.";
-        return RedirectToAction("Profile", "Account");
+        return RedirectToAction("Login", "Account", new { mode = "register" });
     }
 
     /// <summary>
@@ -364,16 +384,19 @@ public class AccountController : Controller
             return ProfileValidationError("Số điện thoại này đã được liên kết với một tài khoản khác!", isAjax);
         }
 
+        string? previousNormalizedEmail = string.IsNullOrWhiteSpace(account.Email)
+            ? null
+            : account.Email.Trim().ToLowerInvariant();
         string? normalizedEmail = string.IsNullOrWhiteSpace(email) ? null : email.Trim().ToLowerInvariant();
         if (normalizedEmail != null)
         {
-            if (!normalizedEmail.Contains('@') || normalizedEmail.Length > 150)
+            if (!EmailSmtpOptions.IsValidEmailFormat(normalizedEmail))
             {
                 return ProfileValidationError("Địa chỉ Email không hợp lệ!", isAjax);
             }
 
             bool emailExists = await _context.TbAccounts.AnyAsync(a =>
-                a.AccountId != account.AccountId && a.Email == normalizedEmail);
+                a.AccountId != account.AccountId && a.Email != null && a.Email.ToLower() == normalizedEmail);
             if (emailExists)
             {
                 return ProfileValidationError("Địa chỉ Email này đã được sử dụng bởi tài khoản khác!", isAjax);
@@ -394,6 +417,11 @@ public class AccountController : Controller
         if (!ValidGenders.Contains(cleanGender))
         {
             cleanGender = "Nam";
+        }
+
+        if (!string.Equals(previousNormalizedEmail, normalizedEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            account.EmailVerifiedAtUtc = null;
         }
 
         account.FullName = fullName.Trim();

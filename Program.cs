@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
@@ -52,6 +53,8 @@ builder.Services.AddMemoryCache();
 
 builder.Services.Configure<PayPalOptions>(builder.Configuration.GetSection(PayPalOptions.SectionName));
 builder.Services.Configure<GeminiOptions>(builder.Configuration.GetSection(GeminiOptions.SectionName));
+builder.Services.Configure<EmailSmtpOptions>(builder.Configuration.GetSection(EmailSmtpOptions.SectionName));
+builder.Services.Configure<RegistrationOtpOptions>(builder.Configuration.GetSection(RegistrationOtpOptions.SectionName));
 
 // P1-17: Consistent Anti-Forgery protection across forms and JSON API endpoints (RequestVerificationToken header)
 builder.Services.AddAntiforgery(options =>
@@ -67,8 +70,11 @@ builder.Services.AddDbContext<PickleballContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Register Domain & Security Services
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<PasswordService>();
 builder.Services.AddSingleton<QrTokenService>();
+builder.Services.TryAddScoped<IEmailSender, MailKitEmailSender>();
+builder.Services.AddScoped<RegistrationOtpService>();
 builder.Services.AddScoped<ClubSettingsService>();
 builder.Services.AddScoped<PricingService>();
 builder.Services.AddScoped<BookingService>();
@@ -249,6 +255,7 @@ builder.Services.AddRateLimiter(options =>
         string category = path switch
         {
             var p when p.Contains("/auth/login") || p.Contains("/account/login") => "auth.login",
+            var p when p.Contains("/auth/register") || p.Contains("/account/register") || p.Contains("/account/verifyregisterotp") || p.Contains("/account/resendregisterotp") => "auth.register",
             var p when p.Contains("/reset-password") || p.Contains("/change-password") => "auth.password",
             var p when p.Contains("/lookup/") => "ticket.lookup",
             var p when p.Contains("/api/bookings") => "booking.create",
@@ -618,6 +625,20 @@ if (!app.Environment.IsEnvironment("Testing"))
         else
         {
             payPalLogger.LogWarning("PayPal gateway inactive at startup: Code={ErrorCode}", readiness.ErrorCode);
+        }
+
+        var otpLogger = bootScope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("PickleballClub.Services.RegistrationOtpService");
+        var regOtpService = bootScope.ServiceProvider.GetRequiredService<RegistrationOtpService>();
+        var otpReadiness = regOtpService.ValidateReadiness();
+        if (otpReadiness.IsReady)
+        {
+            var smtpOpts = bootScope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<EmailSmtpOptions>>().Value;
+            otpLogger.LogInformation("Registration Email OTP ready (Host={Host}, Port={Port}, Security={Security})",
+                smtpOpts.Host, smtpOpts.Port, smtpOpts.Security);
+        }
+        else
+        {
+            otpLogger.LogWarning("Registration Email OTP inactive at startup: Code={ErrorCode}", otpReadiness.ErrorCode);
         }
     }
     catch (Exception ex)
