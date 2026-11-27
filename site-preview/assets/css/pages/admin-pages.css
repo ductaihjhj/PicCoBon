@@ -1,0 +1,473 @@
+/* ==========================================================================
+   SPIKE OS — MODERN SPORTS MANAGEMENT PLATFORM
+   Admin & Staff Operational Consoles (Timeline, POS, Checkin, Reports, CMS)
+   ========================================================================== */
+
+/* 1. Admin Executive Dashboard & Module Directory Cards */
+.sh-module-card {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+  padding: 18px 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
+  background-color: var(--surface);
+  transition: border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              transform var(--dur-base) var(--ease-out);
+}
+.sh-module-card:hover {
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+}
+
+/* 2. Admin Management — Court x Time Scheduling Timeline */
+.sn-ops-timeline-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background-color: var(--surface);
+}
+.sn-ops-timeline-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+.sn-ops-timeline-table th, .sn-ops-timeline-table td {
+  border-bottom: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
+  padding: 6px;
+  vertical-align: middle;
+}
+.sn-ops-timeline-table th {
+  background-color: var(--surface-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding: 10px 12px;
+  text-align: left;
+}
+.sn-ops-timeline-hour {
+  width: 70px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background-color: var(--surface-subtle);
+  text-align: center;
+  white-space: nowrap;
+}
+.sn-ops-slot-pill {
+  width: 100%;
+  text-align: left;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  transition: filter var(--dur-fast) var(--ease-out);
+}
+.sn-ops-slot-pill:hover { filter: brightness(0.96); }
+.sn-ops-slot-pill.state-playing {
+  background-color: var(--status-info-bg);
+  border-color: var(--status-info-border);
+  color: var(--status-info-text);
+}
+.sn-ops-slot-pill.state-approved {
+  background-color: var(--brand-primary-tint);
+  border-color: var(--brand-primary-border);
+  color: var(--brand-primary-ink);
+}
+.sn-ops-slot-pill.state-pending {
+  background-color: var(--status-warning-bg);
+  border-color: var(--status-warning-border);
+  color: var(--status-warning-text);
+}
+.sn-ops-slot-pill.state-locked {
+  background-color: var(--status-danger-bg);
+  border-color: var(--status-danger-border);
+  color: var(--status-danger-text);
+}
+.sn-ops-slot-empty {
+  color: var(--text-subtle);
+  font-size: 0.72rem;
+  padding: 4px 6px;
+}
+
+/* 3. Point of Sale (POS) Modal & Drawer Controls */
+.pos-container {
+  display: grid;
+  grid-template-columns: 1.25fr 0.95fr;
+  min-height: 480px;
+}
+@media (max-width: 960px) {
+  .pos-container { grid-template-columns: 1fr; }
+}
+.pos-menu-side {
+  padding: 20px;
+  border-right: 1px solid var(--border-default);
+  overflow-y: auto;
+}
+.pos-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  gap: 10px;
+}
+.pos-menu-item, button.pos-menu-item {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background-color: var(--surface);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.pos-menu-item:hover {
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-tint);
+}
+.pos-menu-item-media {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 4px;
+  border-radius: 10px;
+  background-color: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.pos-menu-item-thumb { width: 100%; height: 100%; object-fit: contain; }
+.pos-menu-item-icon { font-size: 1.5rem; color: var(--brand-primary); }
+.pos-menu-item-name { font-size: 0.78rem; font-weight: 700; color: var(--text-primary); }
+.pos-menu-item-price { font-family: var(--font-mono); font-size: 0.76rem; font-weight: 800; color: var(--brand-deep); }
+
+.pos-cart-side {
+  padding: 20px;
+  background-color: var(--surface-secondary);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+}
+.pos-cart-header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-default);
+}
+.pos-cart-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 290px;
+  overflow-y: auto;
+}
+.pos-cart-item {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background-color: var(--surface);
+  border: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pos-cart-item-info { flex: 1; min-width: 0; }
+.pos-cart-item-name { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); }
+.pos-cart-item-price { font-size: 0.72rem; color: var(--text-muted); }
+.pos-cart-item-total {
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--brand-deep);
+  min-width: 72px;
+  text-align: right;
+}
+.pos-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pos-qty button {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 5px;
+  border: 1px solid var(--border-strong);
+  background-color: var(--surface);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pos-qty button:hover {
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: #FFFFFF;
+}
+.pos-cart-footer {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pos-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+.pos-total-value { color: var(--brand-deep); }
+
+/* 4. QR Check-in Scanner Console */
+.checkin-layout {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 1024px) {
+  .checkin-layout { grid-template-columns: 1fr; }
+}
+.checkin-result { display: none; margin-top: 16px; }
+.checkin-result.show { display: block; }
+.checkin-success {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background-color: var(--status-success-bg);
+  border: 1px solid var(--status-success-border);
+  color: var(--status-success-text);
+  text-align: center;
+}
+.checkin-error {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background-color: var(--status-danger-bg);
+  border: 1px solid var(--status-danger-border);
+  color: var(--status-danger-text);
+  text-align: center;
+}
+
+/* 5. Financial Reports & Soft Green Revenue Bar Charts */
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 14px;
+  height: 230px;
+  padding-top: 28px;
+}
+.chart-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.chart-bar-track {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  position: relative;
+  border-bottom: 2px solid var(--border-default);
+}
+.chart-bar {
+  width: 100%;
+  max-width: 48px;
+  background: linear-gradient(180deg, #2E8B57 0%, #6BCB77 100%);
+  border-radius: 8px 8px 0 0;
+  position: relative;
+  transition: height 0.35s ease;
+}
+.chart-bar.is-zero {
+  height: 0% !important;
+  min-height: 0 !important;
+  background: transparent;
+  border-top: 2px dashed var(--border-strong);
+  border-radius: 0;
+}
+.chart-bar-value {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+.chart-bar.is-zero .chart-bar-value {
+  color: var(--text-muted);
+  font-weight: 600;
+  top: -20px;
+}
+.chart-label {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.vip-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-default);
+}
+.vip-item:last-child { border-bottom: none; }
+.vip-rank {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--surface-secondary);
+  font-weight: 700;
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vip-rank.gold {
+  background: var(--brand-primary-tint);
+  color: var(--brand-deep);
+  border: 1px solid var(--brand-primary-border);
+}
+
+/* 6. CMS Editor Layout */
+.cms-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .cms-grid { grid-template-columns: 1fr; }
+}
+
+/* 7. Standalone Admin Auth Views (/Admin/Login & /Admin/Register) */
+.spk-admin-auth-body, .sh-auth-body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background-color: var(--surface-secondary);
+  background-image: radial-gradient(circle at 80% 15%, rgba(46, 139, 87, 0.12) 0%, transparent 50%);
+  color: var(--text-primary);
+}
+.spk-admin-auth-card, .sh-auth-card {
+  width: 100%;
+  max-width: 440px;
+  background-color: var(--surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  padding: 32px 28px;
+  box-shadow: var(--shadow-md);
+}
+.spk-admin-auth-card.is-wide, .sh-auth-card.is-wide {
+  max-width: 500px;
+}
+.spk-admin-auth-brand, .sh-auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.sh-auth-head {
+  text-align: center;
+  margin-bottom: 22px;
+}
+.spk-admin-auth-logo, .sh-auth-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.sh-auth-logo-img {
+  height: 62px;
+  width: auto;
+  max-width: 185px;
+  object-fit: contain;
+  display: block;
+}
+
+html[data-theme="dark"] .sh-auth-logo-img {
+  filter: drop-shadow(0 2px 8px rgba(107, 203, 119, 0.25));
+}
+.sh-auth-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+.sh-auth-sub {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.spk-pp-reconcile-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: #FEF3C7;
+  border: 1px solid #F59E0B;
+  color: #92400E;
+  font-size: 0.85rem;
+}
+html[data-theme="dark"] .spk-pp-reconcile-banner {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #FCD34D;
+}
+.spk-sandbox-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-primary-tint);
+  border: 1px solid rgba(46, 139, 87, 0.28);
+  color: var(--brand-primary-ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+html[data-theme="dark"] .spk-sandbox-pill {
+  background: rgba(107, 203, 119, 0.16);
+  border-color: rgba(107, 203, 119, 0.35);
+  color: #86efac;
+}

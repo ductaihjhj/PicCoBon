@@ -1,0 +1,249 @@
+/* ==========================================================================
+   SPIKE OS — UI PREVIEW ADDITIVE STYLES (Demo Badges, Charts & Toolbar)
+   Strictly preserves Spike OS design tokens and visual identity.
+   ========================================================================== */
+
+.spk-demo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill, 9999px);
+  background: var(--brand-primary-tint);
+  border: 1px solid var(--brand-primary-border);
+  color: var(--brand-primary-ink);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.spk-demo-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  flex-shrink: 0;
+}
+
+.spk-demo-banner {
+  background: var(--brand-primary-tint);
+  border: 1px solid var(--brand-primary-border);
+  color: var(--brand-primary-ink);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  line-height: 1.45;
+}
+
+.spk-demo-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) ease, color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+
+.spk-demo-reset-btn:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary-ink);
+  background: var(--brand-primary-tint);
+}
+
+/* Role Switcher on Demo Auth & Header */
+.spk-demo-role-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+@media (max-width: 540px) {
+  .spk-demo-role-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.spk-demo-role-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease, transform var(--dur-fast) ease;
+}
+
+.spk-demo-role-btn:hover {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-tint);
+  transform: translateY(-1px);
+}
+
+.spk-demo-role-btn strong {
+  font-size: 0.8rem;
+  color: var(--brand-primary-ink);
+}
+
+.spk-demo-role-btn span {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+/* Pro Shop Sort + Filter Enhancements */
+.spk-shop-sort-select {
+  min-width: 175px;
+  height: 40px;
+  font-size: 0.84rem;
+}
+
+/* Admin Dashboard Charts */
+.spk-admin-charts-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 960px) {
+  .spk-admin-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.spk-trend-bars {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+  height: 210px;
+  padding: 24px 8px 6px;
+}
+
+.spk-trend-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.spk-trend-track {
+  width: 100%;
+  max-width: 44px;
+  height: 148px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 10px 10px 6px 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  position: relative;
+}
+
+.spk-trend-fill-booking {
+  background: var(--brand-cta-gradient);
+  width: 100%;
+  transition: height 320ms var(--ease-out);
+}
+
+.spk-trend-fill-shop {
+  background: var(--brand-secondary);
+  width: 100%;
+  transition: height 320ms var(--ease-out);
+}
+
+.spk-trend-val {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.spk-trend-lbl {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Mascot AI Demo Pill */
+.spk-ai-demo-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-left: 4px;
+}
+
+@media (max-width: 1260px) {
+  .spk-demo-pill-hide-xs {
+    display: none;
+  }
+}
+
+@media (max-width: 1260px) and (min-width: 981px) {
+  .site-header-inner {
+    padding: 0 14px;
+    gap: 10px;
+  }
+  .site-brand-logo {
+    height: 38px;
+    max-width: 108px;
+  }
+  .site-nav {
+    gap: 2px;
+  }
+  .site-nav a,
+  .site-nav-link {
+    padding: 6px 9px;
+    font-size: 0.8125rem;
+  }
+  .site-header-actions {
+    gap: 6px;
+  }
+  .header-cta-book {
+    padding: 0 10px;
+    font-size: 0.8125rem;
+  }
+  .sn-nav-user-text {
+    max-width: 96px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spk-trend-fill-booking,
+  .spk-trend-fill-shop,
+  .spk-demo-role-btn,
+  .spk-demo-reset-btn {
+    transition: none !important;
+    transform: none !important;
+  }
+}

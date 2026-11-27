@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="Coco Shiba">
+  <defs>
+    <radialGradient id="bg04" cx="50%" cy="38%" r="72%">
+      <stop offset="0%" stop-color="#F2FCF3"/>
+      <stop offset="100%" stop-color="#CBEFD3"/>
+    </radialGradient>
+    <radialGradient id="shibaFur" cx="46%" cy="38%" r="62%">
+      <stop offset="0%" stop-color="#F8B968"/>
+      <stop offset="75%" stop-color="#E59842"/>
+      <stop offset="100%" stop-color="#CB7B28"/>
+    </radialGradient>
+    <radialGradient id="shibaCream" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#FFFDF8"/>
+      <stop offset="100%" stop-color="#FCECD3"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="240" height="240" fill="url(#bg04)"/>
+  <circle cx="120" cy="126" r="88" fill="#FFFFFF" opacity="0.4"/>
+
+  <!-- White Athletic Tee Shoulders -->
+  <path d="M52 240 C56 186, 86 170, 120 170 C154 170, 184 186, 188 240 Z" fill="#FFFFFF"/>
+  <path d="M96 171 Q120 190 144 171" fill="none" stroke="#2E8B57" stroke-width="5.5" stroke-linecap="round"/>
+  <path d="M120 196 C106 196, 98 206, 102 220 C110 226, 130 226, 138 220 C142 206, 134 196, 120 196 Z" fill="#2E8B57" opacity="0.16"/>
+
+  <!-- Neck & Collar Scarf -->
+  <path d="M98 160 C110 176, 130 176, 142 160 L132 182 L120 176 L108 182 Z" fill="#2E8B57"/>
+
+  <!-- Pointy Shiba Ears -->
+  <path d="M72 86 L62 46 C76 48, 92 60, 98 76 Z" fill="url(#shibaFur)"/>
+  <path d="M75 82 L68 55 C78 58, 88 66, 92 75 Z" fill="#FCE2D2"/>
+  <path d="M168 86 L178 46 C164 48, 148 60, 142 76 Z" fill="url(#shibaFur)"/>
+  <path d="M165 82 L172 55 C162 58, 152 66, 148 75 Z" fill="#FCE2D2"/>
+
+  <!-- Round Fluffy Shiba Head -->
+  <path d="M68 118 C68 78, 92 68, 120 68 C148 68, 172 78, 172 118 C176 144, 152 160, 120 160 C88 160, 64 144, 68 118 Z" fill="url(#shibaFur)"/>
+  <!-- Cream Lower Face Mask -->
+  <path d="M69 124 C72 108, 90 108, 106 116 C113 120, 127 120, 134 116 C150 108, 168 108, 171 124 C172 146, 150 160, 120 160 C90 160, 68 146, 69 124 Z" fill="url(#shibaCream)"/>
+
+  <!-- Shiba Cream Eyebrow Spots -->
+  <ellipse cx="97" cy="99" rx="7" ry="4.5" transform="rotate(-12 97 99)" fill="#FFF5DF"/>
+  <ellipse cx="143" cy="99" rx="7" ry="4.5" transform="rotate(12 143 99)" fill="#FFF5DF"/>
+
+  <!-- Sporty Mint Tennis Visor -->
+  <path d="M70 84 C96 72, 144 72, 170 84 L168 72 C142 60, 98 60, 72 72 Z" fill="#2E8B57"/>
+  <path d="M72 82 C98 71, 142 71, 168 82 C152 90, 88 90, 72 82 Z" fill="#6BCB77"/>
+
+  <!-- Bright Happy Eyes -->
+  <circle cx="96" cy="113" r="7" fill="#221912"/>
+  <circle cx="144" cy="113" r="7" fill="#221912"/>
+  <circle cx="98.5" cy="110.5" r="2.6" fill="#FFFFFF"/>
+  <circle cx="146.5" cy="110.5" r="2.6" fill="#FFFFFF"/>
+
+  <!-- Rosy Cheeks, Nose, Joyful Puppy Smile -->
+  <ellipse cx="80" cy="126" rx="7.5" ry="4.5" fill="#FF8787" opacity="0.4"/>
+  <ellipse cx="160" cy="126" rx="7.5" ry="4.5" fill="#FF8787" opacity="0.4"/>
+  <ellipse cx="120" cy="123" rx="6.5" ry="4.5" fill="#241913"/>
+  <path d="M120 127 L120 132 M109 132 Q115 139 120 132 Q125 139 131 132" fill="none" stroke="#36241B" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M115 135 C115 144, 125 144, 125 135 Z" fill="#FF7B89"/>
+
+  <!-- Paddle at lower right -->
+  <g transform="translate(178 175) rotate(18)">
+    <rect x="-19" y="-28" width="38" height="46" rx="12" fill="#2E8B57"/>
+    <rect x="-14" y="-23" width="28" height="36" rx="8" fill="#C9F23B" opacity="0.88"/>
+    <rect x="-4" y="17" width="8" height="20" rx="3" fill="#17251D"/>
+  </g>
+</svg>

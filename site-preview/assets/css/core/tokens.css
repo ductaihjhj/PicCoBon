@@ -1,0 +1,230 @@
+/* ==========================================================================
+   SPIKE OS — MODERN SPORTS MANAGEMENT PLATFORM
+   Core Design Tokens (Soft Green Gradient Brand System)
+   ========================================================================== */
+
+:root {
+  /* 1. Brand Identity — Soft Green Gradient */
+  --brand-primary: #2E8B57;
+  --brand-secondary: #6BCB77;
+  --brand-deep: #226B48;
+  --brand-primary-hover: #226B48;
+  --brand-primary-tint: #EAF7EE;
+  --brand-primary-tint-hover: #D7F0DF;
+  --brand-primary-border: #B7E4C7;
+  --brand-primary-ink: #1B573A;
+  --brand-gradient: linear-gradient(135deg, #2E8B57 0%, #6BCB77 100%);
+  --brand-cta-gradient: linear-gradient(135deg, #226B48 0%, #2E8B57 100%);
+  --brand-cta-gradient-hover: linear-gradient(135deg, #1B573A 0%, #226B48 100%);
+
+  /* 2. Informational Accent (Calendar & Transfer States) */
+  --notion-blue: #1D4ED8;
+  --notion-blue-hover: #1E40AF;
+  --notion-blue-tint: #EFF6FF;
+  --notion-blue-border: #BFDBFE;
+  --notion-blue-ink: #1E40AF;
+
+  /* 3. Surfaces & Backgrounds */
+  --background: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-secondary: #F6F8F6;
+  --surface-subtle: #FAFBF9;
+  --surface-elevated: #FFFFFF;
+
+  /* 4. Text & Ink Hierarchy (WCAG 2.2 AA Compliant on White & Tinted Surfaces) */
+  --text-primary: #17251D;
+  --text-secondary: #4A5950;
+  --text-muted: #627168;
+  --text-subtle: #78887E;
+
+  /* 5. Structural Borders & Dividers */
+  --border-default: #DFE8E1;
+  --border-strong: #C4D4C9;
+  --border-subtle: rgba(23, 37, 29, 0.06);
+  --border-focus: #2E8B57;
+
+  /* 6. Semantic Operational States (Dual-Coded High Contrast >= 4.5:1) */
+  --status-success-bg: #EAF7EE;
+  --status-success-text: #166534;
+  --status-success-border: #B7E4C7;
+
+  --status-info-bg: #EFF6FF;
+  --status-info-text: #1D4ED8;
+  --status-info-border: #BFDBFE;
+
+  --status-warning-bg: #FFFBEB;
+  --status-warning-text: #92400E;
+  --status-warning-border: #FDE68A;
+
+  --status-danger-bg: #FEF2F2;
+  --status-danger-text: #991B1B;
+  --status-danger-border: #FECACA;
+
+  --status-neutral-bg: #F1F5F2;
+  --status-neutral-text: #4A5950;
+  --status-neutral-border: #DFE8E1;
+
+  /* 7. Typography */
+  --font-sans: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* 8. Radii & Elevation */
+  --radius-xs: 6px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+  --radius-full: 9999px;
+
+  --shadow-xs: 0 1px 2px rgba(23, 37, 29, 0.04);
+  --shadow-sm: 0 2px 8px -2px rgba(23, 37, 29, 0.06), 0 1px 3px rgba(23, 37, 29, 0.04);
+  --shadow-card: 0 1px 3px rgba(23, 37, 29, 0.04);
+  --shadow-md: 0 8px 24px -4px rgba(23, 37, 29, 0.08), 0 2px 6px -1px rgba(23, 37, 29, 0.04);
+  --shadow-float: 0 6px 20px -2px rgba(23, 37, 29, 0.07), 0 2px 6px rgba(23, 37, 29, 0.04);
+  --shadow-lg: 0 18px 40px -10px rgba(23, 37, 29, 0.14);
+  --shadow-overlay: 0 20px 44px -10px rgba(23, 37, 29, 0.18), 0 4px 12px rgba(23, 37, 29, 0.06);
+  --shadow-brand: 0 6px 18px -4px rgba(46, 139, 87, 0.28);
+
+  /* 9. Spacing Scale (8px Spatial System) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* 10. Motion & Focus */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 240ms;
+  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px rgba(46, 139, 87, 0.42);
+
+  /* 11. Layout Dimensions */
+  --topbar-height: 64px;
+  --header-h: 64px;
+  --container-max: 1240px;
+  --admin-sidebar-w: 248px;
+  --admin-sidebar-collapsed-w: 68px;
+  --sidebar-width: 248px;
+  --sidebar-width-collapsed: 68px;
+  --admin-topbar-h: 58px;
+
+  /* 12. Semantic Variable Aliases (Zero-Orange Guarantee) */
+  --bg: var(--background);
+  --bg-body: var(--background);
+  --bg-page: var(--background);
+  --bg-surface: var(--surface);
+  --bg-surface-alt: var(--surface-secondary);
+  --bg-subtle: var(--surface-subtle);
+  --card: var(--surface);
+  --surface-card: var(--surface);
+  --surface-muted: var(--surface-secondary);
+  --border: var(--border-default);
+  --border-color: var(--border-default);
+  --border-light: var(--border-default);
+  --ink: var(--text-primary);
+  --ink-muted: var(--text-secondary);
+  --color-primary: var(--brand-primary);
+  --color-primary-hover: var(--brand-primary-hover);
+  --color-primary-50: var(--brand-primary-tint);
+  --color-primary-light: var(--brand-primary-border);
+  --color-orange: var(--brand-primary);
+  --color-orange-dark: var(--brand-deep);
+  --color-volt: #6BCB77;
+  --color-indigo: #1D4ED8;
+  --color-indigo-50: #EFF6FF;
+  --color-indigo-light: #DBEAFE;
+  --color-navy: #17251D;
+  --color-slate: #22352A;
+  --primary: var(--brand-primary);
+  --sidebar-bg: #F6F8F6;
+  --sidebar-fg: #17251D;
+  --sidebar-muted: #627168;
+  --sidebar-border: #DFE8E1;
+  --sidebar-accent: #EAF7EE;
+  --color-success: #166534;
+  --color-success-light: #EAF7EE;
+  --color-warning: #D97706;
+  --color-warning-light: #FFFBEB;
+  --color-danger: #DC2626;
+  --color-danger-light: #FEF2F2;
+  --color-info: #1D4ED8;
+}
+
+/* ==========================================================================
+   DARK MODE ADAPTATION (Deep Botanical Forest Slate + Soft Green Accent)
+   ========================================================================== */
+html[data-theme="dark"] {
+  --background: #0C1410;
+  --surface: #121E18;
+  --surface-secondary: #17261F;
+  --surface-subtle: #1C2E25;
+  --surface-elevated: #1A2B22;
+
+  --text-primary: #ECFDF3;
+  --text-secondary: #B4C6BC;
+  --text-muted: #889E91;
+  --text-subtle: #687D70;
+
+  --border-default: #22362C;
+  --border-strong: #314D3F;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+
+  --brand-primary: #3DA36D;
+  --brand-secondary: #6BCB77;
+  --brand-deep: #2E8B57;
+  --brand-primary-hover: #2E8B57;
+  --brand-primary-tint: rgba(46, 139, 87, 0.22);
+  --brand-primary-tint-hover: rgba(46, 139, 87, 0.32);
+  --brand-primary-border: rgba(107, 203, 119, 0.38);
+  --brand-primary-ink: #86EFAC;
+
+  --notion-blue-tint: rgba(59, 130, 246, 0.16);
+  --notion-blue-border: rgba(59, 130, 246, 0.36);
+  --notion-blue-ink: #93C5FD;
+
+  --status-success-bg: rgba(34, 197, 94, 0.16);
+  --status-success-text: #86EFAC;
+  --status-success-border: rgba(34, 197, 94, 0.36);
+
+  --status-info-bg: rgba(59, 130, 246, 0.16);
+  --status-info-text: #93C5FD;
+  --status-info-border: rgba(59, 130, 246, 0.36);
+
+  --status-warning-bg: rgba(245, 158, 11, 0.16);
+  --status-warning-text: #FCD34D;
+  --status-warning-border: rgba(245, 158, 11, 0.36);
+
+  --status-danger-bg: rgba(239, 68, 68, 0.16);
+  --status-danger-text: #FCA5A5;
+  --status-danger-border: rgba(239, 68, 68, 0.36);
+
+  --status-neutral-bg: #1B2B23;
+  --status-neutral-text: #CBD5E1;
+  --status-neutral-border: #2C4438;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-float: 0 10px 30px rgba(0, 0, 0, 0.48);
+  --shadow-overlay: 0 20px 48px rgba(0, 0, 0, 0.62);
+
+  --color-success: #6EE7B7;
+  --color-warning: #FCD34D;
+  --color-danger: #FCA5A5;
+  --color-indigo: #93C5FD;
+  --color-info: #93C5FD;
+
+  --sidebar-bg: #0F1914;
+  --sidebar-fg: #ECFDF3;
+  --sidebar-muted: #889E91;
+  --sidebar-border: #22362C;
+  --sidebar-accent: rgba(46, 139, 87, 0.22);
+  color-scheme: dark;
+}

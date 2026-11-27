@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light" data-root="../../">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Phùng Đức Tài">
+    <title>Hồ Sơ Hội Viên & Vận Động Viên — Spike Pickleball Club (UI Demo)</title>
+    <link rel="icon" type="image/png" href="../../assets/images/spike-favicon.png">
+    <script>
+      (function () {
+        try {
+          var savedTheme = localStorage.getItem('spike_theme');
+          if (savedTheme === 'dark' || savedTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+          }
+        } catch (_) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="../../assets/css/core/tokens.css" />
+    <link rel="stylesheet" href="../../assets/css/core/reset.css" />
+    <link rel="stylesheet" href="../../assets/css/components/primitives.css" />
+    <link rel="stylesheet" href="../../assets/css/components/qr-ticket.css" />
+    <link rel="stylesheet" href="../../assets/css/components/mascot-assistant.css" />
+    <link rel="stylesheet" href="../../assets/css/layouts/public-shell.css" />
+    <link rel="stylesheet" href="../../assets/css/layouts/admin-shell.css" />
+    <link rel="stylesheet" href="../../assets/css/pages/public-pages.css" />
+    <link rel="stylesheet" href="../../assets/css/pages/admin-pages.css" />
+    <link rel="stylesheet" href="../../assets/css/pages/demo-preview.css" />
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+</head>
+<body>
+    <a href="#mainContent" class="sr-only">Chuyển tới nội dung chính</a>
+
+    <header class="site-header">
+        <div class="site-header-inner">
+            <a href="../../" class="site-brand" aria-label="Spike Pickleball Club — Trang chủ">
+                <img src="../../assets/images/spike-logo.png" alt="Spike Pickleball Club" class="site-brand-logo" width="720" height="308" />
+            </a>
+
+            <nav class="site-nav" id="siteMainNav" aria-label="Điều hướng chính">
+                <a href="../../" class="site-nav-link">Trang chủ</a>
+                <a href="../../booking/" class="site-nav-link">Đặt sân</a>
+                <a href="../../shop/" class="site-nav-link">Pro Shop</a>
+                <a href="../../my-bookings/" class="site-nav-link">Tra cứu vé</a>
+                <a href="../../staff/" class="site-nav-link">Staff</a>
+                <a href="../../admin/" class="site-nav-link">Quản trị</a>
+            </nav>
+
+            <div class="site-header-actions">
+                <span class="spk-demo-pill spk-demo-pill-hide-xs" title="Bản xem trước giao diện tĩnh — không kết nối CSDL thật">
+                    <span class="spk-demo-pill-dot" aria-hidden="true"></span>
+                    <span>SPIKE OS • UI DEMO</span>
+                </span>
+                <div id="headerAuthActionsMount">
+                    <a href="../../account/login/" class="btn btn-sm btn-secondary">Đăng nhập</a>
+                </div>
+                <button type="button"
+                        class="sh-site-theme-btn"
+                        id="siteThemeToggleBtn"
+                        onclick="toggleSpikeTheme()"
+                        aria-label="Chuyển đổi giao diện Sáng / Tối"
+                        title="Chuyển đổi giao diện Sáng / Tối">
+                    <iconify-icon icon="lucide:sun" width="16" class="sh-theme-icon-sun"></iconify-icon>
+                    <iconify-icon icon="lucide:moon" width="16" class="sh-theme-icon-moon"></iconify-icon>
+                </button>
+                <div id="headerAdminBtnMount"></div>
+                <a href="../../booking/" class="btn btn-primary btn-sm header-cta-book">Đặt sân ngay</a>
+                <button type="button"
+                        id="siteMobileNavBtn"
+                        class="sn-mobile-menu-btn mobile-menu-btn"
+                        onclick="toggleMobileNav()"
+                        aria-expanded="false"
+                        aria-controls="siteMainNav"
+                        aria-label="Mở menu điều hướng">
+                    <iconify-icon icon="lucide:menu" width="19"></iconify-icon>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="mainContent">
+
+    <section class="page-hero">
+        <div class="container page-hero-inner">
+            <div>
+                <span class="section-kicker">Thẻ Hội Viên &amp; Hồ Sơ VĐV</span>
+                <h1 class="page-hero-title" id="profileHeroTitle">Hồ Sơ Cá Nhân — Nguyễn Minh Khôi</h1>
+                <p class="page-hero-sub">Cập nhật thông số VĐV Pickleball, thử chọn nhân vật đại diện hoặc tải ảnh từ thiết bị để xem trước trực tiếp.</p>
+            </div>
+            <div style="display:flex;gap:0.65rem;flex-wrap:wrap;">
+                <a href="../../booking/" class="btn btn-primary btn-sm">
+                    <iconify-icon icon="lucide:calendar-plus" width="16"></iconify-icon>
+                    <span>Đặt sân mới</span>
+                </a>
+                <a href="../../my-bookings/" class="btn btn-secondary btn-sm">
+                    <iconify-icon icon="lucide:qr-code" width="16"></iconify-icon>
+                    <span>Tra cứu vé QR</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <main class="page-main">
+        <div class="container">
+            <div id="profileAjaxAlert" hidden></div>
+
+            <div class="profile-layout">
+                <aside class="member-passport">
+                    <div class="member-passport-banner">
+                        <span class="member-passport-code" id="passportCode">#SPK-0101</span>
+                        <span class="member-passport-tier" id="passportTier">Hội viên Vàng VIP</span>
+                    </div>
+                    <div class="member-passport-body">
+                        <div class="member-avatar-wrap">
+                            <img id="liveAvatarPreview" src="../../assets/images/avatars/leo.png" alt="Avatar" />
+                            <span id="liveAvatarFallback" class="spk-profile-avatar-initials" hidden aria-hidden="true">K</span>
+                        </div>
+                        <h2 class="member-name" id="liveNamePreview">Nguyễn Minh Khôi</h2>
+                        <div class="member-sub" id="passportContact">0909123456 · khoi.nguyen@spikepickleball.vn</div>
+
+                        <div class="member-kpi-grid">
+                            <div>
+                                <span class="member-kpi-val" id="passportKpiMatches">2</span>
+                                <span class="member-kpi-lbl">Lượt đặt sân</span>
+                            </div>
+                            <div>
+                                <span class="member-kpi-val" id="passportKpiHours">3 h</span>
+                                <span class="member-kpi-lbl">Giờ thi đấu</span>
+                            </div>
+                            <div>
+                                <span class="member-kpi-val" id="passportKpiSpent">480k</span>
+                                <span class="member-kpi-lbl">Tích lũy CLB</span>
+                            </div>
+                        </div>
+
+                        <div class="member-specs">
+                            <div class="member-spec-row">
+                                <span><iconify-icon icon="lucide:trophy" width="15" style="color:var(--color-volt);"></iconify-icon> Trình độ / DUPR</span>
+                                <strong id="liveSkillPreview">Khá (DUPR 3.5+)</strong>
+                            </div>
+                            <div class="member-spec-row">
+                                <span><iconify-icon icon="lucide:hand" width="15" style="color:var(--color-primary);"></iconify-icon> Tay thuận</span>
+                                <strong id="liveHandPreview">Tay phải</strong>
+                            </div>
+                            <div class="member-spec-row">
+                                <span><iconify-icon icon="mdi:table-tennis" width="15" style="color:#38BDF8;"></iconify-icon> Vợt thi đấu</span>
+                                <strong id="livePaddlePreview">Joola Perseus 16mm</strong>
+                            </div>
+                            <div class="member-spec-row">
+                                <span><iconify-icon icon="lucide:zap" width="15" style="color:#F59E0B;"></iconify-icon> Lối đánh</span>
+                                <strong id="liveStylePreview">Tấn công tốc độ</strong>
+                            </div>
+                            <div class="member-spec-row">
+                                <span><iconify-icon icon="lucide:map-pin" width="15" style="color:#10B981;"></iconify-icon> Khu vực</span>
+                                <strong id="passportAddressText">Thảo Điền, TP. Thủ Đức</strong>
+                            </div>
+                        </div>
+
+                        <div id="passportBioBox" style="margin-top:1rem;padding:0.75rem 0.9rem;background:rgba(255,255,255,0.04);border-radius:10px;font-size:0.78rem;color:#CBD5E1;font-style:italic;text-align:left;"></div>
+                    </div>
+                </aside>
+
+                <div>
+                    <div class="profile-tabs">
+                        <button type="button" class="profile-tab-btn active" onclick="switchProfileTab('info', this)">
+                            <iconify-icon icon="lucide:user-check" width="17"></iconify-icon>
+                            <span>Thông tin Cá nhân &amp; Hồ sơ VĐV</span>
+                        </button>
+                        <button type="button" class="profile-tab-btn" onclick="switchProfileTab('bookings', this)">
+                            <iconify-icon icon="lucide:calendar-clock" width="17"></iconify-icon>
+                            <span>Lịch sử đặt sân (<span id="profileBookingsTabCount">0</span>)</span>
+                        </button>
+                        <button type="button" class="profile-tab-btn" onclick="switchProfileTab('security', this)">
+                            <iconify-icon icon="lucide:shield-lock" width="17"></iconify-icon>
+                            <span>Đổi mật khẩu (Demo)</span>
+                        </button>
+                    </div>
+
+                    <div class="profile-tab-pane active" id="tab-info">
+                        <form class="stack" id="profileUpdateForm">
+                            <div class="card">
+                                <div class="card-header">
+                                    <span class="card-header-title">
+                                        <iconify-icon icon="lucide:contact" width="18" style="color:var(--color-primary);"></iconify-icon>
+                                        <span>Thông tin Cá nhân &amp; Ảnh đại diện</span>
+                                    </span>
+                                    <span class="badge badge-success">Lưu mô phỏng trên trình duyệt</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label class="form-label" for="profFullName">Họ và tên đầy đủ *</label>
+                                            <input type="text" id="profFullName" name="fullName" class="form-input" required oninput="document.getElementById('liveNamePreview').textContent = this.value || 'Hội viên CLB'">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="profPhone">Số điện thoại nhận mã QR *</label>
+                                            <input type="tel" id="profPhone" name="phone" class="form-input text-mono" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label class="form-label" for="profEmail">Địa chỉ Email</label>
+                                            <input type="email" id="profEmail" name="email" class="form-input">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="profAddress">Địa chỉ / Khu vực sinh sống</label>
+                                            <input type="text" id="profAddress" name="address" class="form-input">
+                                        </div>
+                                    </div>
+
+                                    <div class="spk-avatar-studio" id="avatarStudio" data-saved-avatar="../../assets/images/avatars/leo.png">
+                                        <div class="spk-avatar-studio-head">
+                                            <div class="spk-avatar-studio-title">
+                                                <span class="form-label">Ảnh đại diện hồ sơ</span>
+                                                <span class="spk-avatar-studio-sub">Hiển thị đồng bộ trên thanh điều hướng &amp; Thẻ Hội Viên</span>
+                                            </div>
+                                            <span class="spk-avatar-source-pill is-active" id="avatarSourcePill">Ảnh đại diện</span>
+                                        </div>
+
+                                        <input type="hidden" id="selectedPresetAvatar" name="avatar" value="../../assets/images/avatars/leo.png" />
+
+                                        <div class="spk-avatar-upload-card" id="avatarDropzone">
+                                            <div class="spk-avatar-upload-main">
+                                                <div class="spk-avatar-inline-preview">
+                                                    <img id="inlineAvatarPreview" src="../../assets/images/avatars/leo.png" alt="Xem trước ảnh đại diện" />
+                                                    <span id="inlineAvatarFallback" class="spk-avatar-inline-initials" hidden aria-hidden="true">K</span>
+                                                </div>
+                                                <div class="spk-avatar-upload-copy">
+                                                    <div class="spk-avatar-upload-heading">Tải ảnh xem trước từ thiết bị</div>
+                                                    <div class="spk-avatar-upload-meta" id="avatarUploadMeta">Kéo thả ảnh vào đây hoặc chọn tệp JPG, JPEG, PNG, WEBP (tối đa 2 MB)</div>
+                                                </div>
+                                            </div>
+                                            <div class="spk-avatar-upload-actions">
+                                                <label for="profAvatarFile" class="btn btn-sm btn-secondary spk-avatar-pick-btn">
+                                                    <iconify-icon icon="lucide:upload" width="15"></iconify-icon>
+                                                    <span>Chọn ảnh từ máy</span>
+                                                </label>
+                                                <button type="button" id="avatarClearUploadBtn" class="btn btn-sm btn-ghost" hidden>Hủy tệp</button>
+                                                <input type="file" id="profAvatarFile" name="avatarFile" class="sr-only" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+                                            </div>
+                                        </div>
+
+                                        <div class="spk-avatar-alert" id="avatarUploadError" role="alert" hidden>
+                                            <iconify-icon icon="lucide:alert-circle" width="16" style="flex-shrink:0;"></iconify-icon>
+                                            <span id="avatarUploadErrorText"></span>
+                                        </div>
+
+                                        <div class="spk-avatar-presets-section">
+                                            <div class="spk-avatar-presets-head">
+                                                <span class="spk-avatar-presets-label">Hoặc chọn nhanh nhân vật thể thao Spike OS</span>
+                                                <span class="spk-avatar-presets-count">8 mẫu minh họa</span>
+                                            </div>
+                                            <div class="spk-avatar-grid" role="group" aria-label="Chọn nhanh nhân vật đại diện">
+                                                
+                                                <button type="button"
+                                                        class="spk-avatar-tile"
+                                                        data-avatar-url="../../assets/images/avatars/sunny.png"
+                                                        data-avatar-name="Sunny Rally"
+                                                        aria-pressed="false"
+                                                        onclick="selectPresetAvatar('../../assets/images/avatars/sunny.png', this)"
+                                                        title="Chọn nhân vật Sunny Rally">
+                                                    <span class="spk-avatar-check" aria-hidden="true"><iconify-icon icon="lucide:check" width="11"></iconify-icon></span>
+                                                    <span class="spk-avatar-tile-thumb"><img src="../../assets/images/avatars/sunny.png" alt="Sunny Rally" loading="lazy"></span>
+                                                    <span class="spk-avatar-tile-name">Sunny</span>
+                                                </button>
+                                                <button type="button"
+                                                        class="spk-avatar-tile"
+                                                        data-avatar-url="../../assets/images/avatars/ace.png"
+                                                        data-avatar-name="Ace Dash"
+                                                        aria-pressed="false"
+                                                        onclick="selectPresetAvatar('../../assets/images/avatars/ace.png', this)"
+                                                        title="Chọn nhân vật Ace Dash">
+                                                    <span class="spk-avatar-check" aria-hidden="true"><iconify-icon icon="lucide:check" width="11"></iconify-icon></span>
+                                                    <span class="spk-avatar-tile-thumb"><img src="../../assets/images/avatars/ace.png" alt="Ace Dash" loading="lazy"></span>
+                                                    <span class="spk-avatar-tile-name">Ace</span>
+                                                </button>
+                                                <button type="button"
+                                                        class="spk-avatar-tile"
+                                                        data-avatar-url="../../assets/images/avatars/mochi.png"
+                                                        data-avatar-name="Mochi Panda"
+                                                        aria-pressed="false"
+                                                        onclick="selectPresetAvatar('../../assets/images/avatars/mochi.png', this)"
+                                                        title="Chọn nhân vật Mochi Panda">
+                                                    <span class="spk-avatar-check" aria-hidden="true"><iconify-icon icon="lucide:check" width="11"></iconify-icon></span>
+                                                    <span class="spk-avatar-tile-thumb"><img src="../../assets/images/avatars/mochi.png" alt="Mochi Panda" loading="lazy"></span>
+                                                    <span class="spk-avatar-tile-name">Mochi</span>
+                                                </button>
+                                                <button type="button"
+                                                        class="spk-avatar-tile"
+                                                        data-avatar-url="../../assets/images/avatars/coco.png"
+                                                        data-avatar-name="Coco Shiba"
+                                                        aria-pressed="false"
+                                                        onclick="selectPresetAvatar('../../assets/images/avatars/coco.png', this)"
+                                                        title="Chọn nhân vật Coco Shiba">
+                                                    <span class="spk-avatar-check" aria-hidden="true"><iconify-icon icon="lucide:check" width="11"></iconify-icon></span>
+                                                    <span class="spk-avatar-tile-thumb"><img src="../../assets/images/avatars/coco.png" alt="Coco Shiba" loading="lazy"></span>
+                                                    <span class="spk-avatar-tile-name">Coco</span>
+                                                </button>
+                                                <button type="button"
+                                                        class="spk-avatar-tile"
+                                                        data-avatar-url="../../assets/images/avatars/maya.png"
+                                                        data-avatar-name="Maya Smash"
+                                                        aria-pressed="false"
+                                                        onclick="selectPresetAvatar('../../assets/images/avatars/maya.png', this)"
+                                                        title="Chọn nhân vật Maya Smash">
+                                                    <span class="spk-avatar-check" aria-hidden="true"><iconify-icon icon="lucide:check" width="11"></iconify-icon></span>
+                                                    <span class="spk-avatar-tile-thumb"><img src="../../assets/images/avatars/maya.png" alt="Maya Smash" loading="lazy"></span>
+                                                    <span class="spk-avatar-tile-name">Maya</span>
+                                                </button>
+                                                <button type="button"
+                                                        class="spk-avatar-tile"
+                                                        data-avatar-url="../../assets/images/avatars/leo.png"
+                                                        data-avatar-name="Leo Spin"
+                                                        aria-pressed="false"
+                                                        onclick="selectPresetAvatar('../../assets/images/avatars/leo.png', this)"
+                                                        title="Chọn nhân vật Leo Spin">
+                                                    <span class="spk-avatar-check" aria-hidden="true"><iconify-icon icon="lucide:check" width="11"></iconify-icon></span>
+                                                    <span class="spk-avatar-tile-thumb"><img src="../../assets/images/avatars/leo.png" alt="Leo Spin" loading="lazy"></span>
+                                                    <span class="spk-avatar-tile-name">Leo</span>
+                                                </button>
+                                                <button type="button"
+                                                        class="spk-avatar-tile"
+                                                        data-avatar-url="../../assets/images/avatars/kiko.png"
+                                                        data-avatar-name="Kiko Kitty"
+                                                        aria-pressed="false"
+                                                        onclick="selectPresetAvatar('../../assets/images/avatars/kiko.png', this)"
+                                                        title="Chọn nhân vật Kiko Kitty">
+                                                    <span class="spk-avatar-check" aria-hidden="true"><iconify-icon icon="lucide:check" width="11"></iconify-icon></span>
+                                                    <span class="spk-avatar-tile-thumb"><img src="../../assets/images/avatars/kiko.png" alt="Kiko Kitty" loading="lazy"></span>
+                                                    <span class="spk-avatar-tile-name">Kiko</span>
+                                                </button>
+                                                <button type="button"
+                                                        class="spk-avatar-tile"
+                                                        data-avatar-url="../../assets/images/avatars/kai.png"
+                                                        data-avatar-name="Kai Bolt"
+                                                        aria-pressed="false"
+                                                        onclick="selectPresetAvatar('../../assets/images/avatars/kai.png', this)"
+                                                        title="Chọn nhân vật Kai Bolt">
+                                                    <span class="spk-avatar-check" aria-hidden="true"><iconify-icon icon="lucide:check" width="11"></iconify-icon></span>
+                                                    <span class="spk-avatar-tile-thumb"><img src="../../assets/images/avatars/kai.png" alt="Kai Bolt" loading="lazy"></span>
+                                                    <span class="spk-avatar-tile-name">Kai</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header">
+                                    <span class="card-header-title">
+                                        <iconify-icon icon="mdi:racquetball" width="18" style="color:var(--color-indigo);"></iconify-icon>
+                                        <span>Thông số Vận động viên Pickleball (DUPR &amp; Trang bị)</span>
+                                    </span>
+                                    <span class="badge badge-primary">Hồ sơ thi đấu CLB</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label class="form-label" for="profSkill">Trình độ / Điểm DUPR hiện tại</label>
+                                            <select id="profSkill" name="skillLevel" class="form-select" onchange="document.getElementById('liveSkillPreview').textContent = this.value">
+                                                <option value="Newbie / Cơ bản">Newbie / Cơ bản</option>
+                                                <option value="Giao lưu (DUPR 3.0)">Giao lưu (DUPR 3.0)</option>
+                                                <option value="Khá (DUPR 3.5+)">Khá (DUPR 3.5+)</option>
+                                                <option value="Bán chuyên (DUPR 4.0+)">Bán chuyên (DUPR 4.0+)</option>
+                                                <option value="Chuyên nghiệp (DUPR 4.5+)">Chuyên nghiệp (DUPR 4.5+)</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="profHand">Tay thuận cầm vợt</label>
+                                            <select id="profHand" name="dominantHand" class="form-select" onchange="document.getElementById('liveHandPreview').textContent = this.value">
+                                                <option value="Tay phải">Tay phải</option>
+                                                <option value="Tay trái">Tay trái</option>
+                                                <option value="Thuận cả hai tay (Ambidextrous)">Thuận cả hai tay (Ambidextrous)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label class="form-label" for="profPaddle">Dòng vợt Pickleball đang sử dụng</label>
+                                            <input type="text" id="profPaddle" name="paddleBrand" class="form-input" oninput="document.getElementById('livePaddlePreview').textContent = this.value || 'Chưa cập nhật'">
+                                            <div class="paddle-chips">
+                                                <button type="button" class="paddle-chip" onclick="setPaddleBrand('Joola Perseus 16mm')">Joola Perseus 16mm</button>
+                                                <button type="button" class="paddle-chip" onclick="setPaddleBrand('Selkirk Vanguard Control')">Selkirk Vanguard</button>
+                                                <button type="button" class="paddle-chip" onclick="setPaddleBrand('Six Zero DBD 16mm')">Six Zero DBD 16mm</button>
+                                                <button type="button" class="paddle-chip" onclick="setPaddleBrand('CRBN 1X Power')">CRBN 1X Power</button>
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="profStyle">Lối đánh sở trường</label>
+                                            <select id="profStyle" name="playStyle" class="form-select" onchange="document.getElementById('liveStylePreview').textContent = this.value">
+                                                <option value="Đánh đôi phối hợp (All-Court)">Đánh đôi phối hợp (All-Court)</option>
+                                                <option value="Tấn công tốc độ (Power / Drive)">Tấn công tốc độ (Power / Drive)</option>
+                                                <option value="Kiểm soát bếp & Dink (Control / Soft Game)">Kiểm soát bếp &amp; Dink (Control / Soft Game)</option>
+                                                <option value="Phòng thủ phản công (Counter / Reset)">Phòng thủ phản công (Counter / Reset)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label class="form-label" for="profBio">Giới thiệu ngắn / Lịch rảnh giao lưu</label>
+                                        <textarea id="profBio" name="bio" class="form-input" rows="3"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display:flex;justify-content:flex-end;gap:0.85rem;">
+                                <button type="submit" id="profileSaveSubmitBtn" class="btn btn-primary btn-lg">
+                                    <iconify-icon icon="lucide:save" width="18"></iconify-icon>
+                                    <span>Lưu hồ sơ cá nhân (Demo)</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="profile-tab-pane" id="tab-bookings">
+                        <div class="card card--flush">
+                            <div class="card-header">
+                                <span class="card-header-title">
+                                    <iconify-icon icon="lucide:ticket" width="18" style="color:var(--color-primary);"></iconify-icon>
+                                    <span>Danh sách lịch đặt sân của bạn (<span id="profileBookingsListCount">0</span> lượt)</span>
+                                </span>
+                                <a href="../../booking/" class="btn btn-primary btn-sm">+ Đặt thêm ca mới</a>
+                            </div>
+                            <div class="table-wrap">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Mã vé</th>
+                                            <th>Ngày thi đấu</th>
+                                            <th>Sân thi đấu</th>
+                                            <th>Khung giờ</th>
+                                            <th>Số người</th>
+                                            <th>Tổng phí</th>
+                                            <th>Trạng thái</th>
+                                            <th>Chi tiết</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="profileBookingsTbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="profile-tab-pane" id="tab-security">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-header-title">
+                                    <iconify-icon icon="lucide:key-round" width="18" style="color:var(--color-primary);"></iconify-icon>
+                                    <span>Thay đổi mật khẩu (Mô phỏng UI Demo)</span>
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <form id="profileSecurityForm" style="max-width:520px;">
+                                    <div class="form-group">
+                                        <label class="form-label" for="curPass">Mật khẩu hiện tại</label>
+                                        <input type="password" id="curPass" class="form-input" placeholder="Không lưu mật khẩu thật ở chế độ Demo">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="newPass">Mật khẩu mới</label>
+                                        <input type="password" id="newPass" class="form-input" placeholder="Nhập để xem trước giao diện">
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <iconify-icon icon="lucide:shield-check" width="17"></iconify-icon>
+                                        <span>Kiểm tra thao tác (Demo)</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    </div>
+
+    <footer class="site-footer">
+        <div class="site-footer-grid">
+            <div class="site-footer-col">
+                <a href="../../" class="site-brand" aria-label="Spike Pickleball Club" style="margin-bottom:12px;">
+                    <img src="../../assets/images/spike-logo.png" alt="Spike Pickleball Club" class="site-brand-logo site-brand-logo-lg" width="720" height="308" />
+                </a>
+                <p style="font-size:0.875rem;line-height:1.65;color:var(--text-secondary);margin:0;">
+                    Tổ hợp sân thi đấu Pickleball trong nhà và ngoài trời với mặt sân Cushion 8 lớp, hệ thống đèn chống chói và Pro Shop ngay tại sảnh.
+                </p>
+            </div>
+
+            <div class="site-footer-col">
+                <h4>Khám phá CLB</h4>
+                <div class="site-footer-links">
+                    <a href="../../">Trang chủ &amp; Lịch trống</a>
+                    <a href="../../booking/">Đặt sân trực tuyến</a>
+                    <a href="../../shop/">Cửa hàng Pro Shop</a>
+                    <a href="../../products/">Chi tiết sản phẩm</a>
+                    <a href="../../my-bookings/">Tra cứu mã vé QR</a>
+                    <a href="../../qr/">Mẫu thẻ vé QR Demo</a>
+                </div>
+            </div>
+
+            <div class="site-footer-col">
+                <h4>Bảng giá niêm yết</h4>
+                <div class="site-footer-links">
+                    <span>Tiêu chuẩn (<span data-cms="openTime">06:00</span> – <span data-cms="peakStart">17:00</span>): <strong style="color:var(--text-primary);" class="tabular-nums" data-cms-price="courtPrice" data-cms="courtPriceFormatted">120.000 đ/h</strong></span>
+                    <span>Giờ vàng (<span data-cms="peakStart">17:00</span> – <span data-cms="closeTime">22:00</span>): <strong style="color:var(--brand-primary-ink);" class="tabular-nums" data-cms-peak-total="true">150.000 đ/h</strong></span>
+                    <span>Phụ thu sân VIP: <strong style="color:var(--text-primary);" class="tabular-nums" data-cms="vipSurchargeFormatted">+20.000 đ/h</strong></span>
+                    <span>Giờ hoạt động: <strong style="color:var(--text-primary);" class="tabular-nums" data-cms="openHours">06:00 – 22:00</strong></span>
+                </div>
+            </div>
+
+            <div class="site-footer-col">
+                <h4>Liên hệ &amp; Demo</h4>
+                <div class="site-footer-links">
+                    <span style="display:inline-flex;align-items:flex-start;gap:7px;">
+                        <iconify-icon icon="lucide:map-pin" width="15" style="color:var(--brand-primary);margin-top:3px;flex-shrink:0;"></iconify-icon>
+                        <span data-cms="address">Khu Thảo Điền, TP. Thủ Đức, TP.HCM</span>
+                    </span>
+                    <span style="display:inline-flex;align-items:center;gap:7px;">
+                        <iconify-icon icon="lucide:phone" width="15" style="color:var(--brand-primary);flex-shrink:0;"></iconify-icon>
+                        <span>Hotline: <strong style="color:var(--text-primary);" class="tabular-nums" data-cms="hotline">0901 234 567</strong></span>
+                    </span>
+                    <span style="display:inline-flex;align-items:center;gap:7px;">
+                        <iconify-icon icon="lucide:mail" width="15" style="color:var(--brand-primary);flex-shrink:0;"></iconify-icon>
+                        <span>contact@spikepickleball.vn</span>
+                    </span>
+                    <div style="margin-top:6px;">
+                        <button type="button" class="spk-demo-reset-btn" onclick="SpikeDemo.resetDemoData()">
+                            <iconify-icon icon="lucide:rotate-ccw" width="13"></iconify-icon>
+                            <span>Khôi phục dữ liệu mẫu</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="site-footer-bottom">
+            <span>Phát triển bởi Phùng Đức Tài · Spike OS UI Preview (Dữ liệu mô phỏng, không kết nối máy chủ)</span>
+            <span>Spike Pickleball Club · Mặt sân Cushion 8 lớp &amp; Đặt sân mã QR định chuẩn</span>
+        </div>
+    </footer>
+
+    <button type="button"
+            id="spikeFloatingMascot"
+            class="spk-mascot-widget"
+            aria-label="Linh vật Spike OS"
+            title="Linh vật Spike OS"></button>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <script src="../../assets/js/demo-engine.js"></script>
+    <script src="../../assets/js/shared.js"></script>
+    <script src="../../assets/js/mascot-assistant.js"></script>
+    <script src="../../assets/js/pages/profile.js"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" fill="none">
+  <defs>
+    <radialGradient id="pedestalDefault" cx="50%" cy="84%" r="38%">
+      <stop offset="0%" stop-color="#0B111E" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#0B111E" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="boxGrad" x1="170" y1="160" x2="430" y2="460" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0B111E"/>
+    </linearGradient>
+    <linearGradient id="ballAccent" x1="350" y1="330" x2="450" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#D8F826"/>
+      <stop offset="100%" stop-color="#A8C600"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="300" cy="495" rx="160" ry="26" fill="url(#pedestalDefault)"/>
+  <circle cx="300" cy="295" r="185" stroke="#64748B" stroke-opacity="0.18" stroke-width="2" stroke-dasharray="8 8"/>
+  <!-- Pro Shop Merchandise Cube / Bag -->
+  <rect x="180" y="176" width="240" height="292" rx="28" fill="url(#boxGrad)" stroke="#0B111E" stroke-width="6"/>
+  <path d="M244 176V146C244 115.072 269.072 90 300 90C330.928 90 356 115.072 356 146V176" stroke="#FF5520" stroke-width="14" stroke-linecap="round"/>
+  <rect x="183" y="244" width="234" height="16" fill="#FF5520"/>
+  <rect x="183" y="260" width="234" height="8" fill="#D8F826"/>
+  <!-- Spike Bolt Emblem -->
+  <path d="M312 294L276 346H304L290 396L330 338H302L312 294Z" fill="#D8F826"/>
+  <!-- Pickleball Badge -->
+  <circle cx="408" cy="412" r="56" fill="url(#ballAccent)" stroke="#0B111E" stroke-width="6"/>
+  <circle cx="390" cy="395" r="8" fill="#0B111E" fill-opacity="0.72"/>
+  <circle cx="424" cy="390" r="8" fill="#0B111E" fill-opacity="0.72"/>
+  <circle cx="394" cy="428" r="8" fill="#0B111E" fill-opacity="0.72"/>
+  <circle cx="428" cy="424" r="8" fill="#0B111E" fill-opacity="0.72"/>
+</svg>

@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="Sunny Rally">
+  <defs>
+    <radialGradient id="bg01" cx="50%" cy="38%" r="72%">
+      <stop offset="0%" stop-color="#F2FCF5"/>
+      <stop offset="100%" stop-color="#C9F0D8"/>
+    </radialGradient>
+    <radialGradient id="skin01" cx="46%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FFE4D1"/>
+      <stop offset="72%" stop-color="#FAC5A6"/>
+      <stop offset="100%" stop-color="#EBA884"/>
+    </radialGradient>
+    <linearGradient id="hair01" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#7B4B2A"/>
+      <stop offset="100%" stop-color="#4A2B16"/>
+    </linearGradient>
+    <linearGradient id="shirt01" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E2F4EA"/>
+    </linearGradient>
+    <linearGradient id="paddle01" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3DA36D"/>
+      <stop offset="100%" stop-color="#1E6B45"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="240" height="240" fill="url(#bg01)"/>
+  <circle cx="120" cy="126" r="88" fill="#FFFFFF" opacity="0.38"/>
+
+  <!-- Ponytail back sweep -->
+  <path d="M150 56 C188 48, 204 92, 188 134 C178 156, 156 154, 152 138 C166 116, 162 82, 146 72 Z" fill="#4A2B16"/>
+  <path d="M152 58 C184 54, 196 90, 182 124 C176 100, 170 76, 148 68 Z" fill="url(#hair01)"/>
+  <ellipse cx="151" cy="66" rx="8" ry="11" transform="rotate(24 151 66)" fill="#2E8B57"/>
+
+  <!-- Shoulders & Polo Collar -->
+  <path d="M52 240 C56 188, 86 172, 120 172 C154 172, 184 188, 188 240 Z" fill="url(#shirt01)"/>
+  <path d="M52 240 C58 196, 76 182, 92 178 L86 240 Z" fill="#6BCB77" opacity="0.55"/>
+  <path d="M188 240 C182 196, 164 182, 148 178 L154 240 Z" fill="#2E8B57" opacity="0.22"/>
+  <path d="M96 173 L120 198 L144 173 L135 168 L120 183 L105 168 Z" fill="#2E8B57"/>
+  <path d="M97 174 L118 194 L104 198 L91 180 Z" fill="#6BCB77"/>
+  <path d="M143 174 L122 194 L136 198 L149 180 Z" fill="#3DA36D"/>
+
+  <!-- Neck & Soft Chin Shadow -->
+  <rect x="106" y="148" width="28" height="32" rx="14" fill="url(#skin01)"/>
+  <path d="M106 154 Q120 167 134 154 L134 162 Q120 173 106 162 Z" fill="#DC926F" opacity="0.45"/>
+
+  <!-- Ears -->
+  <ellipse cx="73" cy="119" rx="9" ry="12" fill="#F2B390"/>
+  <ellipse cx="74" cy="120" rx="5" ry="7" fill="#E39B76" opacity="0.6"/>
+  <ellipse cx="167" cy="119" rx="9" ry="12" fill="#F2B390"/>
+  <ellipse cx="166" cy="120" rx="5" ry="7" fill="#E39B76" opacity="0.6"/>
+
+  <!-- Head Base -->
+  <path d="M75 110 C75 74, 165 74, 165 110 C165 144, 146 160, 120 160 C94 160, 75 144, 75 110 Z" fill="url(#skin01)"/>
+
+  <!-- Hair Top + Bangs -->
+  <path d="M72 110 C70 64, 102 48, 125 50 C154 52, 170 74, 168 110 C162 96, 152 82, 120 82 C88 82, 78 96, 72 110 Z" fill="url(#hair01)"/>
+  <path d="M92 54 C108 46, 134 48, 146 58 C132 54, 108 54, 92 54 Z" fill="#9A643B" opacity="0.5"/>
+
+  <!-- Emerald Headband -->
+  <path d="M74 96 C94 82, 146 82, 166 96 L167 82 C145 68, 95 68, 73 82 Z" fill="#2E8B57"/>
+  <path d="M84 82 C104 74, 136 74, 156 82" fill="none" stroke="#8CE99A" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+
+  <!-- Cute Eyebrows -->
+  <path d="M88 103 Q98 98 107 102" fill="none" stroke="#5A3319" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M133 102 Q142 98 152 103" fill="none" stroke="#5A3319" stroke-width="3.2" stroke-linecap="round"/>
+
+  <!-- Eyes with glossy catchlights -->
+  <ellipse cx="99" cy="117" rx="8.5" ry="9.5" fill="#1F2E25"/>
+  <ellipse cx="141" cy="117" rx="8.5" ry="9.5" fill="#1F2E25"/>
+  <circle cx="99" cy="118" r="5.5" fill="#2E6F4E"/>
+  <circle cx="141" cy="118" r="5.5" fill="#2E6F4E"/>
+  <circle cx="99" cy="118" r="3" fill="#121E17"/>
+  <circle cx="141" cy="118" r="3" fill="#121E17"/>
+  <circle cx="102" cy="113.5" r="2.6" fill="#FFFFFF"/>
+  <circle cx="144" cy="113.5" r="2.6" fill="#FFFFFF"/>
+  <circle cx="96" cy="121" r="1.2" fill="#FFFFFF" opacity="0.85"/>
+  <circle cx="138" cy="121" r="1.2" fill="#FFFFFF" opacity="0.85"/>
+
+  <!-- Cheeks, Cute Nose, Smile -->
+  <ellipse cx="87" cy="130" rx="8" ry="4.5" fill="#FF8787" opacity="0.34"/>
+  <ellipse cx="153" cy="130" rx="8" ry="4.5" fill="#FF8787" opacity="0.34"/>
+  <path d="M118 125 Q120 129 123 127" fill="none" stroke="#DE9673" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M107 136 Q120 148 133 136 Z" fill="#FFFFFF"/>
+  <path d="M106 135 Q120 149 134 135" fill="none" stroke="#B85D43" stroke-width="2.4" stroke-linecap="round"/>
+
+  <!-- Pickleball Paddle tucked cleanly on right -->
+  <g transform="translate(178 166) rotate(22)">
+    <rect x="-22" y="-34" width="44" height="54" rx="14" fill="url(#paddle01)" stroke="#17251D" stroke-opacity="0.16" stroke-width="2"/>
+    <rect x="-17" y="-29" width="34" height="44" rx="10" fill="#6BCB77" opacity="0.28"/>
+    <rect x="-5" y="18" width="10" height="24" rx="4" fill="#17251D"/>
+    <rect x="-6" y="21" width="12" height="4" rx="2" fill="#6BCB77"/>
+  </g>
+</svg>

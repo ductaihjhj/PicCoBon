@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light" data-root="../../">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Phùng Đức Tài">
+    <title>Đăng Nhập & Đăng Ký Hội Viên — Spike OS (UI Demo)</title>
+    <link rel="icon" type="image/png" href="../../assets/images/spike-favicon.png">
+    <script>
+      (function () {
+        try {
+          var savedTheme = localStorage.getItem('spike_theme');
+          if (savedTheme === 'dark' || savedTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+          }
+        } catch (_) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="../../assets/css/core/tokens.css" />
+    <link rel="stylesheet" href="../../assets/css/core/reset.css" />
+    <link rel="stylesheet" href="../../assets/css/components/primitives.css" />
+    <link rel="stylesheet" href="../../assets/css/components/qr-ticket.css" />
+    <link rel="stylesheet" href="../../assets/css/components/mascot-assistant.css" />
+    <link rel="stylesheet" href="../../assets/css/layouts/public-shell.css" />
+    <link rel="stylesheet" href="../../assets/css/layouts/admin-shell.css" />
+    <link rel="stylesheet" href="../../assets/css/pages/public-pages.css" />
+    <link rel="stylesheet" href="../../assets/css/pages/admin-pages.css" />
+    <link rel="stylesheet" href="../../assets/css/pages/demo-preview.css" />
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+</head>
+<body>
+    <a href="#mainContent" class="sr-only">Chuyển tới nội dung chính</a>
+
+    <header class="site-header">
+        <div class="site-header-inner">
+            <a href="../../" class="site-brand" aria-label="Spike Pickleball Club — Trang chủ">
+                <img src="../../assets/images/spike-logo.png" alt="Spike Pickleball Club" class="site-brand-logo" width="720" height="308" />
+            </a>
+
+            <nav class="site-nav" id="siteMainNav" aria-label="Điều hướng chính">
+                <a href="../../" class="site-nav-link">Trang chủ</a>
+                <a href="../../booking/" class="site-nav-link">Đặt sân</a>
+                <a href="../../shop/" class="site-nav-link">Pro Shop</a>
+                <a href="../../my-bookings/" class="site-nav-link">Tra cứu vé</a>
+                <a href="../../staff/" class="site-nav-link">Staff</a>
+                <a href="../../admin/" class="site-nav-link">Quản trị</a>
+            </nav>
+
+            <div class="site-header-actions">
+                <span class="spk-demo-pill spk-demo-pill-hide-xs" title="Bản xem trước giao diện tĩnh — không kết nối CSDL thật">
+                    <span class="spk-demo-pill-dot" aria-hidden="true"></span>
+                    <span>SPIKE OS • UI DEMO</span>
+                </span>
+                <div id="headerAuthActionsMount">
+                    <a href="../../account/login/" class="btn btn-sm btn-secondary">Đăng nhập</a>
+                </div>
+                <button type="button"
+                        class="sh-site-theme-btn"
+                        id="siteThemeToggleBtn"
+                        onclick="toggleSpikeTheme()"
+                        aria-label="Chuyển đổi giao diện Sáng / Tối"
+                        title="Chuyển đổi giao diện Sáng / Tối">
+                    <iconify-icon icon="lucide:sun" width="16" class="sh-theme-icon-sun"></iconify-icon>
+                    <iconify-icon icon="lucide:moon" width="16" class="sh-theme-icon-moon"></iconify-icon>
+                </button>
+                <div id="headerAdminBtnMount"></div>
+                <a href="../../booking/" class="btn btn-primary btn-sm header-cta-book">Đặt sân ngay</a>
+                <button type="button"
+                        id="siteMobileNavBtn"
+                        class="sn-mobile-menu-btn mobile-menu-btn"
+                        onclick="toggleMobileNav()"
+                        aria-expanded="false"
+                        aria-controls="siteMainNav"
+                        aria-label="Mở menu điều hướng">
+                    <iconify-icon icon="lucide:menu" width="19"></iconify-icon>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="mainContent">
+
+    <main class="spk-auth-page">
+        <div class="spk-auth-container">
+            <div class="spk-auth-grid" id="authStageBox">
+                <div class="spk-auth-showcase">
+                    <div>
+                        <img src="../../assets/images/spike-logo.png" alt="Spike Pickleball Club" class="spk-auth-brand-logo" width="720" height="308" />
+                        <div class="spk-auth-showcase-badge">
+                            <iconify-icon icon="lucide:shield-check" width="15"></iconify-icon>
+                            <span>4 SÂN TIÊU CHUẨN USAPA • UI DEMO</span>
+                        </div>
+                        <h1 class="spk-auth-showcase-title">Nền Tảng Đặt Sân &amp; Hội Viên Thể Thao Hiện Đại</h1>
+                        <p class="spk-auth-showcase-desc">
+                            Đặt lịch trực tuyến theo ma trận 4 sân, xem trước vé QR mẫu và trải nghiệm đầy đủ giao diện Khách hàng / Staff / Admin mà không cần mật khẩu thật.
+                        </p>
+
+                        <div class="spk-auth-feature-list">
+                            <div class="spk-auth-feature-item">
+                                <span class="spk-auth-feature-icon"><iconify-icon icon="lucide:calendar-check-2" width="16"></iconify-icon></span>
+                                <div>
+                                    <strong style="display:block;color:#FFFFFF;margin-bottom:2px;">Đặt sân chống trùng giờ tức thì</strong>
+                                    <span style="color:rgba(234,247,238,0.82);font-size:0.8rem;">Tự động bóc tách khung giờ Tiêu chuẩn &amp; Giờ vàng chính xác theo từng block 30 phút.</span>
+                                </div>
+                            </div>
+                            <div class="spk-auth-feature-item">
+                                <span class="spk-auth-feature-icon"><iconify-icon icon="lucide:qr-code" width="16"></iconify-icon></span>
+                                <div>
+                                    <strong style="display:block;color:#FFFFFF;margin-bottom:2px;">Thẻ Check-in QR định danh</strong>
+                                    <span style="color:rgba(234,247,238,0.82);font-size:0.8rem;">Hỗ trợ xem trước Light/Dark theme và tải ảnh vé PNG/SVG mẫu.</span>
+                                </div>
+                            </div>
+                            <div class="spk-auth-feature-item">
+                                <span class="spk-auth-feature-icon"><iconify-icon icon="lucide:award" width="16"></iconify-icon></span>
+                                <div>
+                                    <strong style="display:block;color:#FFFFFF;margin-bottom:2px;">Hồ sơ VĐV &amp; chỉ số DUPR</strong>
+                                    <span style="color:rgba(234,247,238,0.82);font-size:0.8rem;">Thử chọn nhân vật thể thao hoặc tải ảnh đại diện xem trước trên trình duyệt.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.16);font-size:0.78rem;color:rgba(234,247,238,0.85);">
+                        <span>Chế độ mô phỏng UI — Không lưu mật khẩu thật</span>
+                        <span>Mở cửa 06:00 – 22:00 mỗi ngày</span>
+                    </div>
+                </div>
+
+                <div class="spk-auth-form-panel">
+                    <div class="spk-auth-tabs" role="tablist" aria-label="Chuyển đổi Đăng nhập và Đăng ký">
+                        <button type="button" class="spk-auth-tab active" id="mobTabLogin" onclick="switchAuthMode('login')">
+                            <iconify-icon icon="lucide:log-in" width="16"></iconify-icon>
+                            <span>Đăng nhập</span>
+                        </button>
+                        <button type="button" class="spk-auth-tab" id="mobTabRegister" onclick="switchAuthMode('register')">
+                            <iconify-icon icon="lucide:user-plus" width="16"></iconify-icon>
+                            <span>Đăng ký Hội viên</span>
+                        </button>
+                    </div>
+
+                    <div id="activeSessionBanner" class="sn-alert sn-alert-success" style="display:none;margin-bottom:0;">
+                        <span>Đang trải nghiệm: <strong id="activeSessionName">---</strong> (<span id="activeSessionRole">---</span>)</span>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <a href="../../account/profile/" class="btn btn-xs btn-secondary">Hồ sơ</a>
+                            <button type="button" onclick="logout()" class="btn btn-xs btn-danger">Thoát</button>
+                        </div>
+                    </div>
+
+                    <div id="redirectAlert" class="sn-alert sn-alert-warning" style="display:none;margin-bottom:0;">
+                        <iconify-icon icon="lucide:shield-alert" width="17"></iconify-icon>
+                        <span id="redirectAlertText">Vui lòng chọn vai trò để tiếp tục.</span>
+                    </div>
+
+                    <div id="authPanelLogin" class="sign-in-panel">
+                        <div style="margin-bottom:14px;">
+                            <h2 id="authCardTitle" style="font-size:1.45rem;font-weight:800;margin-bottom:4px;">Chào mừng trở lại sân</h2>
+                            <p class="text-sm text-muted">Chọn nhanh 1 vai trò Demo bên dưới hoặc nhập thông tin mô phỏng bất kỳ.</p>
+                        </div>
+
+                        <div style="margin-bottom:18px;">
+                            <div class="text-xs font-bold" style="color:var(--text-secondary);margin-bottom:6px;">Đăng nhập nhanh không cần mật khẩu (UI Demo):</div>
+                            <div class="spk-demo-role-grid">
+                                <button type="button" class="spk-demo-role-btn" onclick="quickDemoLogin('user')">
+                                    <strong>Hội viên VIP</strong>
+                                    <span>Nguyễn Minh Khôi</span>
+                                </button>
+                                <button type="button" class="spk-demo-role-btn" onclick="quickDemoLogin('staff')">
+                                    <strong>Nhân viên Staff</strong>
+                                    <span>Điều phối &amp; POS</span>
+                                </button>
+                                <button type="button" class="spk-demo-role-btn" onclick="quickDemoLogin('admin')">
+                                    <strong>Quản trị Admin</strong>
+                                    <span>Dashboard &amp; Báo cáo</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="loginErrorAlert" class="sn-alert sn-alert-danger" style="display:none;">
+                            <iconify-icon icon="lucide:alert-triangle" width="17"></iconify-icon>
+                            <span id="loginErrorText">Thông tin đăng nhập chưa hợp lệ.</span>
+                        </div>
+
+                        <form id="loginForm" onsubmit="handleFormLogin(event)" novalidate>
+                            <div class="form-group" id="fieldWrapLoginEmail">
+                                <label class="form-label" for="loginEmail">Email, Tên đăng nhập hoặc Số điện thoại *</label>
+                                <div class="spk-auth-input-wrap">
+                                    <span class="spk-auth-input-icon"><iconify-icon icon="lucide:mail" width="17"></iconify-icon></span>
+                                    <input type="text" id="loginEmail" class="form-input" placeholder="VD: khoi.nguyen@spikepickleball.vn" autocomplete="username" oninput="clearFieldError('loginEmail')">
+                                </div>
+                                <span class="field-error-msg" id="loginEmailError">Vui lòng nhập Email hoặc SĐT hợp lệ.</span>
+                            </div>
+
+                            <div class="form-group" id="fieldWrapLoginPassword">
+                                <label class="form-label" for="loginPassword">Mật khẩu mô phỏng *</label>
+                                <div class="spk-auth-input-wrap">
+                                    <span class="spk-auth-input-icon"><iconify-icon icon="lucide:lock" width="17"></iconify-icon></span>
+                                    <input type="password" id="loginPassword" class="form-input" placeholder="Nhập bất kỳ ≥ 6 ký tự (Demo)" autocomplete="current-password" oninput="clearFieldError('loginPassword')">
+                                    <button type="button" class="spk-pass-toggle" onclick="toggleAnimatedPassword('loginPassword', 'eyeIconLogin')" title="Hiện / Ẩn mật khẩu">
+                                        <iconify-icon id="eyeIconLogin" icon="lucide:eye" width="17"></iconify-icon>
+                                    </button>
+                                </div>
+                                <span class="field-error-msg" id="loginPasswordError">Cần tối thiểu 6 ký tự.</span>
+                            </div>
+
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin:6px 0 18px;font-size:0.8125rem;">
+                                <label style="display:inline-flex;align-items:center;gap:7px;color:var(--text-secondary);cursor:pointer;">
+                                    <input type="checkbox" id="rememberMe" checked style="accent-color:var(--brand-primary);">
+                                    <span>Lưu phiên Demo trên trình duyệt</span>
+                                </label>
+                                <a href="javascript:void(0)" onclick="openModal('forgotPasswordModal')" style="color:var(--brand-primary-ink);font-weight:700;">Quên mật khẩu?</a>
+                            </div>
+
+                            <button type="submit" id="btnSubmitLogin" class="btn btn-primary btn-lg btn-block">
+                                <iconify-icon icon="lucide:log-in" width="18"></iconify-icon>
+                                <span id="btnSubmitLoginText">Đăng nhập vào Sân Đấu (Demo)</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <div id="authPanelRegister" class="sign-up-panel" style="display:none;">
+                        <div style="margin-bottom:14px;">
+                            <h2 style="font-size:1.45rem;font-weight:800;margin-bottom:4px;">Tạo Tài Khoản Hội Viên (Demo)</h2>
+                            <p class="text-sm text-muted">Khởi tạo thẻ hội viên mô phỏng trên trình duyệt (không lưu mật khẩu thật).</p>
+                        </div>
+
+                        <div id="registerErrorAlert" class="sn-alert sn-alert-danger" style="display:none;">
+                            <iconify-icon icon="lucide:alert-triangle" width="17"></iconify-icon>
+                            <span id="registerErrorText">Vui lòng kiểm tra lại thông tin đăng ký.</span>
+                        </div>
+
+                        <form id="registerForm" onsubmit="handleFormRegister(event)" novalidate>
+                            <div class="form-row">
+                                <div class="form-group" id="fieldWrapRegFullName">
+                                    <label class="form-label" for="regFullName">Họ và tên *</label>
+                                    <div class="spk-auth-input-wrap">
+                                        <span class="spk-auth-input-icon"><iconify-icon icon="lucide:user" width="16"></iconify-icon></span>
+                                        <input type="text" id="regFullName" class="form-input" placeholder="Nguyễn Văn A" oninput="clearFieldError('regFullName')">
+                                    </div>
+                                    <span class="field-error-msg" id="regFullNameError">Nhập tối thiểu 2 ký tự.</span>
+                                </div>
+                                <div class="form-group" id="fieldWrapRegPhone">
+                                    <label class="form-label" for="regPhone">Số điện thoại *</label>
+                                    <div class="spk-auth-input-wrap">
+                                        <span class="spk-auth-input-icon"><iconify-icon icon="lucide:phone" width="16"></iconify-icon></span>
+                                        <input type="tel" id="regPhone" class="form-input" placeholder="0901234567" oninput="clearFieldError('regPhone')">
+                                    </div>
+                                    <span class="field-error-msg" id="regPhoneError">SĐT gồm 9–11 chữ số.</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group" id="fieldWrapRegEmail">
+                                <label class="form-label" for="regEmail">Địa chỉ Email *</label>
+                                <div class="spk-auth-input-wrap">
+                                    <span class="spk-auth-input-icon"><iconify-icon icon="lucide:at-sign" width="16"></iconify-icon></span>
+                                    <input type="email" id="regEmail" class="form-input" placeholder="athlete@spikepickleball.vn" oninput="clearFieldError('regEmail')">
+                                </div>
+                                <span class="field-error-msg" id="regEmailError">Email chưa đúng định dạng.</span>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group" id="fieldWrapRegPassword">
+                                    <label class="form-label" for="regPassword">Mật khẩu mô phỏng *</label>
+                                    <div class="spk-auth-input-wrap">
+                                        <span class="spk-auth-input-icon"><iconify-icon icon="lucide:key-round" width="16"></iconify-icon></span>
+                                        <input type="password" id="regPassword" class="form-input" placeholder="Tối thiểu 6 ký tự" oninput="clearFieldError('regPassword'); updatePasswordStrength(this.value)">
+                                        <button type="button" class="spk-pass-toggle" onclick="toggleAnimatedPassword('regPassword', 'eyeIconReg')">
+                                            <iconify-icon id="eyeIconReg" icon="lucide:eye" width="16"></iconify-icon>
+                                        </button>
+                                    </div>
+                                    <span class="field-error-msg" id="regPasswordError">Tối thiểu 6 ký tự.</span>
+                                </div>
+                                <div class="form-group" id="fieldWrapRegConfirmPassword">
+                                    <label class="form-label" for="regConfirmPassword">Xác nhận MK *</label>
+                                    <div class="spk-auth-input-wrap">
+                                        <span class="spk-auth-input-icon"><iconify-icon icon="lucide:check-circle-2" width="16"></iconify-icon></span>
+                                        <input type="password" id="regConfirmPassword" class="form-input" placeholder="Nhập lại mật khẩu" oninput="clearFieldError('regConfirmPassword')">
+                                    </div>
+                                    <span class="field-error-msg" id="regConfirmPasswordError">Mật khẩu chưa khớp.</span>
+                                </div>
+                            </div>
+
+                            <div class="pass-strength-wrap" style="margin-bottom:12px;">
+                                <div class="pass-strength-bars">
+                                    <div class="pass-strength-seg" id="passSeg1"></div>
+                                    <div class="pass-strength-seg" id="passSeg2"></div>
+                                    <div class="pass-strength-seg" id="passSeg3"></div>
+                                    <div class="pass-strength-seg" id="passSeg4"></div>
+                                </div>
+                                <div id="passStrengthLabel" class="pass-strength-text">Độ mạnh mật khẩu: Chưa nhập</div>
+                            </div>
+
+                            <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--text-secondary);margin-bottom:16px;cursor:pointer;">
+                                <input type="checkbox" id="regAgreeTerms" checked style="accent-color:var(--brand-primary);">
+                                <span>Tôi đồng ý dùng dữ liệu mô phỏng UI Demo (không nhập thông tin nhạy cảm)</span>
+                            </label>
+
+                            <button type="submit" class="btn btn-primary btn-lg btn-block">
+                                <iconify-icon icon="lucide:sparkles" width="18"></iconify-icon>
+                                <span>Khởi tạo Thẻ Hội Viên Demo</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-backdrop" id="forgotPasswordModal">
+        <div class="modal" style="max-width: 440px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Hỗ trợ khôi phục mật khẩu (UI Demo)</h3>
+                <button type="button" class="modal-close" onclick="closeModal('forgotPasswordModal')">✕</button>
+            </div>
+            <div class="modal-body flex-col gap-3">
+                <div class="sn-alert sn-alert-warning" style="margin-bottom:0;font-weight:500;line-height:1.5;">
+                    <div><strong>Chế độ UI Demo:</strong> Bản xem trước tĩnh không gửi SMS/Email OTP. Bạn có thể chọn nhanh vai trò đăng nhập mẫu trên màn hình Đăng nhập.</div>
+                </div>
+                <div id="forgotStatusBox" class="sn-alert sn-alert-danger" style="display:none;margin-bottom:0;font-size:0.8rem;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('forgotPasswordModal')">Đã hiểu &amp; Đóng</button>
+                <button type="button" class="btn btn-primary" onclick="handleResetPassword()">Kiểm tra trạng thái</button>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <footer class="site-footer">
+        <div class="site-footer-grid">
+            <div class="site-footer-col">
+                <a href="../../" class="site-brand" aria-label="Spike Pickleball Club" style="margin-bottom:12px;">
+                    <img src="../../assets/images/spike-logo.png" alt="Spike Pickleball Club" class="site-brand-logo site-brand-logo-lg" width="720" height="308" />
+                </a>
+                <p style="font-size:0.875rem;line-height:1.65;color:var(--text-secondary);margin:0;">
+                    Tổ hợp sân thi đấu Pickleball trong nhà và ngoài trời với mặt sân Cushion 8 lớp, hệ thống đèn chống chói và Pro Shop ngay tại sảnh.
+                </p>
+            </div>
+
+            <div class="site-footer-col">
+                <h4>Khám phá CLB</h4>
+                <div class="site-footer-links">
+                    <a href="../../">Trang chủ &amp; Lịch trống</a>
+                    <a href="../../booking/">Đặt sân trực tuyến</a>
+                    <a href="../../shop/">Cửa hàng Pro Shop</a>
+                    <a href="../../products/">Chi tiết sản phẩm</a>
+                    <a href="../../my-bookings/">Tra cứu mã vé QR</a>
+                    <a href="../../qr/">Mẫu thẻ vé QR Demo</a>
+                </div>
+            </div>
+
+            <div class="site-footer-col">
+                <h4>Bảng giá niêm yết</h4>
+                <div class="site-footer-links">
+                    <span>Tiêu chuẩn (<span data-cms="openTime">06:00</span> – <span data-cms="peakStart">17:00</span>): <strong style="color:var(--text-primary);" class="tabular-nums" data-cms-price="courtPrice" data-cms="courtPriceFormatted">120.000 đ/h</strong></span>
+                    <span>Giờ vàng (<span data-cms="peakStart">17:00</span> – <span data-cms="closeTime">22:00</span>): <strong style="color:var(--brand-primary-ink);" class="tabular-nums" data-cms-peak-total="true">150.000 đ/h</strong></span>
+                    <span>Phụ thu sân VIP: <strong style="color:var(--text-primary);" class="tabular-nums" data-cms="vipSurchargeFormatted">+20.000 đ/h</strong></span>
+                    <span>Giờ hoạt động: <strong style="color:var(--text-primary);" class="tabular-nums" data-cms="openHours">06:00 – 22:00</strong></span>
+                </div>
+            </div>
+
+            <div class="site-footer-col">
+                <h4>Liên hệ &amp; Demo</h4>
+                <div class="site-footer-links">
+                    <span style="display:inline-flex;align-items:flex-start;gap:7px;">
+                        <iconify-icon icon="lucide:map-pin" width="15" style="color:var(--brand-primary);margin-top:3px;flex-shrink:0;"></iconify-icon>
+                        <span data-cms="address">Khu Thảo Điền, TP. Thủ Đức, TP.HCM</span>
+                    </span>
+                    <span style="display:inline-flex;align-items:center;gap:7px;">
+                        <iconify-icon icon="lucide:phone" width="15" style="color:var(--brand-primary);flex-shrink:0;"></iconify-icon>
+                        <span>Hotline: <strong style="color:var(--text-primary);" class="tabular-nums" data-cms="hotline">0901 234 567</strong></span>
+                    </span>
+                    <span style="display:inline-flex;align-items:center;gap:7px;">
+                        <iconify-icon icon="lucide:mail" width="15" style="color:var(--brand-primary);flex-shrink:0;"></iconify-icon>
+                        <span>contact@spikepickleball.vn</span>
+                    </span>
+                    <div style="margin-top:6px;">
+                        <button type="button" class="spk-demo-reset-btn" onclick="SpikeDemo.resetDemoData()">
+                            <iconify-icon icon="lucide:rotate-ccw" width="13"></iconify-icon>
+                            <span>Khôi phục dữ liệu mẫu</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="site-footer-bottom">
+            <span>Phát triển bởi Phùng Đức Tài · Spike OS UI Preview (Dữ liệu mô phỏng, không kết nối máy chủ)</span>
+            <span>Spike Pickleball Club · Mặt sân Cushion 8 lớp &amp; Đặt sân mã QR định chuẩn</span>
+        </div>
+    </footer>
+
+    <button type="button"
+            id="spikeFloatingMascot"
+            class="spk-mascot-widget"
+            aria-label="Linh vật Spike OS"
+            title="Linh vật Spike OS"></button>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <script src="../../assets/js/demo-engine.js"></script>
+    <script src="../../assets/js/shared.js"></script>
+    <script src="../../assets/js/mascot-assistant.js"></script>
+    <script src="../../assets/js/pages/auth.js"></script>
+</body>
+</html>

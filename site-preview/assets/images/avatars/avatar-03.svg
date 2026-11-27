@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="Mochi Panda">
+  <defs>
+    <radialGradient id="bg03" cx="50%" cy="38%" r="72%">
+      <stop offset="0%" stop-color="#F3FCF5"/>
+      <stop offset="100%" stop-color="#D1F3DA"/>
+    </radialGradient>
+    <radialGradient id="fur03" cx="48%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="78%" stop-color="#F2F7F4"/>
+      <stop offset="100%" stop-color="#DCE8E1"/>
+    </radialGradient>
+    <linearGradient id="jacket03" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7EE08F"/>
+      <stop offset="100%" stop-color="#3DA36D"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="240" height="240" fill="url(#bg03)"/>
+  <circle cx="120" cy="126" r="88" fill="#FFFFFF" opacity="0.4"/>
+
+  <!-- Track Jacket Shoulders -->
+  <path d="M52 240 C54 186, 86 170, 120 170 C154 170, 186 186, 188 240 Z" fill="url(#jacket03)"/>
+  <path d="M120 172 L120 240" stroke="#FFFFFF" stroke-width="3" opacity="0.85"/>
+  <path d="M98 168 Q120 184 142 168 L138 182 Q120 192 102 182 Z" fill="#2E8B57"/>
+
+  <!-- Round Dark Panda Ears -->
+  <circle cx="76" cy="70" r="18" fill="#2A342E"/>
+  <circle cx="76" cy="71" r="10" fill="#46544B"/>
+  <circle cx="164" cy="70" r="18" fill="#2A342E"/>
+  <circle cx="164" cy="71" r="10" fill="#46544B"/>
+
+  <!-- Panda Chubby Head -->
+  <ellipse cx="120" cy="116" rx="54" ry="48" fill="url(#fur03)"/>
+
+  <!-- Emerald Sporty Headband -->
+  <path d="M68 95 C92 78, 148 78, 172 95 L170 80 C145 64, 95 64, 70 80 Z" fill="#2E8B57"/>
+  <path d="M84 80 C108 72, 132 72, 156 80" fill="none" stroke="#8CE99A" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+
+  <!-- Signature Dark Eye Patches -->
+  <ellipse cx="95" cy="117" rx="15" ry="13" transform="rotate(-14 95 117)" fill="#29332D"/>
+  <ellipse cx="145" cy="117" rx="15" ry="13" transform="rotate(14 145 117)" fill="#29332D"/>
+
+  <!-- Glossy Eyes -->
+  <circle cx="96" cy="117" r="6" fill="#101713"/>
+  <circle cx="144" cy="117" r="6" fill="#101713"/>
+  <circle cx="98.5" cy="114.5" r="2.5" fill="#FFFFFF"/>
+  <circle cx="146.5" cy="114.5" r="2.5" fill="#FFFFFF"/>
+  <circle cx="94" cy="120" r="1.1" fill="#FFFFFF"/>
+  <circle cx="142" cy="120" r="1.1" fill="#FFFFFF"/>
+
+  <!-- Rosy Cheeks, Snout, Happy Smile -->
+  <ellipse cx="78" cy="130" rx="8.5" ry="5" fill="#FF9494" opacity="0.45"/>
+  <ellipse cx="162" cy="130" rx="8.5" ry="5" fill="#FF9494" opacity="0.45"/>
+  <ellipse cx="120" cy="126" rx="7" ry="4.5" fill="#29332D"/>
+  <ellipse cx="118.5" cy="124.5" rx="2" ry="1" fill="#FFFFFF" opacity="0.4"/>
+  <path d="M120 130 L120 134 M110 135 Q115 141 120 134 Q125 141 130 135" fill="none" stroke="#29332D" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Raised Cute Paw holding Neon Pickleball -->
+  <g transform="translate(64 168)">
+    <circle cx="0" cy="0" r="17" fill="#C9F23B" stroke="#7EA918" stroke-width="2"/>
+    <circle cx="-5" cy="-5" r="2.5" fill="#7EA918"/>
+    <circle cx="5" cy="-6" r="2.5" fill="#7EA918"/>
+    <circle cx="7" cy="4" r="2.5" fill="#7EA918"/>
+    <circle cx="-4" cy="6" r="2.5" fill="#7EA918"/>
+    <ellipse cx="12" cy="14" rx="13" ry="11" fill="#2A342E"/>
+    <circle cx="9" cy="13" r="4.5" fill="#FFC9C9" opacity="0.7"/>
+  </g>
+</svg>

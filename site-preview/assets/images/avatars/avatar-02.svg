@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="Ace Dash">
+  <defs>
+    <radialGradient id="bg02" cx="50%" cy="38%" r="72%">
+      <stop offset="0%" stop-color="#EFFBF2"/>
+      <stop offset="100%" stop-color="#C5ECD3"/>
+    </radialGradient>
+    <radialGradient id="skin02" cx="48%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="#FFE5D0"/>
+      <stop offset="72%" stop-color="#F7C29E"/>
+      <stop offset="100%" stop-color="#E5A27B"/>
+    </radialGradient>
+    <linearGradient id="jersey02" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2E8B57"/>
+      <stop offset="100%" stop-color="#1B573A"/>
+    </linearGradient>
+    <linearGradient id="cap02" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38A169"/>
+      <stop offset="100%" stop-color="#1E603F"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="240" height="240" fill="url(#bg02)"/>
+  <circle cx="120" cy="126" r="88" fill="#FFFFFF" opacity="0.38"/>
+
+  <!-- Sporty Track Jersey Shoulders -->
+  <path d="M48 240 C52 186, 84 170, 120 170 C156 170, 188 186, 192 240 Z" fill="url(#jersey02)"/>
+  <path d="M98 171 L120 202 L142 171 C134 176, 106 176, 98 171 Z" fill="#FFFFFF"/>
+  <path d="M120 198 L120 240" stroke="#6BCB77" stroke-width="3" stroke-linecap="round" opacity="0.65"/>
+  <path d="M68 190 L58 240" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="0.22"/>
+  <path d="M172 190 L182 240" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="0.22"/>
+
+  <!-- Neck & Shadow -->
+  <rect x="106" y="146" width="28" height="32" rx="14" fill="url(#skin02)"/>
+  <path d="M106 154 Q120 166 134 154 L134 162 Q120 172 106 162 Z" fill="#D48B68" opacity="0.45"/>
+
+  <!-- Ears -->
+  <ellipse cx="73" cy="118" rx="9" ry="12" fill="#EEAE88"/>
+  <ellipse cx="167" cy="118" rx="9" ry="12" fill="#EEAE88"/>
+
+  <!-- Head Base -->
+  <path d="M75 110 C75 74, 165 74, 165 110 C165 144, 146 160, 120 160 C94 160, 75 144, 75 110 Z" fill="url(#skin02)"/>
+
+  <!-- Hair Fringe under Cap -->
+  <path d="M76 105 C78 88, 92 80, 108 82 C102 90, 96 96, 86 98 Z" fill="#233128"/>
+  <path d="M164 105 C162 88, 148 80, 132 82 C138 90, 144 96, 154 98 Z" fill="#233128"/>
+
+  <!-- Tilted Baseball Cap -->
+  <path d="M71 90 C70 54, 100 42, 126 43 C152 44, 168 62, 169 90 Z" fill="url(#cap02)"/>
+  <ellipse cx="120" cy="43" rx="6" ry="3.5" fill="#6BCB77"/>
+  <!-- Visor Brim swept cheerfully -->
+  <path d="M72 88 C94 74, 152 72, 184 94 C162 98, 104 92, 72 88 Z" fill="#174930"/>
+  <path d="M90 83 C118 76, 152 78, 176 90" fill="none" stroke="#6BCB77" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+  <circle cx="120" cy="65" r="7" fill="#FFFFFF" opacity="0.92"/>
+  <circle cx="120" cy="65" r="4" fill="#B8EC3A"/>
+
+  <!-- Eyebrows -->
+  <path d="M88 103 Q99 98 109 102" fill="none" stroke="#233128" stroke-width="3.4" stroke-linecap="round"/>
+  <path d="M131 102 Q141 98 152 103" fill="none" stroke="#233128" stroke-width="3.4" stroke-linecap="round"/>
+
+  <!-- Cheerful Eyes + Playful Wink -->
+  <ellipse cx="99" cy="117" rx="8.5" ry="9.5" fill="#18261E"/>
+  <circle cx="99" cy="118" r="5" fill="#2E6F4E"/>
+  <circle cx="99" cy="118" r="2.8" fill="#101A14"/>
+  <circle cx="102" cy="113.5" r="2.6" fill="#FFFFFF"/>
+  <circle cx="96" cy="121" r="1.2" fill="#FFFFFF"/>
+
+  <ellipse cx="141" cy="117" rx="8.5" ry="9.5" fill="#18261E"/>
+  <circle cx="141" cy="118" r="5" fill="#2E6F4E"/>
+  <circle cx="141" cy="118" r="2.8" fill="#101A14"/>
+  <circle cx="144" cy="113.5" r="2.6" fill="#FFFFFF"/>
+  <circle cx="138" cy="121" r="1.2" fill="#FFFFFF"/>
+
+  <!-- Cheeks, Nose, Big Grin -->
+  <ellipse cx="87" cy="129" rx="7.5" ry="4" fill="#FF8787" opacity="0.28"/>
+  <ellipse cx="153" cy="129" rx="7.5" ry="4" fill="#FF8787" opacity="0.28"/>
+  <path d="M118 124 Q120 128 123 126" fill="none" stroke="#D38A67" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M104 134 C112 148, 128 148, 136 134 Z" fill="#FFFFFF"/>
+  <path d="M104 134 C112 149, 128 149, 136 134" fill="none" stroke="#A6533D" stroke-width="2.4" stroke-linecap="round"/>
+
+  <!-- Perforated Volt Pickleball Accent -->
+  <g transform="translate(178 175)">
+    <circle r="21" fill="#C9F23B" stroke="#85B81A" stroke-width="2"/>
+    <circle cx="-7" cy="-6" r="3" fill="#7CA819"/>
+    <circle cx="6" cy="-8" r="3" fill="#7CA819"/>
+    <circle cx="10" cy="4" r="3" fill="#7CA819"/>
+    <circle cx="-3" cy="8" r="3" fill="#7CA819"/>
+    <circle cx="-11" cy="6" r="2.5" fill="#7CA819"/>
+    <circle cx="-7" cy="-11" r="5" fill="#FFFFFF" opacity="0.32"/>
+  </g>
+</svg>

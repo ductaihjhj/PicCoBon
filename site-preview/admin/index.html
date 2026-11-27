@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light" data-root="../">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Phùng Đức Tài">
+    <title>Tổng quan Quản trị — Spike OS Workspace (UI Demo)</title>
+    <link rel="icon" type="image/png" href="../assets/images/spike-favicon.png">
+    <script>
+      (function () {
+        try {
+          var savedTheme = localStorage.getItem('spike_theme');
+          if (savedTheme === 'dark' || savedTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+          }
+        } catch (_) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="../assets/css/core/tokens.css" />
+    <link rel="stylesheet" href="../assets/css/core/reset.css" />
+    <link rel="stylesheet" href="../assets/css/components/primitives.css" />
+    <link rel="stylesheet" href="../assets/css/components/qr-ticket.css" />
+    <link rel="stylesheet" href="../assets/css/components/mascot-assistant.css" />
+    <link rel="stylesheet" href="../assets/css/layouts/public-shell.css" />
+    <link rel="stylesheet" href="../assets/css/layouts/admin-shell.css" />
+    <link rel="stylesheet" href="../assets/css/pages/public-pages.css" />
+    <link rel="stylesheet" href="../assets/css/pages/admin-pages.css" />
+    <link rel="stylesheet" href="../assets/css/pages/demo-preview.css" />
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+</head>
+<body class="sh-admin-body">
+    <a href="#shAdminMainContent" class="sr-only">Chuyển tới nội dung chính</a>
+
+    <div class="sh-admin-shell" id="shAdminShell" data-sidebar-collapsed="false" data-sidebar-mobile-open="false">
+        <script>
+          (function () {
+            try {
+              if (window.innerWidth >= 1024 && localStorage.getItem('spike_sidebar_collapsed') === 'true') {
+                document.getElementById('shAdminShell').setAttribute('data-sidebar-collapsed', 'true');
+              }
+            } catch (_) {}
+          })();
+        </script>
+
+        <div class="sh-sidebar-backdrop" id="shSidebarBackdrop" onclick="closeMobileAdminSidebar()" aria-hidden="true"></div>
+
+        <aside class="sh-sidebar" id="shAdminSidebar" aria-label="Điều hướng Quản trị CLB">
+            <div class="sh-sidebar-header">
+                <a href="../admin/" class="sh-team-switcher" title="Spike Pickleball Club Workspace">
+                    <img src="../assets/images/spike-logo.png" alt="Spike Pickleball Club" class="sh-brand-img-wide" width="720" height="308" />
+                    <img src="../assets/images/spike-favicon.png" alt="Spike" class="sh-brand-img-mini" width="32" height="32" />
+                    <div class="sh-team-meta">
+                        <span class="sh-team-plan">Quản trị viên (Demo)</span>
+                    </div>
+                    <iconify-icon icon="lucide:chevrons-up-down" width="14" class="sh-team-caret"></iconify-icon>
+                </a>
+            </div>
+
+            <div class="sh-sidebar-content">
+                <div class="sh-nav-group">
+                    <div class="sh-nav-group-label">Vận hành &amp; Điều phối</div>
+                    <nav class="sh-nav-menu" aria-label="Vận hành và Điều phối">
+                        <a href="../admin/" class="sh-nav-item active" title="Tổng quan Quản trị">
+                            <iconify-icon icon="lucide:layout-dashboard" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Tổng quan</span>
+                        </a>
+                        <a href="../staff/" class="sh-nav-item" title="Điều phối Sân &amp; POS (Staff)">
+                            <iconify-icon icon="lucide:calendar-range" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Điều phối &amp; POS</span>
+                        </a>
+                        <a href="../admin/bookings/" class="sh-nav-item" title="Danh sách Đơn đặt sân">
+                            <iconify-icon icon="lucide:calendar-check-2" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Đơn đặt sân</span>
+                        </a>
+                        <a href="../staff/checkin/" class="sh-nav-item" title="Trạm Soát vé QR">
+                            <iconify-icon icon="lucide:qr-code" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Soát vé QR</span>
+                        </a>
+                        <a href="../admin/reports/" class="sh-nav-item" title="Báo cáo Doanh thu &amp; Sổ cái">
+                            <iconify-icon icon="lucide:bar-chart-3" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Sổ quỹ &amp; Báo cáo</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="sh-nav-group">
+                    <div class="sh-nav-group-label">Quản trị Hệ thống</div>
+                    <nav class="sh-nav-menu" aria-label="Quản trị Hệ thống">
+                        <a href="../admin/courts/" class="sh-nav-item" title="Quản lý Cụm sân">
+                            <iconify-icon icon="lucide:map-pin" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Quản lý sân</span>
+                        </a>
+                        <a href="../admin/products/" class="sh-nav-item" title="Sản phẩm Pro Shop &amp; POS">
+                            <iconify-icon icon="lucide:shopping-bag" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Sản phẩm POS</span>
+                        </a>
+                        <a href="../admin/accounts/" class="sh-nav-item" title="Hội viên &amp; Phân quyền">
+                            <iconify-icon icon="lucide:users" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Hội viên CLB</span>
+                        </a>
+                        <a href="../admin/cms/" class="sh-nav-item" title="Cấu hình Website &amp; Bảng giá">
+                            <iconify-icon icon="lucide:settings-2" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Cấu hình Website</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="sh-nav-group">
+                    <div class="sh-nav-group-label">Cổng Khách hàng</div>
+                    <nav class="sh-nav-menu" aria-label="Cổng Khách hàng">
+                        <a href="../" class="sh-nav-item" title="Mở Trang chủ CLB">
+                            <iconify-icon icon="lucide:globe" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Trang chủ CLB</span>
+                        </a>
+                        <a href="../booking/" class="sh-nav-item" title="Đặt sân trực tuyến">
+                            <iconify-icon icon="lucide:calendar-plus" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Đặt sân trực tuyến</span>
+                        </a>
+                        <a href="../shop/" class="sh-nav-item" title="Cửa hàng Pro Shop">
+                            <iconify-icon icon="lucide:store" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Cửa hàng Pro Shop</span>
+                        </a>
+                        <a href="../my-bookings/" class="sh-nav-item" title="Tra cứu vé QR">
+                            <iconify-icon icon="lucide:ticket" width="17" class="sh-nav-icon"></iconify-icon>
+                            <span class="sh-nav-text">Tra cứu vé QR</span>
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <div class="sh-sidebar-footer">
+                <div class="sh-nav-user">
+                    <a href="../account/profile/" class="sh-nav-user-info" title="Hồ sơ cá nhân">
+                        <div class="sh-nav-user-avatar">
+                            <span class="spk-user-avatar spk-user-avatar--admin-sidebar has-image" data-user-avatar="true" data-avatar-initials="P">
+                                <img data-user-avatar-img="true" src="../assets/images/avatars/ace.png" alt="Demo Operator" />
+                                <span class="spk-user-avatar-initials" data-user-avatar-initials="true" hidden>P</span>
+                            </span>
+                        </div>
+                        <div class="sh-nav-user-text">
+                            <span class="sh-nav-user-name" data-global-user-name="true">Ban Quản Trị Demo</span>
+                            <span class="sh-nav-user-role">UI Demo Mode</span>
+                        </div>
+                    </a>
+                    <a href="../account/login/" class="sh-nav-user-logout" title="Đổi vai trò Demo" aria-label="Đổi vai trò Demo">
+                        <iconify-icon icon="lucide:log-out" width="15"></iconify-icon>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <div class="sh-sidebar-inset" id="shSidebarInset">
+            <header class="sh-topbar" id="shAdminTopbar">
+                <div class="sh-topbar-left">
+                    <button type="button"
+                            class="sh-sidebar-trigger"
+                            id="shSidebarToggleBtn"
+                            onclick="toggleAdminSidebar()"
+                            aria-label="Thu gọn hoặc mở rộng thanh điều hướng"
+                            aria-controls="shAdminSidebar"
+                            aria-expanded="true">
+                        <iconify-icon icon="lucide:panel-left" width="17"></iconify-icon>
+                    </button>
+                    <span class="sh-topbar-divider" aria-hidden="true"></span>
+                    <nav class="sh-topbar-breadcrumb" aria-label="Breadcrumb">
+                        <a href="../admin/" class="sh-topbar-bc-root">Spike OS Demo</a>
+                        <iconify-icon icon="lucide:chevron-right" width="14" class="sh-topbar-bc-sep"></iconify-icon>
+                        <span class="sh-topbar-bc-page">Tổng quan Quản trị</span>
+                    </nav>
+                </div>
+
+                <div class="sh-topbar-right">
+                    <span class="spk-demo-pill spk-demo-pill-hide-xs">
+                        <span class="spk-demo-pill-dot" aria-hidden="true"></span>
+                        <span>SPIKE OS • UI DEMO</span>
+                    </span>
+                    <button type="button"
+                            class="sh-search-trigger"
+                            id="shCmdTriggerBtn"
+                            onclick="openCommandPalette()"
+                            aria-label="Tìm nhanh phân hệ (Ctrl+K)">
+                        <iconify-icon icon="lucide:search" width="14"></iconify-icon>
+                        <span class="sh-search-trigger-text">Tìm nhanh phân hệ...</span>
+                        <kbd class="sh-kbd">Ctrl K</kbd>
+                    </button>
+                    <button type="button"
+                            class="sh-icon-action-btn"
+                            id="shThemeToggleBtn"
+                            onclick="toggleSpikeTheme()"
+                            aria-label="Chuyển đổi giao diện Sáng / Tối"
+                            title="Chuyển đổi giao diện Sáng / Tối">
+                        <iconify-icon icon="lucide:sun" width="16" class="sh-theme-icon-sun"></iconify-icon>
+                        <iconify-icon icon="lucide:moon" width="16" class="sh-theme-icon-moon"></iconify-icon>
+                    </button>
+                    <button type="button" class="spk-demo-reset-btn" onclick="SpikeDemo.resetDemoData()" title="Khôi phục dữ liệu mẫu ban đầu">
+                        <iconify-icon icon="lucide:rotate-ccw" width="13"></iconify-icon>
+                        <span class="spk-demo-pill-hide-xs">Reset Demo</span>
+                    </button>
+                    <a href="../staff/checkin/" class="btn btn-outline btn-xs sh-topbar-quick-link" title="Soát vé QR">
+                        <iconify-icon icon="lucide:qr-code" width="14"></iconify-icon>
+                        <span>Soát vé QR</span>
+                    </a>
+                </div>
+            </header>
+
+            <main class="sh-admin-main admin-page-shell" id="shAdminMainContent">
+
+    <div class="sn-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;padding-bottom:18px;margin-bottom:22px;border-bottom:1px solid var(--border-default);">
+        <div>
+            <h1 class="sn-h1" style="margin:0;font-size:1.65rem;font-weight:700;">Trung tâm Điều hành Cụm sân</h1>
+            <p style="margin:5px 0 0;color:var(--text-secondary);font-size:0.9rem;">
+                Theo dõi số liệu vận hành, biểu đồ doanh thu 7 ngày, lịch đặt chờ duyệt và thu ngân POS (Dữ liệu mô phỏng).
+            </p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a href="../staff/" class="btn btn-primary btn-sm">
+                <iconify-icon icon="lucide:calendar-range" width="16"></iconify-icon>
+                <span>Điều phối Sân &amp; POS</span>
+            </a>
+            <a href="../staff/checkin/" class="btn btn-secondary btn-sm">
+                <iconify-icon icon="lucide:qr-code" width="16"></iconify-icon>
+                <span>Trạm soát vé QR</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="stack" style="gap:24px;">
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-card-top">
+                    <span class="stat-card-label">Cụm sân hoạt động</span>
+                    <div class="stat-card-icon" style="background:var(--brand-primary-tint);color:var(--brand-primary);">
+                        <iconify-icon icon="lucide:map-pin" width="18"></iconify-icon>
+                    </div>
+                </div>
+                <div class="stat-card-value text-mono tabular-nums" id="admTotalCourts">4 sân</div>
+                <div class="stat-card-meta">Mặt sân Acrylic Cushion 8 lớp</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-top">
+                    <span class="stat-card-label">Tổng đơn đặt sân</span>
+                    <div class="stat-card-icon" style="background:var(--status-info-bg);color:var(--status-info-text);">
+                        <iconify-icon icon="lucide:calendar-check-2" width="18"></iconify-icon>
+                    </div>
+                </div>
+                <div class="stat-card-value text-mono tabular-nums" id="admTotalBookings">--</div>
+                <div class="stat-card-meta">Chờ duyệt: <strong id="admPendingBookings">0</strong> đơn</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-top">
+                    <span class="stat-card-label">Mặt hàng Pro Shop</span>
+                    <div class="stat-card-icon" style="background:var(--status-success-bg);color:var(--status-success-text);">
+                        <iconify-icon icon="lucide:shopping-bag" width="18"></iconify-icon>
+                    </div>
+                </div>
+                <div class="stat-card-value text-mono tabular-nums" id="admTotalProducts">--</div>
+                <div class="stat-card-meta">Hội viên &amp; nhân sự: <strong id="admTotalAccounts">--</strong></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-top">
+                    <span class="stat-card-label">Thực thu ròng Sổ cái</span>
+                    <div class="stat-card-icon" style="background:var(--status-warning-bg);color:var(--status-warning-text);">
+                        <iconify-icon icon="lucide:wallet" width="18"></iconify-icon>
+                    </div>
+                </div>
+                <div class="stat-card-value text-mono tabular-nums" style="color:var(--brand-primary);" id="admNetRevenue">--</div>
+                <div class="stat-card-meta">Công nợ chưa thu: <strong id="admReceivables">--</strong></div>
+            </div>
+        </div>
+
+        <div class="spk-admin-charts-grid">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-header-title">
+                        <iconify-icon icon="lucide:bar-chart-3" width="17" style="color:var(--brand-primary);"></iconify-icon>
+                        <span>Xu hướng Doanh thu 7 ngày (Tiền sân + Pro Shop)</span>
+                    </span>
+                    <span class="badge badge-success">Dữ liệu đồng bộ</span>
+                </div>
+                <div class="card-body">
+                    <div class="spk-trend-bars" id="admWeeklyTrendChart"></div>
+                    <div style="display:flex;gap:16px;font-size:0.75rem;color:var(--text-secondary);margin-top:8px;">
+                        <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:2px;background:var(--brand-primary);"></span> Tiền thuê sân</span>
+                        <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:2px;background:var(--brand-secondary);"></span> Pro Shop &amp; F&amp;B</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-header-title">
+                        <iconify-icon icon="lucide:pie-chart" width="17" style="color:var(--notion-blue);"></iconify-icon>
+                        <span>Thực thu theo từng Cụm sân</span>
+                    </span>
+                    <a href="./reports/" class="btn btn-xs btn-secondary">Chi tiết</a>
+                </div>
+                <div class="card-body" style="display:flex;flex-direction:column;gap:14px;" id="admCourtRevenueChart"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-header-title">
+                    <iconify-icon icon="lucide:layout-grid" width="17" style="color:var(--brand-primary)"></iconify-icon>
+                    <span>Phân hệ vận hành &amp; quản trị nhanh</span>
+                </span>
+                <span class="badge badge-success">UI Demo Sẵn sàng</span>
+            </div>
+            <div class="card-body">
+                <div class="match-grid" style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px;">
+                    <a href="../staff/" class="sh-module-card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <iconify-icon icon="lucide:calendar-range" width="22" style="color:var(--brand-primary);"></iconify-icon>
+                            <span class="badge badge-primary">Staff</span>
+                        </div>
+                        <h3 style="margin:0 0 6px;font-size:1rem;">Điều phối &amp; Sổ cái POS</h3>
+                        <p style="margin:0;font-size:0.84rem;color:var(--text-secondary);">Timeline lịch sân, duyệt vé, gọi đồ POS, thu tiền và khóa sân bảo trì.</p>
+                    </a>
+                    <a href="../staff/checkin/" class="sh-module-card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <iconify-icon icon="lucide:qr-code" width="22" style="color:var(--status-info-text);"></iconify-icon>
+                            <span class="badge badge-info">Check-in</span>
+                        </div>
+                        <h3 style="margin:0 0 6px;font-size:1rem;">Trạm soát vé QR</h3>
+                        <p style="margin:0;font-size:0.84rem;color:var(--text-secondary);">Xác thực mã vé đặt sân mẫu và nhận sân vào ca thi đấu.</p>
+                    </a>
+                    <a href="./bookings/" class="sh-module-card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <iconify-icon icon="lucide:calendar-check-2" width="22" style="color:var(--status-success-text);"></iconify-icon>
+                            <span class="badge badge-success">Đơn sân</span>
+                        </div>
+                        <h3 style="margin:0 0 6px;font-size:1rem;">Quản lý đơn đặt sân</h3>
+                        <p style="margin:0;font-size:0.84rem;color:var(--text-secondary);">Tạo đơn Walk-in tại quầy, tra cứu và đối soát thanh toán.</p>
+                    </a>
+                    <a href="./reports/" class="sh-module-card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <iconify-icon icon="lucide:bar-chart-3" width="22" style="color:var(--status-warning-text);"></iconify-icon>
+                            <span class="badge badge-warning">Tài chính</span>
+                        </div>
+                        <h3 style="margin:0 0 6px;font-size:1rem;">Báo cáo &amp; Sổ cái</h3>
+                        <p style="margin:0;font-size:0.84rem;color:var(--text-secondary);">Biểu đồ doanh thu, Top VIP, PayPal Sandbox và nhật ký bút toán.</p>
+                    </a>
+                    <a href="./products/" class="sh-module-card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <iconify-icon icon="lucide:shopping-bag" width="22" style="color:var(--brand-primary);"></iconify-icon>
+                            <span class="badge badge-neutral">Pro Shop</span>
+                        </div>
+                        <h3 style="margin:0 0 6px;font-size:1rem;">Sản phẩm &amp; Tồn kho</h3>
+                        <p style="margin:0;font-size:0.84rem;color:var(--text-secondary);">Quản lý SKU, đơn giá, tồn kho thực tế và thêm sản phẩm demo.</p>
+                    </a>
+                    <a href="./cms/" class="sh-module-card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <iconify-icon icon="lucide:settings-2" width="22" style="color:var(--text-secondary);"></iconify-icon>
+                            <span class="badge badge-neutral">CMS</span>
+                        </div>
+                        <h3 style="margin:0 0 6px;font-size:1rem;">Cấu hình CLB &amp; Giá</h3>
+                        <p style="margin:0;font-size:0.84rem;color:var(--text-secondary);">Chỉnh sửa bảng giá giờ thường / giờ vàng và xem trước đồng bộ.</p>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-header-title">
+                    <iconify-icon icon="lucide:clock" width="17" style="color:var(--brand-primary);"></iconify-icon>
+                    <span>Đơn đặt sân gần nhất</span>
+                </span>
+                <a href="./bookings/" class="btn btn-xs btn-secondary">Xem tất cả</a>
+            </div>
+            <div class="sn-table-wrap">
+                <table class="sn-table">
+                    <thead>
+                        <tr>
+                            <th>Mã vé</th>
+                            <th>Khách hàng</th>
+                            <th>Sân</th>
+                            <th>Lịch thi đấu</th>
+                            <th>Phải thu</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admRecentBookingsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+            </main>
+
+            <footer class="sh-admin-footer">
+                <div class="sh-admin-footer-inner">
+                    <span>Phát triển bởi Phùng Đức Tài · Bản UI Preview tĩnh</span>
+                    <span>Spike Pickleball Club — Hệ thống Quản trị &amp; Điều phối · UI Demo</span>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="shCommandModal" role="dialog" aria-modal="true" aria-labelledby="shCommandModalTitle">
+        <div class="modal sh-cmd-dialog">
+            <div class="sh-cmd-search-bar">
+                <iconify-icon icon="lucide:search" width="17" class="sh-cmd-search-icon"></iconify-icon>
+                <input type="text"
+                       id="shCommandSearchInput"
+                       class="sh-cmd-input"
+                       placeholder="Gõ tên phân hệ, chức năng (VD: sân, POS, báo cáo, QR)..."
+                       oninput="filterCommandPalette(this.value)"
+                       autocomplete="off" />
+                <span id="shCommandModalTitle" class="sr-only">Tìm kiếm nhanh điều hướng hệ thống</span>
+                <button type="button" class="sh-cmd-esc-btn" onclick="closeModal('shCommandModal')">ESC</button>
+            </div>
+            <div class="sh-cmd-list" id="shCommandList">
+                <div class="sh-cmd-group-title">Vận hành &amp; Điều phối</div>
+                <a href="../admin/" class="sh-cmd-item" data-cmd-keywords="tong quan dashboard admin">
+                    <iconify-icon icon="lucide:layout-dashboard" width="16"></iconify-icon>
+                    <span>Tổng quan Điều hành CLB</span>
+                    <span class="sh-cmd-shortcut">admin/</span>
+                </a>
+                <a href="../staff/" class="sh-cmd-item" data-cmd-keywords="dieu phoi san pos thu ngan khoa san timeline staff">
+                    <iconify-icon icon="lucide:calendar-range" width="16"></iconify-icon>
+                    <span>Điều phối Sân, Timeline &amp; Sổ cái POS (Staff)</span>
+                    <span class="sh-cmd-shortcut">staff/</span>
+                </a>
+                <a href="../admin/bookings/" class="sh-cmd-item" data-cmd-keywords="don dat san walkin duyet ve">
+                    <iconify-icon icon="lucide:calendar-check-2" width="16"></iconify-icon>
+                    <span>Quản lý Danh sách Đơn đặt sân</span>
+                    <span class="sh-cmd-shortcut">admin/bookings/</span>
+                </a>
+                <a href="../staff/checkin/" class="sh-cmd-item" data-cmd-keywords="soat ve checkin qr camera">
+                    <iconify-icon icon="lucide:qr-code" width="16"></iconify-icon>
+                    <span>Trạm Soát vé Check-in QR</span>
+                    <span class="sh-cmd-shortcut">staff/checkin/</span>
+                </a>
+                <a href="../admin/reports/" class="sh-cmd-item" data-cmd-keywords="bao cao doanh thu so cai cong no ledger">
+                    <iconify-icon icon="lucide:bar-chart-3" width="16"></iconify-icon>
+                    <span>Báo cáo Doanh thu &amp; Sổ cái</span>
+                    <span class="sh-cmd-shortcut">admin/reports/</span>
+                </a>
+                <div class="sh-cmd-group-title">Quản trị Hệ thống</div>
+                <a href="../admin/courts/" class="sh-cmd-item" data-cmd-keywords="quan ly san gia san vip indoor outdoor">
+                    <iconify-icon icon="lucide:map-pin" width="16"></iconify-icon>
+                    <span>Quản lý Cụm sân thi đấu</span>
+                    <span class="sh-cmd-shortcut">admin/courts/</span>
+                </a>
+                <a href="../admin/products/" class="sh-cmd-item" data-cmd-keywords="san pham pro shop pos ton kho">
+                    <iconify-icon icon="lucide:shopping-bag" width="16"></iconify-icon>
+                    <span>Quản lý Sản phẩm Pro Shop</span>
+                    <span class="sh-cmd-shortcut">admin/products/</span>
+                </a>
+                <a href="../admin/accounts/" class="sh-cmd-item" data-cmd-keywords="hoi vien tai khoan nhan su phan quyen">
+                    <iconify-icon icon="lucide:users" width="16"></iconify-icon>
+                    <span>Quản lý Hội viên &amp; Phân quyền</span>
+                    <span class="sh-cmd-shortcut">admin/accounts/</span>
+                </a>
+                <a href="../admin/cms/" class="sh-cmd-item" data-cmd-keywords="cau hinh website bang gia gio mo cua cms">
+                    <iconify-icon icon="lucide:settings-2" width="16"></iconify-icon>
+                    <span>Cấu hình Website &amp; Bảng giá (CMS)</span>
+                    <span class="sh-cmd-shortcut">admin/cms/</span>
+                </a>
+                <div class="sh-cmd-group-title">Cổng Khách hàng</div>
+                <a href="../" class="sh-cmd-item" data-cmd-keywords="trang chu khach hang lich trong">
+                    <iconify-icon icon="lucide:globe" width="16"></iconify-icon>
+                    <span>Trang chủ Spike Pickleball Club</span>
+                    <span class="sh-cmd-shortcut">./</span>
+                </a>
+                <a href="../booking/" class="sh-cmd-item" data-cmd-keywords="dat san truc tuyen bao gia">
+                    <iconify-icon icon="lucide:calendar-plus" width="16"></iconify-icon>
+                    <span>Đặt sân trực tuyến</span>
+                    <span class="sh-cmd-shortcut">booking/</span>
+                </a>
+                <a href="../shop/" class="sh-cmd-item" data-cmd-keywords="cua hang pro shop nuoc uong thue vot">
+                    <iconify-icon icon="lucide:store" width="16"></iconify-icon>
+                    <span>Cửa hàng Pro Shop</span>
+                    <span class="sh-cmd-shortcut">shop/</span>
+                </a>
+                <a href="../my-bookings/" class="sh-cmd-item" data-cmd-keywords="tra cuu ve qr ma dat san">
+                    <iconify-icon icon="lucide:ticket" width="16"></iconify-icon>
+                    <span>Tra cứu vé điện tử QR</span>
+                    <span class="sh-cmd-shortcut">my-bookings/</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <script src="../assets/js/demo-engine.js"></script>
+    <script src="../assets/js/shared.js"></script>
+    <script src="../assets/js/admin-overview.js"></script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+name: Deploy Spike OS UI Preview to GitHub Pages
+
+on:
+  push:
+    branches:
+      - preview/github-pages
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-ui-preview
+  cancel-in-progress: true
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout preview branch
+        uses: actions/checkout@v4
+
+      - name: Validate static preview entrypoints and assets
+        run: |
+          set -euo pipefail
+          test -f site-preview/index.html
+          test -f site-preview/booking/index.html
+          test -f site-preview/shop/index.html
+          test -f site-preview/products/index.html
+          test -f site-preview/my-bookings/index.html
+          test -f site-preview/qr/index.html
+          test -f site-preview/account/login/index.html
+          test -f site-preview/account/profile/index.html
+          test -f site-preview/admin/index.html
+          test -f site-preview/staff/index.html
+          test -f site-preview/mock-data/courts.json
+          test -f site-preview/mock-data/products.json
+          test -f site-preview/mock-data/bookings.json
+          test -f site-preview/mock-data/dashboard.json
+          test -f site-preview/assets/js/demo-engine.js
+          test -f site-preview/assets/mascot/01_idle.png
+
+          # Ensure no backend files, razor views, or appsettings secrets exist inside site-preview
+          if find site-preview -type f \( -name "*.cs" -o -name "*.cshtml" -o -name "*.csproj" -o -name "appsettings*.json" \) | grep -q .; then
+            echo "ERROR: Backend or configuration files found inside site-preview/"
+            exit 1
+          fi
+          echo "Static preview validation passed."
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload site-preview artifact only
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site-preview
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: validate-and-build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

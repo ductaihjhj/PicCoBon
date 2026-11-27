@@ -1,0 +1,236 @@
+@charset "UTF-8";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
+
+/* ==========================================================================
+   SPIKE OS — MODERN SPORTS MANAGEMENT PLATFORM
+   Core CSS Reset, Base Typography, Layout Utilities & Print Contract
+   ========================================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  background-color: var(--background);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+img, svg, video {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+h1, h2, h3, h4, h5, h6, .sn-h1, .sn-h2, .sn-h3 {
+  font-family: var(--font-display);
+  color: var(--text-primary);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.tabular-nums, .font-mono, .text-mono, .stat-card-value, .stat-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Global Accessible Focus Ring */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Container & Skip Links */
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 0 16px;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+a.sr-only:focus,
+a.sr-only:focus-visible {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 8px 14px;
+  clip: auto;
+  overflow: visible;
+  z-index: 2000;
+  background: var(--brand-deep);
+  color: #FFFFFF;
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+}
+
+/* Prevent Flex/Grid Children from Blowing Out Viewport */
+.booking-layout > *, .shop-layout > *, .col-main-aside > *, .col-aside-main > *,
+.cms-grid > *, .checkin-layout > *, .profile-layout > *, .stack > *, .card, .sn-card {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Layout & Spacing Utilities */
+.stack { display: flex; flex-direction: column; gap: 24px; }
+.stack-sm { display: flex; flex-direction: column; gap: 14px; }
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.mb-sm { margin-bottom: 10px; }
+.mb-md { margin-bottom: 18px; }
+.mt-xs { margin-top: 4px; }
+.mb-xs { margin-bottom: 4px; }
+.mt-sm { margin-top: 10px; }
+.mt-md { margin-top: 18px; }
+.w-full, .btn-block { width: 100%; }
+.align-middle { vertical-align: middle !important; }
+.text-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.form-text { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; display: block; }
+
+.text-xs { font-size: 0.75rem; }
+.text-sm { font-size: 0.85rem; }
+.text-base { font-size: 0.95rem; }
+.text-lg { font-size: 1.1rem; }
+.text-xl { font-size: 1.35rem; }
+.text-caption { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.font-semibold { font-weight: 600; }
+.font-bold, .font-weight-bold { font-weight: 700 !important; }
+.text-muted { color: var(--text-muted) !important; }
+.text-dark { color: var(--text-primary) !important; }
+.text-primary { color: var(--brand-primary) !important; }
+.text-success { color: var(--status-success-text) !important; }
+.text-danger { color: var(--status-danger-text) !important; }
+.truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Bootstrap/Legacy Utility Bridge for Server-Rendered Admin Views */
+.d-flex { display: flex !important; }
+.d-inline { display: inline-block !important; }
+.d-block { display: block !important; }
+.d-none { display: none !important; }
+.flex-wrap { flex-wrap: wrap !important; }
+.justify-content-between { justify-content: space-between !important; }
+.justify-content-end { justify-content: flex-end !important; }
+.align-items-center { align-items: center !important; }
+.text-center { text-align: center !important; }
+.text-nowrap { white-space: nowrap !important; }
+.small { font-size: 0.8125rem; }
+.m-0 { margin: 0 !important; }
+.mt-1 { margin-top: 4px !important; }
+.mt-2 { margin-top: 8px !important; }
+.mt-3 { margin-top: 14px !important; }
+.mb-0 { margin-bottom: 0 !important; }
+.mb-1 { margin-bottom: 4px !important; }
+.mb-2 { margin-bottom: 8px !important; }
+.mb-3 { margin-bottom: 14px !important; }
+.mr-1 { margin-right: 6px !important; }
+.mr-2 { margin-right: 10px !important; }
+.p-0 { padding: 0 !important; }
+.p-2 { padding: 10px !important; }
+.py-4 { padding-top: 32px !important; padding-bottom: 32px !important; }
+.rounded { border-radius: var(--radius-md) !important; }
+.bg-light { background-color: var(--surface-secondary) !important; }
+.bg-white { background-color: var(--surface) !important; }
+.border { border: 1px solid var(--border-default) !important; }
+.float-sm-right { margin-left: auto; }
+
+/* Theme Icon Visibility */
+.sh-theme-icon-moon { display: none; }
+html[data-theme="dark"] .sh-theme-icon-sun { display: none; }
+html[data-theme="dark"] .sh-theme-icon-moon { display: inline-block; }
+
+@keyframes spkSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin-icon,
+.is-spinning iconify-icon {
+  animation: spkSpin 1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Protected QR Ticket Print Contract */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #spkDigitalTicketCard,
+  #spkDigitalTicketCard * {
+    visibility: visible !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  #spkDigitalTicketCard {
+    position: fixed !important;
+    left: 50% !important;
+    top: 20px !important;
+    transform: translateX(-50%) !important;
+    width: 380px !important;
+    background: #FFFFFF !important;
+    color: #17251D !important;
+    border: 2px solid #17251D !important;
+    box-shadow: none !important;
+  }
+}

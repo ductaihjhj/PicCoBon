@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="Kai Bolt">
+  <defs>
+    <radialGradient id="bg08" cx="50%" cy="38%" r="72%">
+      <stop offset="0%" stop-color="#F2FCF5"/>
+      <stop offset="100%" stop-color="#C8F0D4"/>
+    </radialGradient>
+    <radialGradient id="skin08" cx="48%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="#FFE3CE"/>
+      <stop offset="72%" stop-color="#F7BF9C"/>
+      <stop offset="100%" stop-color="#E49F78"/>
+    </radialGradient>
+    <linearGradient id="jersey08" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#226B48"/>
+      <stop offset="100%" stop-color="#143D29"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="240" height="240" fill="url(#bg08)"/>
+  <circle cx="120" cy="126" r="88" fill="#FFFFFF" opacity="0.38"/>
+
+  <!-- Dark-Forest Sporty Jersey -->
+  <path d="M50 240 C54 186, 86 170, 120 170 C154 170, 186 186, 190 240 Z" fill="url(#jersey08)"/>
+  <path d="M78 178 C88 202, 102 222, 120 222 C138 222, 152 202, 162 178 L144 172 L96 172 Z" fill="#2E8B57"/>
+  <path d="M97 172 Q120 190 143 172" fill="none" stroke="#C9F23B" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Neck & Chin Shadow -->
+  <rect x="106" y="148" width="28" height="32" rx="14" fill="url(#skin08)"/>
+  <path d="M106 154 Q120 166 134 154 L134 162 Q120 172 106 162 Z" fill="#CE8863" opacity="0.45"/>
+
+  <!-- Ears -->
+  <ellipse cx="73" cy="119" rx="9" ry="12" fill="#ECAC87"/>
+  <ellipse cx="167" cy="119" rx="9" ry="12" fill="#ECAC87"/>
+
+  <!-- Head Base -->
+  <path d="M75 112 C75 76, 165 76, 165 112 C165 144, 146 160, 120 160 C94 160, 75 144, 75 112 Z" fill="url(#skin08)"/>
+
+  <!-- Spiky Hair Tufts -->
+  <path d="M70 98 L64 78 L80 80 L78 58 L98 70 L108 46 L124 64 L142 44 L148 68 L168 58 L162 80 L176 78 L168 98 Z" fill="#27323A"/>
+  <path d="M84 72 L106 52 L120 68 L138 50 L152 72 Z" fill="#3D4B56" opacity="0.55"/>
+
+  <!-- Bright Volt-Green Sports Headband -->
+  <path d="M73 96 C96 82, 144 82, 167 96 L167 80 C142 66, 98 66, 73 80 Z" fill="#AEEA2E"/>
+  <path d="M84 81 C106 73, 134 73, 156 81" fill="none" stroke="#ECFFC2" stroke-width="2.4" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Eyebrows -->
+  <path d="M88 103 Q98 98 108 102" fill="none" stroke="#222C33" stroke-width="3.4" stroke-linecap="round"/>
+  <path d="M132 102 Q142 98 152 103" fill="none" stroke="#222C33" stroke-width="3.4" stroke-linecap="round"/>
+
+  <!-- Eyes -->
+  <ellipse cx="99" cy="117" rx="8.5" ry="9" fill="#17241C"/>
+  <ellipse cx="141" cy="117" rx="8.5" ry="9" fill="#17241C"/>
+  <circle cx="101.5" cy="113.5" r="2.6" fill="#FFFFFF"/>
+  <circle cx="143.5" cy="113.5" r="2.6" fill="#FFFFFF"/>
+  <circle cx="96" cy="120.5" r="1.2" fill="#FFFFFF"/>
+  <circle cx="138" cy="120.5" r="1.2" fill="#FFFFFF"/>
+
+  <!-- Rosy Cheeks, Nose, Enthusiastic Smile -->
+  <ellipse cx="86" cy="129" rx="7.5" ry="4" fill="#FF8787" opacity="0.3"/>
+  <ellipse cx="154" cy="129" rx="7.5" ry="4" fill="#FF8787" opacity="0.3"/>
+  <path d="M118 124 Q120 128 122 126" fill="none" stroke="#D18A66" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M104 134 C112 148, 128 148, 136 134 Z" fill="#FFFFFF"/>
+  <path d="M104 134 C112 149, 128 149, 136 134" fill="none" stroke="#9F523B" stroke-width="2.4" stroke-linecap="round"/>
+</svg>

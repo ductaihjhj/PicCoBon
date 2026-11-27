@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="Leo Spin">
+  <defs>
+    <radialGradient id="bg06" cx="50%" cy="38%" r="72%">
+      <stop offset="0%" stop-color="#F2FCF6"/>
+      <stop offset="100%" stop-color="#CBEFD9"/>
+    </radialGradient>
+    <radialGradient id="skin06" cx="48%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FFE8D6"/>
+      <stop offset="72%" stop-color="#F8CEB4"/>
+      <stop offset="100%" stop-color="#E7AE8E"/>
+    </radialGradient>
+    <linearGradient id="polo06" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#53C17B"/>
+      <stop offset="100%" stop-color="#226B48"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="240" height="240" fill="url(#bg06)"/>
+  <circle cx="120" cy="126" r="88" fill="#FFFFFF" opacity="0.4"/>
+
+  <!-- Mint Collared Polo Shoulders -->
+  <path d="M50 240 C54 186, 86 170, 120 170 C154 170, 186 186, 190 240 Z" fill="url(#polo06)"/>
+  <path d="M97 171 L120 198 L143 171 L134 166 L120 183 L106 166 Z" fill="#17251D"/>
+  <path d="M98 172 L117 195 L103 200 L89 180 Z" fill="#FFFFFF"/>
+  <path d="M142 172 L123 195 L137 200 L151 180 Z" fill="#FFFFFF"/>
+
+  <!-- Neck & Chin Shadow -->
+  <rect x="106" y="148" width="28" height="32" rx="14" fill="url(#skin06)"/>
+  <path d="M106 154 Q120 166 134 154 L134 162 Q120 172 106 162 Z" fill="#D59574" opacity="0.45"/>
+
+  <!-- Ears -->
+  <ellipse cx="73" cy="119" rx="9" ry="12" fill="#EDB594"/>
+  <ellipse cx="167" cy="119" rx="9" ry="12" fill="#EDB594"/>
+
+  <!-- Head Base -->
+  <path d="M75 110 C75 74, 165 74, 165 110 C165 144, 146 160, 120 160 C94 160, 75 144, 75 110 Z" fill="url(#skin06)"/>
+
+  <!-- Fluffy Side-Part Hair -->
+  <path d="M71 108 C68 62, 100 44, 128 46 C158 48, 174 72, 168 108 C160 88, 146 76, 122 78 C100 80, 82 90, 71 108 Z" fill="#3B2E2A"/>
+  <path d="M88 76 C104 60, 134 58, 152 72 C136 68, 110 68, 88 76 Z" fill="#594640" opacity="0.65"/>
+
+  <!-- Eyebrows -->
+  <path d="M88 102 Q98 97 108 101" fill="none" stroke="#3B2E2A" stroke-width="3" stroke-linecap="round"/>
+  <path d="M132 101 Q142 97 152 102" fill="none" stroke="#3B2E2A" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Round Strategist Glasses -->
+  <circle cx="98" cy="117" r="14" fill="#FFFFFF" fill-opacity="0.22" stroke="#1E2B23" stroke-width="3.2"/>
+  <circle cx="142" cy="117" r="14" fill="#FFFFFF" fill-opacity="0.22" stroke="#1E2B23" stroke-width="3.2"/>
+  <path d="M112 117 Q120 113 128 117" fill="none" stroke="#1E2B23" stroke-width="3.2"/>
+  <line x1="74" y1="115" x2="84" y2="116" stroke="#1E2B23" stroke-width="3"/>
+  <line x1="156" y1="116" x2="166" y2="115" stroke="#1E2B23" stroke-width="3"/>
+
+  <!-- Eyes inside glasses -->
+  <circle cx="99" cy="118" r="6.5" fill="#18261E"/>
+  <circle cx="141" cy="118" r="6.5" fill="#18261E"/>
+  <circle cx="101.5" cy="114.5" r="2.2" fill="#FFFFFF"/>
+  <circle cx="143.5" cy="114.5" r="2.2" fill="#FFFFFF"/>
+
+  <!-- Cheeks, Nose, Warm Smile -->
+  <ellipse cx="86" cy="131" rx="7.5" ry="4" fill="#FF8787" opacity="0.28"/>
+  <ellipse cx="154" cy="131" rx="7.5" ry="4" fill="#FF8787" opacity="0.28"/>
+  <path d="M118 125 Q120 129 122 127" fill="none" stroke="#D59574" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M108 137 Q120 147 132 137" fill="none" stroke="#A65840" stroke-width="2.8" stroke-linecap="round"/>
+
+  <!-- Carbon Paddle at bottom-right -->
+  <g transform="translate(178 176) rotate(14)">
+    <rect x="-18" y="-26" width="36" height="44" rx="10" fill="#17251D" stroke="#6BCB77" stroke-width="2.5"/>
+    <rect x="-4" y="18" width="8" height="20" rx="3" fill="#2E8B57"/>
+  </g>
+</svg>

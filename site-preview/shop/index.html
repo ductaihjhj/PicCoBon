@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light" data-root="../">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Phùng Đức Tài">
+    <title>Cửa Hàng Pro Shop & F&B — Spike Pickleball Club (UI Demo)</title>
+    <link rel="icon" type="image/png" href="../assets/images/spike-favicon.png">
+    <script>
+      (function () {
+        try {
+          var savedTheme = localStorage.getItem('spike_theme');
+          if (savedTheme === 'dark' || savedTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+          }
+        } catch (_) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="../assets/css/core/tokens.css" />
+    <link rel="stylesheet" href="../assets/css/core/reset.css" />
+    <link rel="stylesheet" href="../assets/css/components/primitives.css" />
+    <link rel="stylesheet" href="../assets/css/components/qr-ticket.css" />
+    <link rel="stylesheet" href="../assets/css/components/mascot-assistant.css" />
+    <link rel="stylesheet" href="../assets/css/layouts/public-shell.css" />
+    <link rel="stylesheet" href="../assets/css/layouts/admin-shell.css" />
+    <link rel="stylesheet" href="../assets/css/pages/public-pages.css" />
+    <link rel="stylesheet" href="../assets/css/pages/admin-pages.css" />
+    <link rel="stylesheet" href="../assets/css/pages/demo-preview.css" />
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+</head>
+<body>
+    <a href="#mainContent" class="sr-only">Chuyển tới nội dung chính</a>
+
+    <header class="site-header">
+        <div class="site-header-inner">
+            <a href="../" class="site-brand" aria-label="Spike Pickleball Club — Trang chủ">
+                <img src="../assets/images/spike-logo.png" alt="Spike Pickleball Club" class="site-brand-logo" width="720" height="308" />
+            </a>
+
+            <nav class="site-nav" id="siteMainNav" aria-label="Điều hướng chính">
+                <a href="../" class="site-nav-link">Trang chủ</a>
+                <a href="../booking/" class="site-nav-link">Đặt sân</a>
+                <a href="../shop/" class="site-nav-link active">Pro Shop</a>
+                <a href="../my-bookings/" class="site-nav-link">Tra cứu vé</a>
+                <a href="../staff/" class="site-nav-link">Staff</a>
+                <a href="../admin/" class="site-nav-link">Quản trị</a>
+            </nav>
+
+            <div class="site-header-actions">
+                <span class="spk-demo-pill spk-demo-pill-hide-xs" title="Bản xem trước giao diện tĩnh — không kết nối CSDL thật">
+                    <span class="spk-demo-pill-dot" aria-hidden="true"></span>
+                    <span>SPIKE OS • UI DEMO</span>
+                </span>
+                <div id="headerAuthActionsMount">
+                    <a href="../account/login/" class="btn btn-sm btn-secondary">Đăng nhập</a>
+                </div>
+                <button type="button"
+                        class="sh-site-theme-btn"
+                        id="siteThemeToggleBtn"
+                        onclick="toggleSpikeTheme()"
+                        aria-label="Chuyển đổi giao diện Sáng / Tối"
+                        title="Chuyển đổi giao diện Sáng / Tối">
+                    <iconify-icon icon="lucide:sun" width="16" class="sh-theme-icon-sun"></iconify-icon>
+                    <iconify-icon icon="lucide:moon" width="16" class="sh-theme-icon-moon"></iconify-icon>
+                </button>
+                <div id="headerAdminBtnMount"></div>
+                <a href="../booking/" class="btn btn-primary btn-sm header-cta-book">Đặt sân ngay</a>
+                <button type="button"
+                        id="siteMobileNavBtn"
+                        class="sn-mobile-menu-btn mobile-menu-btn"
+                        onclick="toggleMobileNav()"
+                        aria-expanded="false"
+                        aria-controls="siteMainNav"
+                        aria-label="Mở menu điều hướng">
+                    <iconify-icon icon="lucide:menu" width="19"></iconify-icon>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="mainContent">
+
+    <section class="page-hero">
+        <div class="container page-hero-inner">
+            <div>
+                <h1 class="page-hero-title">Cửa hàng Pro Shop, Giải khát &amp; Dụng cụ</h1>
+                <p class="page-hero-sub">Đặt nước bù khoáng, đồ ăn nhẹ và thuê vợt giao tận sân thi đấu hoặc nhận nhanh tại quầy thu ngân (Dữ liệu mô phỏng).</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <a href="../products/" class="btn btn-secondary btn-sm">
+                    <iconify-icon icon="lucide:package-search" width="16"></iconify-icon>
+                    <span>Xem chi tiết SP</span>
+                </a>
+                <a href="../booking/" class="btn btn-secondary btn-sm">
+                    <iconify-icon icon="lucide:calendar-check" width="16"></iconify-icon>
+                    <span>Đặt lịch sân</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <main class="page-main" style="padding:28px 0 88px;">
+        <div class="container stack">
+            <div class="shop-toolbar">
+                <div class="sn-search-field shop-search-box" style="flex:1;min-width:220px;">
+                    <iconify-icon icon="lucide:search" width="16" class="sn-search-field-icon"></iconify-icon>
+                    <input type="text" id="menuSearchInput" class="form-input" placeholder="Tìm nhanh nước điện giải, đồ ăn nhẹ, vợt, bóng..." oninput="renderMenu()">
+                </div>
+                <select id="menuSortSelect" class="form-select spk-shop-sort-select" onchange="setMenuSort(this.value)" aria-label="Sắp xếp sản phẩm">
+                    <option value="default">Sắp xếp: Mặc định</option>
+                    <option value="price_asc">Giá: Thấp → Cao</option>
+                    <option value="price_desc">Giá: Cao → Thấp</option>
+                    <option value="name_asc">Tên: A → Z</option>
+                </select>
+                <div class="filter-tabs" id="menuCategoryTabs" role="tablist" aria-label="Danh mục sản phẩm Pro Shop">
+                    <button type="button" class="filter-tab active" role="tab" aria-selected="true" data-cat="all" onclick="filterMenuCategory('all')">Tất cả (<span id="menuCount">0</span>)</button>
+                    <button type="button" class="filter-tab" role="tab" aria-selected="false" data-cat="drink" onclick="filterMenuCategory('drink')">Đồ uống</button>
+                    <button type="button" class="filter-tab" role="tab" aria-selected="false" data-cat="food" onclick="filterMenuCategory('food')">Đồ ăn nhẹ</button>
+                    <button type="button" class="filter-tab" role="tab" aria-selected="false" data-cat="other" onclick="filterMenuCategory('other')">Vợt &amp; Bóng</button>
+                </div>
+            </div>
+
+            <div class="shop-layout">
+                <div class="shop-main-col">
+                    <div class="menu-grid" id="menuGrid"></div>
+                </div>
+
+                <aside class="card sticky-panel shop-cart-panel" id="shopCartPanel">
+                    <div class="card-header sn-summary-header">
+                        <span class="card-header-title">
+                            <iconify-icon icon="lucide:shopping-bag" width="17" style="color:var(--brand-primary);"></iconify-icon>
+                            <span>Giỏ hàng dịch vụ</span>
+                        </span>
+                        <span class="badge badge-primary tabular-nums" id="shopCartBadge" aria-live="polite" aria-atomic="true">0 món</span>
+                    </div>
+
+                    <div class="card-body shop-cart-body">
+                        <div id="shopCartItems" class="shop-cart-items"></div>
+
+                        <div class="shop-checkout-form">
+                            <div class="form-group">
+                                <label class="form-label" for="shopOrderBooking">Nhận tại quầy hoặc gộp vào ca sân</label>
+                                <select id="shopOrderBooking" class="form-select" onchange="toggleGuestBookingAttach()">
+                                    <option value="">-- Mua lẻ / Nhận trực tiếp tại quầy --</option>
+                                </select>
+                                <div id="shopOrderBookingHint" class="text-xs text-muted" style="margin-top:4px;display:none;"></div>
+                            </div>
+
+                            <div id="guestBookingAttachFields" class="sh-subtle-panel" style="display:none;padding:10px;margin-bottom:12px;">
+                                <div class="form-group" style="margin-bottom:8px;">
+                                    <label class="form-label text-xs" for="shopGuestBookingCode">Mã đặt sân mẫu *</label>
+                                    <input type="text" id="shopGuestBookingCode" class="form-input text-mono" placeholder="VD: PB-2601C3">
+                                </div>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label class="form-label text-xs" for="shopGuestAccessToken">Mã bảo mật vé (bk_...) *</label>
+                                    <input type="text" id="shopGuestAccessToken" class="form-input text-mono" placeholder="Nhập mã bk_...">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="shopOrderName">Họ tên người nhận *</label>
+                                <input type="text" id="shopOrderName" class="form-input" placeholder="Nhập họ tên của bạn">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="shopOrderPhone">Số điện thoại liên hệ *</label>
+                                <input type="tel" id="shopOrderPhone" class="form-input text-mono" placeholder="09xx xxx xxx">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="shopOrderNote">Vị trí giao / Ghi chú tại sân</label>
+                                <input type="text" id="shopOrderNote" class="form-input" placeholder="VD: Giao ra Sân 01 hoặc Nhận tại quầy">
+                            </div>
+
+                            <div class="form-group" style="margin-bottom:10px;">
+                                <span class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
+                                    <span>Phương thức thanh toán (Demo)</span>
+                                    <span class="spk-sandbox-pill" id="shopPayPalBadge">SANDBOX DEMO</span>
+                                </span>
+                                <div class="spk-payment-methods" role="radiogroup" aria-label="Phương thức thanh toán Pro Shop">
+                                    <label class="spk-pay-option is-selected" id="shopPayCashLabel" for="shopPayCash">
+                                        <input class="spk-pay-radio" type="radio" name="shopPaymentMethod" id="shopPayCash" value="cash" checked onchange="selectShopPaymentMethod('cash')">
+                                        <div class="spk-pay-body">
+                                            <div class="spk-pay-title-row">
+                                                <span class="spk-pay-title">
+                                                    <iconify-icon icon="lucide:banknote" width="15" style="color:var(--brand-primary);"></iconify-icon>
+                                                    <span>Thanh toán tại quầy / Gộp hóa đơn</span>
+                                                </span>
+                                            </div>
+                                            <div class="spk-pay-desc">Mô phỏng đặt hàng trên giao diện Demo.</div>
+                                        </div>
+                                    </label>
+                                    <label class="spk-pay-option" id="shopPayPayPalLabel" for="shopPayPayPal">
+                                        <input class="spk-pay-radio" type="radio" name="shopPaymentMethod" id="shopPayPayPal" value="paypal" onchange="selectShopPaymentMethod('paypal')">
+                                        <div class="spk-pay-body">
+                                            <div class="spk-pay-title-row">
+                                                <span class="spk-pay-title">
+                                                    <iconify-icon icon="lucide:globe" width="15" style="color:var(--brand-primary);"></iconify-icon>
+                                                    <span>PayPal Sandbox (USD Demo)</span>
+                                                </span>
+                                                <span class="spk-sandbox-pill">UI Demo</span>
+                                            </div>
+                                            <div class="spk-pay-desc" id="shopPayPalDesc">Xem thử biên lai PayPal Sandbox (không trừ tiền thật).</div>
+                                            <div class="spk-usd-quote-box" id="shopUsdPreviewBox" style="display:none;">
+                                                <span style="color:var(--text-secondary);">Quy đổi PayPal:</span>
+                                                <strong class="text-mono" id="shopUsdPreviewText" style="color:var(--brand-primary);">$0.00 USD</strong>
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="payment-summary" style="border-radius:var(--radius-md);">
+                                <div class="payment-line total" style="padding-top:0;border-top:none;">
+                                    <span>Tổng phải thu</span>
+                                    <span class="text-mono tabular-nums" id="shopCartTotal" style="color:var(--brand-primary);" aria-live="polite" aria-atomic="true">0 đ</span>
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn btn-primary btn-block btn-lg mt-sm" id="btnSubmitShopOrder" onclick="submitShopOrder()">
+                                <iconify-icon icon="lucide:check-circle-2" width="18"></iconify-icon>
+                                <span>Xác nhận đặt dịch vụ</span>
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <div class="mobile-shop-cart-bar no-print" id="mobileShopCartBar" role="region" aria-label="Tóm tắt giỏ hàng Pro Shop">
+            <div class="mobile-shop-cart-bar-inner">
+                <div class="mobile-shop-cart-summary">
+                    <span class="mobile-shop-cart-count" id="mobileCartCount" aria-live="polite" aria-atomic="true">0 món</span>
+                    <span class="mobile-shop-cart-total text-mono tabular-nums" id="mobileCartTotal" aria-live="polite" aria-atomic="true">0 đ</span>
+                </div>
+                <button type="button" class="btn btn-primary btn-sm" id="mobileCartActionBtn" onclick="scrollToShopCartPanel()">
+                    <iconify-icon icon="lucide:shopping-bag" width="16"></iconify-icon>
+                    <span>Xem giỏ &amp; Đặt ngay</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="modalShopOrder">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h3 class="modal-title">Đặt dịch vụ mô phỏng (UI Demo)</h3>
+                <button type="button" class="modal-close" onclick="closeModal('modalShopOrder')" aria-label="Đóng">✕</button>
+            </div>
+            <div class="modal-body" style="text-align:center;padding:20px;">
+                <div class="spk-demo-banner" style="margin-bottom:12px;text-align:left;">
+                    <iconify-icon icon="lucide:info" width="16" style="flex-shrink:0;"></iconify-icon>
+                    <span>Đây là bản demo giao diện. Chưa phát sinh đơn hàng hoặc thanh toán thực tế.</span>
+                </div>
+                <div style="padding:14px;background:var(--surface-secondary);border:1px solid var(--border-default);border-radius:var(--radius-md);">
+                    <iconify-icon icon="lucide:cup-soda" width="44" style="color:var(--brand-primary);"></iconify-icon>
+                    <div class="text-sm font-bold text-mono mt-xs" id="ordSuccessCode">ORD-0001</div>
+                </div>
+                <div class="payment-summary mt-md" style="text-align:left;border-radius:var(--radius-md);">
+                    <div class="payment-line"><span class="text-muted">Khách hàng</span><span class="font-bold" id="ordSuccessName"></span></div>
+                    <div class="payment-line"><span class="text-muted">Hình thức nhận</span><span class="font-semibold" id="ordSuccessDelivery"></span></div>
+                    <div class="payment-line total"><span>Tổng tạm tính</span><span class="font-bold text-mono tabular-nums" id="ordSuccessTotal"></span></div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding:12px 20px;">
+                <button type="button" class="btn btn-primary btn-block" onclick="closeModal('modalShopOrder')">Hoàn tất</button>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <footer class="site-footer">
+        <div class="site-footer-grid">
+            <div class="site-footer-col">
+                <a href="../" class="site-brand" aria-label="Spike Pickleball Club" style="margin-bottom:12px;">
+                    <img src="../assets/images/spike-logo.png" alt="Spike Pickleball Club" class="site-brand-logo site-brand-logo-lg" width="720" height="308" />
+                </a>
+                <p style="font-size:0.875rem;line-height:1.65;color:var(--text-secondary);margin:0;">
+                    Tổ hợp sân thi đấu Pickleball trong nhà và ngoài trời với mặt sân Cushion 8 lớp, hệ thống đèn chống chói và Pro Shop ngay tại sảnh.
+                </p>
+            </div>
+
+            <div class="site-footer-col">
+                <h4>Khám phá CLB</h4>
+                <div class="site-footer-links">
+                    <a href="../">Trang chủ &amp; Lịch trống</a>
+                    <a href="../booking/">Đặt sân trực tuyến</a>
+                    <a href="../shop/">Cửa hàng Pro Shop</a>
+                    <a href="../products/">Chi tiết sản phẩm</a>
+                    <a href="../my-bookings/">Tra cứu mã vé QR</a>
+                    <a href="../qr/">Mẫu thẻ vé QR Demo</a>
+                </div>
+            </div>
+
+            <div class="site-footer-col">
+                <h4>Bảng giá niêm yết</h4>
+                <div class="site-footer-links">
+                    <span>Tiêu chuẩn (<span data-cms="openTime">06:00</span> – <span data-cms="peakStart">17:00</span>): <strong style="color:var(--text-primary);" class="tabular-nums" data-cms-price="courtPrice" data-cms="courtPriceFormatted">120.000 đ/h</strong></span>
+                    <span>Giờ vàng (<span data-cms="peakStart">17:00</span> – <span data-cms="closeTime">22:00</span>): <strong style="color:var(--brand-primary-ink);" class="tabular-nums" data-cms-peak-total="true">150.000 đ/h</strong></span>
+                    <span>Phụ thu sân VIP: <strong style="color:var(--text-primary);" class="tabular-nums" data-cms="vipSurchargeFormatted">+20.000 đ/h</strong></span>
+                    <span>Giờ hoạt động: <strong style="color:var(--text-primary);" class="tabular-nums" data-cms="openHours">06:00 – 22:00</strong></span>
+                </div>
+            </div>
+
+            <div class="site-footer-col">
+                <h4>Liên hệ &amp; Demo</h4>
+                <div class="site-footer-links">
+                    <span style="display:inline-flex;align-items:flex-start;gap:7px;">
+                        <iconify-icon icon="lucide:map-pin" width="15" style="color:var(--brand-primary);margin-top:3px;flex-shrink:0;"></iconify-icon>
+                        <span data-cms="address">Khu Thảo Điền, TP. Thủ Đức, TP.HCM</span>
+                    </span>
+                    <span style="display:inline-flex;align-items:center;gap:7px;">
+                        <iconify-icon icon="lucide:phone" width="15" style="color:var(--brand-primary);flex-shrink:0;"></iconify-icon>
+                        <span>Hotline: <strong style="color:var(--text-primary);" class="tabular-nums" data-cms="hotline">0901 234 567</strong></span>
+                    </span>
+                    <span style="display:inline-flex;align-items:center;gap:7px;">
+                        <iconify-icon icon="lucide:mail" width="15" style="color:var(--brand-primary);flex-shrink:0;"></iconify-icon>
+                        <span>contact@spikepickleball.vn</span>
+                    </span>
+                    <div style="margin-top:6px;">
+                        <button type="button" class="spk-demo-reset-btn" onclick="SpikeDemo.resetDemoData()">
+                            <iconify-icon icon="lucide:rotate-ccw" width="13"></iconify-icon>
+                            <span>Khôi phục dữ liệu mẫu</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="site-footer-bottom">
+            <span>Phát triển bởi Phùng Đức Tài · Spike OS UI Preview (Dữ liệu mô phỏng, không kết nối máy chủ)</span>
+            <span>Spike Pickleball Club · Mặt sân Cushion 8 lớp &amp; Đặt sân mã QR định chuẩn</span>
+        </div>
+    </footer>
+
+    <button type="button"
+            id="spikeFloatingMascot"
+            class="spk-mascot-widget"
+            aria-label="Linh vật Spike OS"
+            title="Linh vật Spike OS"></button>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <script src="../assets/js/demo-engine.js"></script>
+    <script src="../assets/js/shared.js"></script>
+    <script src="../assets/js/mascot-assistant.js"></script>
+    <script src="../assets/js/menu.js"></script>
+</body>
+</html>

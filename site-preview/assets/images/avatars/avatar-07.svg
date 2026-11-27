@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="Kiko Kitty">
+  <defs>
+    <radialGradient id="bg07" cx="50%" cy="38%" r="72%">
+      <stop offset="0%" stop-color="#F4FCF5"/>
+      <stop offset="100%" stop-color="#D0F2D8"/>
+    </radialGradient>
+    <radialGradient id="catFur" cx="48%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="#FFFDF7"/>
+      <stop offset="72%" stop-color="#FFF2DC"/>
+      <stop offset="100%" stop-color="#F7DAB2"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="240" height="240" fill="url(#bg07)"/>
+  <circle cx="120" cy="126" r="88" fill="#FFFFFF" opacity="0.4"/>
+
+  <!-- Sporty Jersey Shoulders -->
+  <path d="M54 240 C58 186, 86 172, 120 172 C154 172, 182 186, 186 240 Z" fill="#2E8B57"/>
+  <path d="M92 174 Q120 198 148 174" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="120" cy="212" r="14" fill="#FFFFFF" opacity="0.16"/>
+
+  <!-- Pointy Kitty Ears -->
+  <path d="M71 92 L65 46 C80 48, 96 62, 102 78 Z" fill="#F4A261"/>
+  <path d="M74 86 L70 55 C82 58, 92 68, 96 78 Z" fill="#FFB5B5"/>
+  <path d="M169 92 L175 46 C160 48, 144 62, 138 78 Z" fill="#F4A261"/>
+  <path d="M166 86 L170 55 C158 58, 148 68, 144 78 Z" fill="#FFB5B5"/>
+
+  <!-- Round Kitty Head -->
+  <ellipse cx="120" cy="118" rx="52" ry="45" fill="url(#catFur)"/>
+  <!-- Warm Apricot Patch & Stripes -->
+  <path d="M98 74 C106 68, 134 68, 142 74 C136 86, 126 92, 120 92 C114 92, 104 86, 98 74 Z" fill="#F4A261" opacity="0.8"/>
+  <line x1="120" y1="73" x2="120" y2="87" stroke="#D97A3E" stroke-width="3" stroke-linecap="round"/>
+  <line x1="112" y1="75" x2="113" y2="85" stroke="#D97A3E" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="128" y1="75" x2="127" y2="85" stroke="#D97A3E" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Cute Whiskers -->
+  <g stroke="#B89B82" stroke-width="2" stroke-linecap="round">
+    <line x1="62" y1="118" x2="80" y2="120"/>
+    <line x1="61" y1="127" x2="80" y2="126"/>
+    <line x1="178" y1="118" x2="160" y2="120"/>
+    <line x1="179" y1="127" x2="160" y2="126"/>
+  </g>
+
+  <!-- Eyes (left bright eye + playful wink right eye!) -->
+  <circle cx="96" cy="115" r="7.5" fill="#1F2B23"/>
+  <circle cx="98.5" cy="112.5" r="2.8" fill="#FFFFFF"/>
+  <circle cx="94" cy="118" r="1.2" fill="#FFFFFF"/>
+  <path d="M135 117 Q144 109 152 117" fill="none" stroke="#1F2B23" stroke-width="3.6" stroke-linecap="round"/>
+
+  <!-- Cheeks, Pink Nose, :3 Mouth -->
+  <ellipse cx="82" cy="127" rx="8" ry="4.5" fill="#FF9E9E" opacity="0.5"/>
+  <ellipse cx="158" cy="127" rx="8" ry="4.5" fill="#FF9E9E" opacity="0.5"/>
+  <path d="M116 123 L124 123 L120 127 Z" fill="#FF8585"/>
+  <path d="M111 131 Q116 137 120 130 Q124 137 129 131" fill="none" stroke="#46342A" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Forest-green Scarf Bandana -->
+  <path d="M88 160 Q120 175 152 160 L146 176 Q120 189 94 176 Z" fill="#1B573A"/>
+  <path d="M104 168 L120 186 L136 168 Z" fill="#6BCB77"/>
+
+  <!-- Pickleball floating by cute raised paw -->
+  <g transform="translate(65 170)">
+    <circle cx="0" cy="0" r="16" fill="#C9F23B" stroke="#85B81A" stroke-width="2"/>
+    <circle cx="-5" cy="-5" r="2.4" fill="#7EA918"/>
+    <circle cx="5" cy="-4" r="2.4" fill="#7EA918"/>
+    <circle cx="0" cy="6" r="2.4" fill="#7EA918"/>
+    <circle cx="11" cy="12" r="11" fill="#FFF2DC" stroke="#F7DAB2" stroke-width="1.5"/>
+  </g>
+</svg>

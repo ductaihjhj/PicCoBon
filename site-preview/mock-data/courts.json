@@ -1,0 +1,56 @@
+{
+  "courts": [
+    {
+      "id": 1,
+      "name": "Sân VIP 01 (Arena A)",
+      "alias": "san-vip-01-arena-a",
+      "type": "Indoor",
+      "typeLabel": "Trong nhà · Mái vòm & Đèn LED Pro",
+      "surface": "Acrylic Cushion 8 lớp",
+      "imageUrl": "assets/images/court-vip-arena.png",
+      "basePrice": 120000,
+      "surcharge": 20000,
+      "description": "Sân mái vòm cách nhiệt tiêu chuẩn giải đấu, hệ thống đèn LED 1000 Lux chống lóa.",
+      "isActive": true
+    },
+    {
+      "id": 2,
+      "name": "Sân VIP 02 (Arena B)",
+      "alias": "san-vip-02-arena-b",
+      "type": "Indoor",
+      "typeLabel": "Trong nhà · Mái vòm & Đèn LED Pro",
+      "surface": "Acrylic Cushion 8 lớp",
+      "imageUrl": "assets/images/court-vip-arena.png",
+      "basePrice": 120000,
+      "surcharge": 20000,
+      "description": "Sân trong nhà thảm tiêu chuẩn USAPA, cách âm tốt, có khu nghỉ điều hòa riêng.",
+      "isActive": true
+    },
+    {
+      "id": 3,
+      "name": "Sân Tiêu Chuẩn 03",
+      "alias": "san-tieu-chuan-03",
+      "type": "Outdoor",
+      "typeLabel": "Ngoài trời · Khán đài thoáng mát",
+      "surface": "Acrylic Hard Court",
+      "imageUrl": "assets/images/hero-spike-pickleball.png",
+      "basePrice": 120000,
+      "surcharge": 0,
+      "description": "Sân ngoài trời không gian thoáng đãng, đèn pha cao áp thi đấu buổi tối.",
+      "isActive": true
+    },
+    {
+      "id": 4,
+      "name": "Sân Tiêu Chuẩn 04",
+      "alias": "san-tieu-chuan-04",
+      "type": "Outdoor",
+      "typeLabel": "Ngoài trời · Khán đài thoáng mát",
+      "surface": "Acrylic Hard Court",
+      "imageUrl": "assets/images/hero-spike-pickleball.png",
+      "basePrice": 120000,
+      "surcharge": 0,
+      "description": "Sân ngoài trời chuẩn luyện tập, ghép đôi và giao lưu hội viên hàng ngày.",
+      "isActive": true
+    }
+  ]
+}
